@@ -1,0 +1,20 @@
+﻿# Unreal build artifacts
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vscode/
+.vs/
+*.VC.db
+*.VC.opendb
+
+# Keep config tracked
+!Config/
+!Config/*.ini
+
+# Node (if you drop scripts/tools in)
+node_modules/
+
+# OS cruft
+.DS_Store
+Thumbs.db
