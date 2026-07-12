@@ -1,10 +1,16 @@
 ﻿# Unreal build artifacts
 Binaries/
+Build/
 DerivedDataCache/
 Intermediate/
 Saved/
 .vscode/
+.cursor/
 .vs/
+.codex/
+.gemini/
+.mcp.json
+tmp/
 *.VC.db
 *.VC.opendb
 
