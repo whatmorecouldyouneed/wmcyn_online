@@ -44,7 +44,7 @@
 - Do not place `/Game/AFCore/Blueprints/Widgets/Core/Input/Widget_Input_TextBox` in WMCYN Designer trees. In UE 5.8 its AFCore design-time theme/`AFCore_Border` preview path causes a repeatable Slate/UMGEditor access violation during Designer insertion or thumbnail/autosave generation.
 - Latest headset proof confirms the `Game Only` login gate receives controller clicks, selects both native fields, and types visible username/password text through the AFCore keyboard.
 - `WBP_WMCYN_LoginJoin` now routes both `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` through one WMCYN-owned `SubmitLogin` function. Successful submission closes the AFCore keyboard overlay, restores game input and locomotion, and destroys the owning world-space entry manager so the menu exits cleanly.
-- Headset logs confirm a successful submission stores the entered identity, closes the login gate, and returns control to the world. A separate keyboard-Enter-only regression check remains useful, but it no longer blocks presence work.
+- A headset regression test on 2026-07-13 confirms username and password selection, AFCore keyboard entry, login submission, identity storage, and login-gate closure all work. Field selection now compares the controller pointer against each field's exact geometry, checking password first, so stale username hover cannot steal password clicks.
 - The superseded access-code selector, presence-slot selector, spawn-marker relocation, and fallback pawn-spawn logic are removed from the active widget path.
 - `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal` owns replicated First Signal fields:
   - `Username`

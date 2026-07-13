@@ -31,7 +31,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Route `Enter World` and password keyboard Enter through one `SubmitLogin` path.
 - [x] Close the AFCore keyboard overlay and owning 3D entry manager after successful submission.
 - [x] Confirm a headset login submission stores identity, closes the menu, and restores world control.
-- [ ] Run a focused keyboard-Enter-only regression check.
+- [x] Run a focused VR login regression check covering both fields, keyboard controls, identity storage, and login-gate closure.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
 - [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
 - [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.

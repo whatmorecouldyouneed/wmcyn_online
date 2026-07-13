@@ -177,6 +177,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Headset testing confirms the existing AFCore runtime keyboard now selects and types into both native WMCYN username/password fields. Do not replace this path with a custom keyboard.
 - Keep one WMCYN-owned login submission path. `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` both call `SubmitLogin`.
 - A successful login must explicitly close the AFCore keyboard overlay and destroy the owning world-space entry manager after restoring game input and locomotion. `RemoveFromParent` alone is insufficient for a widget hosted by an actor `WidgetComponent`.
+- Resolve VR login field selection from the pointer event's screen position and each native field's cached geometry, with password checked before username. Do not use persistent `IsHovered` state to choose the target field because a stale virtual-user hover can redirect password clicks to username.
 - Use the inherited AFCore `NameTag` and `Comp_PlayerInfo_Basic` as the First Signal display-name path. Do not create a duplicate WMCYN nameplate.
 - Correct listen-server possession timing in the WMCYN child pawn with a delayed local-hidden/remote-visible refresh of the inherited AFCore NameTag. This is a WMCYN compatibility wrapper, not an AFCore asset change.
 - Assign presence slots on server authority with a GameMode-owned monotonic counter: `0 = StandaloneVR_A`, `1 = StandaloneVR_B`, and `2 = PCVR_Recording`.
