@@ -172,6 +172,12 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Keep the world-space VR login gate in `Game Only` input mode while separately ignoring locomotion input. AFCore's controller Select path must continue receiving trigger presses after an editable field gains virtual-user focus.
 - Give native WMCYN login fields explicit dark normal/focused/read-only foreground colors and placeholders; do not inherit AFCore's light parent foreground onto white field backgrounds.
 
+## 2026-07-13
+
+- Headset testing confirms the existing AFCore runtime keyboard now selects and types into both native WMCYN username/password fields. Do not replace this path with a custom keyboard.
+- Keep one WMCYN-owned login submission path. `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` both call `SubmitLogin`.
+- A successful login must explicitly close the AFCore keyboard overlay and destroy the owning world-space entry manager after restoring game input and locomotion. `RemoveFromParent` alone is insufficient for a widget hosted by an actor `WidgetComponent`.
+
 ## Open Decisions
 
 - Should the PCVR recording user remain on shared `BP_Pawn_VR_Char` with spectator/camera capability support, or switch to `BP_Pawn_VR_Camera` after PIE testing?

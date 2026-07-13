@@ -41,7 +41,9 @@
 - A second headset test proved keyboard hover but not press. The login manager had been using `Game and UI` input mode; once a native text box gained focus, that mode could consume the controller trigger before AFCore's laser Select path dispatched `PressPointerKey`. The login gate now stays in `Game Only` while movement remains locked, which preserves AFCore controller input and world-space widget interaction.
 - Username and password now use explicit near-black normal/focused/read-only text colors on the white field background. Their `Username` and `Password` hint text no longer inherits the white parent foreground.
 - Do not place `/Game/AFCore/Blueprints/Widgets/Core/Input/Widget_Input_TextBox` in WMCYN Designer trees. In UE 5.8 its AFCore design-time theme/`AFCore_Border` preview path causes a repeatable Slate/UMGEditor access violation during Designer insertion or thumbnail/autosave generation.
-- Latest headset proof confirmed the root-relative keyboard receives controller hover, but the prior `Game and UI` input mode did not deliver presses. A follow-up headset check must confirm the `Game Only` login gate receives key, Enter, and Close clicks and enters visible text in both native fields.
+- Latest headset proof confirms the `Game Only` login gate receives controller clicks, selects both native fields, and types visible username/password text through the AFCore keyboard.
+- `WBP_WMCYN_LoginJoin` now routes both `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` through one WMCYN-owned `SubmitLogin` function. Successful submission closes the AFCore keyboard overlay, restores game input and locomotion, and destroys the owning world-space entry manager so the menu exits cleanly.
+- The next headset check must confirm button submission and keyboard Enter both close the login gate and expose the entered AFCore NameTag.
 - The superseded access-code selector, presence-slot selector, spawn-marker relocation, and fallback pawn-spawn logic are removed from the active widget path.
 - `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal` owns replicated First Signal fields:
   - `Username`
@@ -93,7 +95,7 @@
 
 ## Next Gate
 
-1. Retest the lowered AFCore keyboard overlay in VR Preview: click/type into username and password, then confirm the local AFCore NameTag shows the entered display name.
+1. Retest login completion in VR Preview: enter username/password, submit once with `Enter World` and once with keyboard Enter, and confirm the menu closes, locomotion resumes, and the AFCore NameTag shows the entered display name.
 2. Run Quest user A and Quest user B in the same world runtime and prove replicated presence, names, locomotion, and two-way voice.
 3. Join with the PCVR recording user and prove both Quest users are visible and audible.
 4. Verify clean OBS video plus the intended hybrid audio workflow.

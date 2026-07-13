@@ -27,7 +27,10 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Move the keyboard fully beyond the login `Comp_Widget` hit-test rectangle using the root widget's lower edge.
 - [x] Keep the login gate in `Game Only` while movement is locked so AFCore receives controller Select presses after text focus.
 - [x] Set explicit dark text/hint colors for the white username and password fields.
-- [ ] Confirm in headset that keys, Enter, and Close receive controller clicks and that typing reaches both username and password.
+- [x] Confirm in headset that AFCore keyboard clicks type visible text into both username and password.
+- [x] Route `Enter World` and password keyboard Enter through one `SubmitLogin` path.
+- [x] Close the AFCore keyboard overlay and owning 3D entry manager after successful submission.
+- [ ] Confirm in headset that button and keyboard Enter both close the menu, restore locomotion, and expose the entered NameTag.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
 - [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
 - [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.
@@ -93,7 +96,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Retest the AFCore runtime keyboard in VR Preview, complete one local username/password login, and confirm the entered name appears on the inherited AFCore NameTag.
+1. Retest login completion in VR Preview with both `Enter World` and keyboard Enter; confirm the menu closes, locomotion resumes, and the inherited AFCore NameTag shows the entered name.
 2. Prove Quest A <-> Quest B replicated presence, names, locomotion, and two-way voice.
 3. Add the PCVR recording user and verify visibility, monitoring, and OBS capture.
 4. Add the first Verbatim marker.
