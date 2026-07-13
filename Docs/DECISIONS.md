@@ -152,14 +152,25 @@ This is the running decision log. Add concise dated entries when scope, architec
 
 - The VR Preview crash after the successful local mic proof was later determined to be unrelated to the WMCYN voice implementation and tied to a `DefaultEngine.ini` issue.
 - Restore the complete working WMCYN voice path instead of keeping voice parked.
-- Keep the implementation WMCYN-owned: `BP_WMCYN_VoiceRegistrationComponent` handles mic threshold, `CreateTalkerForPlayer`, `RegisterWithPlayerState`, hidden technical session creation, automatic `ToggleSpeaking 1`, and `online voice dump`.
+- Keep the implementation WMCYN-owned: `BP_WMCYN_VoiceRegistrationComponent` handles mic threshold, `CreateTalkerForPlayer`, `RegisterWithPlayerState`, hidden technical session creation, and automatic `ToggleSpeaking 1`.
 - Re-enable project voice config for the First Signal audio lane: `bHasVoiceEnabled=true`, `[Voice] bEnabled=true`, and `bAndroidVoiceEnabled=True`.
 - Continue treating the hidden technical session as internal Unreal voice plumbing only. The product model remains username/password login into the persistent WMCYN Crib world.
 - Keep `MaxLocalTalkers=1`. UE 5.8 defines `MAX_SPLITSCREEN_TALKERS` as one on Windows, and `FVoiceEngineImpl::Init` indexes its fixed local-talker array using the configured value. The previous value of four caused repeatable memory corruption and a VR Preview access violation during `OnlineSubsystemNull` voice startup. Each First Signal device has one local user; the other users belong in the remote-talker pool.
+- Close the standalone First Signal audio-capture lane: Oculus headset microphone capture, local talker registration, voice encoding, and speaking state have been proven in VR Preview.
+- Keep hybrid audio as the First Signal MVP plan: in-game voice provides world presence and reference audio; external/real microphones remain the backup and final clean recording path.
+- Remove automatic `online voice dump` calls from normal startup and keep `LogVoiceEngine` at `Error` by default. This suppresses the recurring single-user PIE packet/drop warnings; detailed voice dumps remain an explicit troubleshooting action.
+- Move active implementation to identity/nameplates. `WBP_WMCYN_LoginJoin` now uses only username, password, and Enter World; its old selector and marker-relocation path are no longer active.
+- On Enter World, submit the username through inherited `Comp_PlayerInfo_Basic.SetPlayerName`. Its existing server update and `Updated_PlayerName` dispatcher remain the networked name source.
+- `BP_WMCYN_PlayerState_FirstSignal` listens to `Updated_PlayerName` and, on server authority, mirrors `Username`, `DisplayName`, the current Quest-first `PresenceMode`, and temporary `Capabilities` into WMCYN-owned replicated fields.
+- Drive the existing AFCore NameTag from that same inherited player-name path; do not edit AFCore assets or create a second nameplate system unless it fails in a multi-user test.
+- Do not embed AFCore `Widget_Input_TextBox` in WMCYN UMG assets. Its UE 5.8 Designer/thumbnail path through `Widget_Base` design-time theming and `AFCore_Border` can crash Slate/UMGEditor.
+- Keep username and password as native Unreal `EditableTextBox` controls inside `WBP_WMCYN_LoginJoin`.
+- Reuse AFCore's runtime `BP_Overlay_Widget_Keyboard` and `Widget_Keyboard_US` through the WMCYN login widget's `Widget_Base` parent instead of rebuilding a keyboard or modifying AFCore.
+- Preserve the active controller's virtual-user text focus with AFCore `WidgetInteractionComponent.SetFocus`. Reuse one keyboard overlay while switching between username and password.
+- Position the keyboard below the selected field so the login panel does not overlap it or intercept the controller ray. Final headset interaction confirmation remains the next login gate.
 
 ## Open Decisions
 
-- Should WMCYN identity/presence/capability state live primarily in a PlayerState child, replicated component, or lightweight WMCYN manager?
 - Should the PCVR recording user remain on shared `BP_Pawn_VR_Char` with spectator/camera capability support, or switch to `BP_Pawn_VR_Camera` after PIE testing?
 - What exact payload should the first Verbatim marker log contain?
 - Where should First Signal world event logs be stored during early alpha: on-screen, local file, Unreal log, replicated event list, or a combination?

@@ -8,6 +8,8 @@ For First Signal, audio is a capability gate, not a polish pass.
 
 ## Current Project State
 
+Status: local headset audio capture passed on 2026-07-12. The standalone audio lane is closed; remaining audio checks are part of the integrated multi-user/OBS gate.
+
 - Project voice config is already partially enabled:
   - `[OnlineSubsystem] bHasVoiceEnabled=true`
   - `[Voice] bEnabled=true`
@@ -49,7 +51,7 @@ For First Signal, audio is a capability gate, not a polish pass.
 - After the headset mic proof, VR Preview began crashing on startup through `OnlineSubsystemUtils` / `OnlineSubsystemNull`. Source and crash-stack inspection later identified `MaxLocalTalkers=4` as the cause: UE 5.8 Windows has fixed storage for one local talker, so initialization wrote out of bounds. Config now uses `MaxLocalTalkers=1`, and the complete WMCYN voice component remains active.
 - The run also logged `No mapping context provided in the OpenXR Input project settings`; locomotion still works right now, but packaged Quest input should not depend on deprecated action/axis mappings forever. A WMCYN-only Enhanced Input push-to-talk context was tested as a default mapping context, but after restart it caused controller input to stop working because it did not include the full AFCore controller/locomotion action set. That global registration has been rolled back.
 
-Read: audio output and local Oculus microphone capture are proven. Startup must be retested after the one-local-talker correction; push-to-talk/open-mic behavior and user-to-user voice transmission are still unverified.
+Read: audio output, stable startup with one local talker, and local Oculus microphone capture are proven. Push-to-talk/open-mic product behavior and user-to-user transmission remain integrated world tests.
 
 ## First Signal Audio Direction
 
@@ -88,7 +90,8 @@ The desired user experience is:
 
 - Quest may need explicit microphone permission handling in the Android build.
 - `PushToTalk` now includes left and right Quest thumbstick click/hold via legacy input mappings, with left/right gamepad thumbstick fallbacks.
-- The voice registration component is currently fully parked. It does not register VOIPTalker or call Unreal voice/talker APIs. This pass should first prove VR Preview startup stability.
+- The voice registration component is active and local capture is proven. Automatic `online voice dump` calls are removed from the normal startup path.
+- `LogVoiceEngine=Error` keeps packet-by-packet capture output and recurring single-user PIE drop warnings out of ordinary logs; explicit dumps can still be requested during troubleshooting.
 - WMCYN-owned Enhanced Input assets exist but are parked until a full input migration is planned:
   - `/Game/WMCYN/Input/IA_WMCYN_PushToTalk`
   - `/Game/WMCYN/Input/IMC_WMCYN_FirstSignal_VR`
@@ -100,20 +103,16 @@ The desired user experience is:
 ## Implementation Steps
 
 1. Confirm the packaged Quest app requests/has microphone permission.
-2. Confirm local Quest microphone capture is possible.
-3. Restart Unreal and run VR Preview with WMCYN voice fully parked and project voice disabled.
-4. Confirm VR Preview no longer crashes on startup.
-5. If stable, keep voice parked while First Signal presence/spawn work continues, then design a safer delayed/manual voice activation path in a dedicated voice pass.
-6. Confirm push-to-talk behavior in headset, or switch to open mic plus mute if push-to-talk blocks natural conversation.
-7. Confirm Quest A can hear Quest B in the same world.
-8. Confirm Quest B can hear Quest A in the same world.
-9. Confirm PCVR recording user can hear both Quest users.
-10. Confirm OBS captures the intended audio path.
-11. Add a small WMCYN voice state surface:
+2. Confirm push-to-talk behavior in headset, or switch to open mic plus mute if push-to-talk blocks natural conversation.
+3. Confirm Quest A can hear Quest B in the same world.
+4. Confirm Quest B can hear Quest A in the same world.
+5. Confirm PCVR recording user can hear both Quest users.
+6. Confirm OBS captures the intended hybrid audio path.
+7. Add a small WMCYN voice state surface only if the integrated test shows it is needed:
    - muted/unmuted
    - speaking indicator
    - local mic permission/status
-12. Document the final recording workflow for First Signal.
+8. Document the final recording workflow for First Signal.
 
 ## Acceptance Gate
 

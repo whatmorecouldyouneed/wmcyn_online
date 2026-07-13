@@ -33,14 +33,22 @@
 
 ## Identity and Login
 
-- `/Game/WMCYN/UI/WBP_WMCYN_LoginJoin` visually presents username, password, and Enter World.
-- Its older prototype graph still needs to be connected cleanly to WMCYN identity and persistent-world entry.
+- `/Game/WMCYN/UI/WBP_WMCYN_LoginJoin` now contains only username, password, Enter World, and status UI in its active entry path.
+- `WBP_WMCYN_LoginJoin` keeps native Unreal `EditableTextBox` fields and inherits AFCore `Widget_Base` so it can reuse AFCore overlay plumbing without embedding AFCore's unstable input wrapper.
+- Selecting username or password spawns the existing AFCore `BP_Overlay_Widget_Keyboard` with `Widget_Keyboard_US`. The WMCYN wrapper stores one overlay instance, reuses it while switching fields, and explicitly focuses the selected field through AFCore's active `WidgetInteractionComponent` virtual user.
+- The keyboard spawn point is field-relative and has been moved below the login panel to prevent the login widget from overlapping/intercepting keyboard interaction.
+- Do not place `/Game/AFCore/Blueprints/Widgets/Core/Input/Widget_Input_TextBox` in WMCYN Designer trees. In UE 5.8 its AFCore design-time theme/`AFCore_Border` preview path causes a repeatable Slate/UMGEditor access violation during Designer insertion or thumbnail/autosave generation.
+- Latest headset proof confirmed the AFCore keyboard overlay spawned. A follow-up headset check must confirm the lowered/focused version is unobstructed, clickable, and enters text in both native fields.
+- The superseded access-code selector, presence-slot selector, spawn-marker relocation, and fallback pawn-spawn logic are removed from the active widget path.
 - `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal` owns replicated First Signal fields:
   - `Username`
   - `DisplayName`
   - `PresenceMode`
   - `Capabilities`
-- The inherited AFCore NameTag or a small WMCYN wrapper remains the preferred display-name path.
+- Successful entry sends the username through inherited AFCore `Comp_PlayerInfo_Basic.SetPlayerName`, which already performs the server name update and drives the world-space NameTag.
+- `BP_WMCYN_PlayerState_FirstSignal` binds to AFCore `Updated_PlayerName`; on authority it mirrors that value into `Username` and `DisplayName`, sets the current Quest-first `PresenceMode`, and stores `CanTriggerVerbatimMarker` as the temporary capability.
+- No AFCore asset was edited and no duplicate WMCYN nameplate was needed.
+- The next proof is a multi-user runtime test confirming remote clients receive the replicated identity and see the NameTag.
 
 ## Voice State
 
@@ -48,7 +56,7 @@
 - `[OnlineSubsystem]` uses `MaxLocalTalkers=1`, `MaxRemoteTalkers=8`, `VoiceNotificationDelta=0.200000`, and `bDuckingOptOut=true`.
 - `MaxLocalTalkers` must remain `1` on Windows UE 5.8. Windows compiles `MAX_SPLITSCREEN_TALKERS` as one; the previous value of four caused `FVoiceEngineImpl::Init` to write beyond its fixed local voice array and crash VR Preview during `OnlineSubsystemNull` startup.
 - `/Game/WMCYN/Pawns/BP_WMCYN_QuestUserPawn` owns `WMCYN_VOIPTalker`, attached to the inherited AFCore head path and using AFCore voice attenuation.
-- `/Game/WMCYN/Audio/BP_WMCYN_VoiceRegistrationComponent` is active and WMCYN-owned. It sets mic threshold, creates/registers the talker, creates the hidden technical OnlineSubsystem session, runs `ToggleSpeaking 1`, and requests `online voice dump`.
+- `/Game/WMCYN/Audio/BP_WMCYN_VoiceRegistrationComponent` is active and WMCYN-owned. It sets mic threshold, creates/registers the talker, creates the hidden technical OnlineSubsystem session, and runs `ToggleSpeaking 1`.
 - The hidden technical session is Unreal voice plumbing only. It does not change the persistent-world product model.
 - Latest VR Preview test passes:
   - no startup crash
@@ -59,8 +67,9 @@
   - TALKING event fired
   - repeated non-zero compressed Oculus microphone packets flowed
 - The initial `StartLocalProcessing(0) returned 0xFFFFFFFF` happens before local talker registration; the automatic post-registration call succeeds.
-- `Invalid user specified in RegisterLocalTalker(1..3)` is harmless extra-slot diagnostic noise. First Signal uses one local user per device.
-- Local headset microphone capture is proven. Quest-to-Quest hearing, PCVR monitoring, OBS audio capture, and packaged Quest microphone permission remain unproven.
+- Automatic `online voice dump` diagnostics were removed from normal startup, and `LogVoiceEngine=Error` suppresses per-frame packets plus recurring single-user PIE drop warnings while preserving errors and failures.
+- Local headset microphone capture is proven, so the standalone audio-capture lane is closed. Quest-to-Quest hearing, PCVR monitoring, OBS audio capture, and packaged Quest microphone permission remain part of the integrated three-user test.
+- First Signal keeps a hybrid audio plan: in-game voice for world presence/reference, with external/real microphones as backup and the final clean recording source.
 
 ## Input and Avatar Notes
 
@@ -74,17 +83,15 @@
 - Editor toolsets expose actor, scene, asset, Blueprint, object, material, and related inspection/editing capabilities.
 - Inspect before mutating, and do not modify maps/assets unless the active task authorizes it.
 
-## Operational Blocker
+## Storage
 
-- `C:` reached zero free bytes during the latest run.
-- Zen Local DDC returned HTTP `507 Insufficient Storage`.
-- Old generated crash reports and an unused temporary WMCYN voice autosave copy were removed to recover minimal working space; no project or AFCore assets were deleted.
-- Free or relocate substantial storage before packaging, cooking, shader/texture cache growth, or sustained editor work.
+- The earlier zero-space / Zen DDC `507` blocker is cleared. `C:` currently has roughly 415 GB free.
+- Recheck free space before large Quest/Windows cooks, but storage is not the active implementation blocker.
 
 ## Next Gate
 
-1. Free disk space and confirm Zen DDC writes normally.
-2. Run Quest user A and Quest user B in the same networked world runtime and prove two-way voice/presence.
+1. Retest the lowered AFCore keyboard overlay in VR Preview: click/type into username and password, then confirm the local AFCore NameTag shows the entered display name.
+2. Run Quest user A and Quest user B in the same world runtime and prove replicated presence, names, locomotion, and two-way voice.
 3. Join with the PCVR recording user and prove both Quest users are visible and audible.
-4. Verify OBS capture.
-5. Then connect login identity/nameplate and implement one Verbatim marker.
+4. Verify clean OBS video plus the intended hybrid audio workflow.
+5. Add one structured Verbatim marker with Unreal-log and debug confirmation.

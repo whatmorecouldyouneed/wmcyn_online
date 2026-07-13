@@ -21,11 +21,16 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 ## Login and Identity
 
 - [x] Reduce the visible login screen to username, password, and Enter World.
+- [x] Keep username/password on stable native Unreal `EditableTextBox` controls.
+- [x] Wire the native fields to the existing AFCore runtime keyboard overlay without editing AFCore.
+- [x] Preserve the active AFCore `WidgetInteractionComponent` virtual-user focus when opening or switching login fields.
+- [x] Move the keyboard spawn point below the login panel to avoid overlap and ray interception.
+- [ ] Confirm in headset that the lowered keyboard is clickable and types into both username and password.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
-- [ ] Remove superseded access-code/session-selection logic from the login graph.
-- [ ] Write successful login values into the WMCYN PlayerState.
-- [ ] Enter the persistent Crib world after login without a user-facing session picker.
-- [ ] Drive the inherited AFCore NameTag or a small WMCYN nameplate from `DisplayName`.
+- [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
+- [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.
+- [x] Enter the persistent Crib world after login without a user-facing session picker.
+- [x] Drive the inherited AFCore NameTag from `DisplayName` through `Comp_PlayerInfo_Basic`.
 - [ ] Confirm remote users see replicated identity/nameplate state.
 
 ## Voice Validation
@@ -42,6 +47,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Confirm local talker `0` is registered, networked, recording, and talking.
 - [x] Confirm `StartLocalProcessing(0) returned 0x00000000` after registration.
 - [x] Confirm repeated non-zero compressed Oculus microphone frames flow.
+- [x] Close the standalone capture lane and retain hybrid audio: in-game voice for presence/reference, external mics for backup/final clean recording.
+- [x] Remove automatic voice-dump startup spam and suppress per-frame `LogVoiceEngine` packet logging by default.
 - [ ] Decide First Signal open mic plus mute versus push-to-talk.
 - [ ] Confirm Quest user A hears Quest user B.
 - [ ] Confirm Quest user B hears Quest user A.
@@ -75,8 +82,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Build Pipeline
 
-- [ ] Recover substantial free disk space before cooking or packaging.
-- [ ] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage`.
+- [x] Recover substantial free disk space before cooking or packaging.
+- [ ] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during the next sustained cook/cache run.
 - [ ] Package the standalone Quest build.
 - [ ] Sideload to both headsets.
 - [ ] Package the Windows PCVR recording build.
@@ -84,11 +91,10 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Free more disk space and verify DDC stability.
-2. Prove Quest A <-> Quest B voice and replicated presence.
-3. Add the PCVR recording user and verify OBS capture.
-4. Connect login identity and nameplates.
-5. Add the first Verbatim marker.
+1. Retest the AFCore runtime keyboard in VR Preview, complete one local username/password login, and confirm the entered name appears on the inherited AFCore NameTag.
+2. Prove Quest A <-> Quest B replicated presence, names, locomotion, and two-way voice.
+3. Add the PCVR recording user and verify visibility, monitoring, and OBS capture.
+4. Add the first Verbatim marker.
 
 ## Out of Scope
 
