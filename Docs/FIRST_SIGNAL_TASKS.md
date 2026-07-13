@@ -24,8 +24,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Keep username/password on stable native Unreal `EditableTextBox` controls.
 - [x] Wire the native fields to the existing AFCore runtime keyboard overlay without editing AFCore.
 - [x] Preserve the active AFCore `WidgetInteractionComponent` virtual-user focus when opening or switching login fields.
-- [x] Move the keyboard spawn point below the login panel to avoid overlap and ray interception.
-- [ ] Confirm in headset that the lowered keyboard is clickable and types into both username and password.
+- [x] Move the keyboard fully beyond the login `Comp_Widget` hit-test rectangle using the root widget's lower edge.
+- [ ] Confirm in headset that keys, Enter, and Close receive controller clicks and that typing reaches both username and password.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
 - [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
 - [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.

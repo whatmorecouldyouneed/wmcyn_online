@@ -36,9 +36,10 @@
 - `/Game/WMCYN/UI/WBP_WMCYN_LoginJoin` now contains only username, password, Enter World, and status UI in its active entry path.
 - `WBP_WMCYN_LoginJoin` keeps native Unreal `EditableTextBox` fields and inherits AFCore `Widget_Base` so it can reuse AFCore overlay plumbing without embedding AFCore's unstable input wrapper.
 - Selecting username or password spawns the existing AFCore `BP_Overlay_Widget_Keyboard` with `Widget_Keyboard_US`. The WMCYN wrapper stores one overlay instance, reuses it while switching fields, and explicitly focuses the selected field through AFCore's active `WidgetInteractionComponent` virtual user.
-- The keyboard spawn point is field-relative and has been moved below the login panel to prevent the login widget from overlapping/intercepting keyboard interaction.
+- Headset testing showed that the first lowered keyboard was visible but non-interactive: it remained coplanar with and partly inside the login `Comp_Widget` component's invisible 1600x1000 hit-test rectangle, so the login panel won the controller trace before the keyboard.
+- The keyboard now uses the login root geometry and AFCore's canonical below-widget placement rule (`X=0.5`, `Y=1.05`, top pivot). This puts the keyboard fully beyond the login component's bottom collision edge while retaining the AFCore overlay, keyboard layout, source `WidgetInteractionComponent`, and selected-field focus.
 - Do not place `/Game/AFCore/Blueprints/Widgets/Core/Input/Widget_Input_TextBox` in WMCYN Designer trees. In UE 5.8 its AFCore design-time theme/`AFCore_Border` preview path causes a repeatable Slate/UMGEditor access violation during Designer insertion or thumbnail/autosave generation.
-- Latest headset proof confirmed the AFCore keyboard overlay spawned. A follow-up headset check must confirm the lowered/focused version is unobstructed, clickable, and enters text in both native fields.
+- Latest headset proof confirmed the AFCore keyboard overlay spawned, but the prior field-relative version did not receive controller clicks. A follow-up headset check must confirm the root-relative version receives key, Enter, and Close clicks and enters text in both native fields.
 - The superseded access-code selector, presence-slot selector, spawn-marker relocation, and fallback pawn-spawn logic are removed from the active widget path.
 - `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal` owns replicated First Signal fields:
   - `Username`

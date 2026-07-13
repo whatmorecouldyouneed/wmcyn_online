@@ -167,7 +167,8 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Keep username and password as native Unreal `EditableTextBox` controls inside `WBP_WMCYN_LoginJoin`.
 - Reuse AFCore's runtime `BP_Overlay_Widget_Keyboard` and `Widget_Keyboard_US` through the WMCYN login widget's `Widget_Base` parent instead of rebuilding a keyboard or modifying AFCore.
 - Preserve the active controller's virtual-user text focus with AFCore `WidgetInteractionComponent.SetFocus`. Reuse one keyboard overlay while switching between username and password.
-- Position the keyboard below the selected field so the login panel does not overlap it or intercept the controller ray. Final headset interaction confirmation remains the next login gate.
+- Spawn the keyboard from the login root's lower edge, not from a field-relative point. The keyboard must sit fully beyond the parent `Comp_Widget` collision rectangle; a merely visible/coplanar overlay can still lose every controller trace to the login panel.
+- Keep AFCore `BP_Overlay_Widget_Keyboard`, `Widget_Keyboard_US`, and the source `WidgetInteractionComponent`; the hit-plane correction belongs in the WMCYN wrapper. Final headset interaction confirmation remains the next login gate.
 
 ## Open Decisions
 
