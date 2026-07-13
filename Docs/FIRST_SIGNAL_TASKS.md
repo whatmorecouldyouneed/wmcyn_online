@@ -30,13 +30,15 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Confirm in headset that AFCore keyboard clicks type visible text into both username and password.
 - [x] Route `Enter World` and password keyboard Enter through one `SubmitLogin` path.
 - [x] Close the AFCore keyboard overlay and owning 3D entry manager after successful submission.
-- [ ] Confirm in headset that button and keyboard Enter both close the menu, restore locomotion, and expose the entered NameTag.
+- [x] Confirm a headset login submission stores identity, closes the menu, and restores world control.
+- [ ] Run a focused keyboard-Enter-only regression check.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
 - [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
 - [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.
 - [x] Enter the persistent Crib world after login without a user-facing session picker.
 - [x] Drive the inherited AFCore NameTag from `DisplayName` through `Comp_PlayerInfo_Basic`.
-- [ ] Confirm remote users see replicated identity/nameplate state.
+- [x] Confirm three-client PIE receives replicated identity state and shows both remote AFCore NameTags on each client.
+- [ ] Confirm the same NameTag behavior with distinct login names on the physical three-device run.
 
 ## Voice Validation
 
@@ -54,6 +56,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Confirm repeated non-zero compressed Oculus microphone frames flow.
 - [x] Close the standalone capture lane and retain hybrid audio: in-game voice for presence/reference, external mics for backup/final clean recording.
 - [x] Remove automatic voice-dump startup spam and suppress per-frame `LogVoiceEngine` packet logging by default.
+- [x] Bind each replicated pawn's VOIPTalker to its own PlayerState while limiting capture/session setup to the locally controlled pawn.
+- [x] Confirm one local capture path per world in three-client PIE without new invalid PlayerState/session warnings.
 - [ ] Decide First Signal open mic plus mute versus push-to-talk.
 - [ ] Confirm Quest user A hears Quest user B.
 - [ ] Confirm Quest user B hears Quest user A.
@@ -65,6 +69,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 ## Multiplayer Presence
 
 - [ ] Select the real persistent-world networking/backend path beyond local `OnlineSubsystemNull` validation.
+- [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
+- [x] Confirm the three server-authoritative pawn transforms remain separated at the three indexed spawn markers.
+- [x] Confirm each client hides its own AFCore NameTag and renders both remote AFCore NameTags.
 - [ ] Run two standalone VR users in the same Crib runtime.
 - [ ] Confirm each user sees the other's head/controller/hand presence.
 - [ ] Confirm locomotion replicates acceptably.
@@ -73,7 +80,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## PCVR and OBS
 
-- [ ] Keep PCVR on the shared AFCore VR pawn family unless capture proves it insufficient.
+- [x] Keep PCVR on the shared AFCore VR pawn family unless capture proves it insufficient.
+- [x] Assign local PIE slot `2` the replicated `PCVR` mode and `Recording` plus `CanTriggerVerbatimMarker` capabilities.
 - [ ] Inspect `BP_Pawn_VR_Camera` only if the shared pawn cannot support clean capture.
 - [ ] Establish an OBS-friendly spectator/camera output.
 - [ ] Confirm framing, stable output, and usable audio/video capture.
@@ -96,9 +104,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Retest login completion in VR Preview with both `Enter World` and keyboard Enter; confirm the menu closes, locomotion resumes, and the inherited AFCore NameTag shows the entered name.
-2. Prove Quest A <-> Quest B replicated presence, names, locomotion, and two-way voice.
-3. Add the PCVR recording user and verify visibility, monitoring, and OBS capture.
+1. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
+2. Select and implement the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
+3. Close Quest A <-> Quest B voice and PCVR monitoring/OBS checks with hardware evidence.
 4. Add the first Verbatim marker.
 
 ## Out of Scope

@@ -19,14 +19,15 @@
 
 - `/Game/WMCYN/Pawns/BP_WMCYN_QuestUserPawn` is the active First Signal VR pawn. It is a WMCYN-owned child of `/Game/AFCore/Blueprints/Pawn/VR/BP_Pawn_VR_Char`.
 - `/Game/WMCYN/Core/BP_WMCYN_GameMode_FirstSignal` is active in `L_WMCYNOnline`.
-- `/Game/WMCYN/Core/BP_WMCYN_PlayerController_FirstSignal` forces the VR pawn path and syncs the spawned pawn into AFCore's `playingPawn` reference.
+- `/Game/WMCYN/Core/BP_WMCYN_PlayerController_FirstSignal` forces the VR pawn path, syncs the spawned pawn into AFCore's `playingPawn` reference, and assigns indexed presence slots on authority.
+- `/Game/WMCYN/Core/BP_WMCYN_GameMode_FirstSignal` owns the runtime presence counter. Local three-client PIE assigns `StandaloneVR_A = 0`, `StandaloneVR_B = 1`, and `PCVR_Recording = 2` without overlap.
 - `/Game/WMCYN/Data/DA_WMCYN_FirstSignal_Level` points at `L_WMCYNOnline` and selects `BP_WMCYN_QuestUserPawn` as the default VR pawn.
 - Spawn markers remain:
   - `SPAWN_FirstSignal_StandaloneVR_A`
   - `SPAWN_FirstSignal_StandaloneVR_B`
   - `SPAWN_FirstSignal_PCVR_Recording`
 - `PLAYERSTART_FirstSignal_Default` provides deterministic local VR Preview entry at StandaloneVR_A.
-- `/Game/WMCYN/Core/BP_WMCYN_VRPreviewStabilizer` sets LocalFloor tracking, resets HMD orientation/position, and snaps the local test pawn to StandaloneVR_A.
+- `/Game/WMCYN/Core/BP_WMCYN_VRPreviewStabilizer` sets LocalFloor tracking and resets local HMD orientation/position. Its spawn correction is authority-only so network clients do not overwrite the server-assigned slot before PlayerState replication arrives.
 - Hardware VR Preview confirms locomotion, headset tracking, controllers/hands, and the active Crib floor path work without the old floor guard.
 - Imported Crib collision currently uses repaired complex-as-simple collision on the relevant floor components. `Plane_003` / `/Game/Environments/WMCYN_Crib/Scene_058` is the verified active walkable floor near spawn.
 - Jared MetaHuman assets are outside the active First Signal path. Basic AFCore/default VR presence is the accepted avatar baseline.
@@ -43,7 +44,7 @@
 - Do not place `/Game/AFCore/Blueprints/Widgets/Core/Input/Widget_Input_TextBox` in WMCYN Designer trees. In UE 5.8 its AFCore design-time theme/`AFCore_Border` preview path causes a repeatable Slate/UMGEditor access violation during Designer insertion or thumbnail/autosave generation.
 - Latest headset proof confirms the `Game Only` login gate receives controller clicks, selects both native fields, and types visible username/password text through the AFCore keyboard.
 - `WBP_WMCYN_LoginJoin` now routes both `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` through one WMCYN-owned `SubmitLogin` function. Successful submission closes the AFCore keyboard overlay, restores game input and locomotion, and destroys the owning world-space entry manager so the menu exits cleanly.
-- The next headset check must confirm button submission and keyboard Enter both close the login gate and expose the entered AFCore NameTag.
+- Headset logs confirm a successful submission stores the entered identity, closes the login gate, and returns control to the world. A separate keyboard-Enter-only regression check remains useful, but it no longer blocks presence work.
 - The superseded access-code selector, presence-slot selector, spawn-marker relocation, and fallback pawn-spawn logic are removed from the active widget path.
 - `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal` owns replicated First Signal fields:
   - `Username`
@@ -53,7 +54,8 @@
 - Successful entry sends the username through inherited AFCore `Comp_PlayerInfo_Basic.SetPlayerName`, which already performs the server name update and drives the world-space NameTag.
 - `BP_WMCYN_PlayerState_FirstSignal` binds to AFCore `Updated_PlayerName`; on authority it mirrors that value into `Username` and `DisplayName`, sets the current Quest-first `PresenceMode`, and stores `CanTriggerVerbatimMarker` as the temporary capability.
 - No AFCore asset was edited and no duplicate WMCYN nameplate was needed.
-- The next proof is a multi-user runtime test confirming remote clients receive the replicated identity and see the NameTag.
+- `BP_WMCYN_QuestUserPawn` applies one delayed WMCYN-owned visibility refresh after possession/replication settles. It still renders AFCore `Widget_NameTag` from AFCore `Comp_PlayerInfo_Basic`; the refresh only enforces local-hidden and remote-visible state on each machine.
+- Three-client PIE confirms each local pawn hides its own label while both remote AFCore NameTags remain visible. All three PlayerStates carry replicated identity fields; the automated run used AFCore's default `AP-1743` name because no manual login was entered in the extra PIE windows.
 
 ## Voice State
 
@@ -61,7 +63,7 @@
 - `[OnlineSubsystem]` uses `MaxLocalTalkers=1`, `MaxRemoteTalkers=8`, `VoiceNotificationDelta=0.200000`, and `bDuckingOptOut=true`.
 - `MaxLocalTalkers` must remain `1` on Windows UE 5.8. Windows compiles `MAX_SPLITSCREEN_TALKERS` as one; the previous value of four caused `FVoiceEngineImpl::Init` to write beyond its fixed local voice array and crash VR Preview during `OnlineSubsystemNull` startup.
 - `/Game/WMCYN/Pawns/BP_WMCYN_QuestUserPawn` owns `WMCYN_VOIPTalker`, attached to the inherited AFCore head path and using AFCore voice attenuation.
-- `/Game/WMCYN/Audio/BP_WMCYN_VoiceRegistrationComponent` is active and WMCYN-owned. It sets mic threshold, creates/registers the talker, creates the hidden technical OnlineSubsystem session, and runs `ToggleSpeaking 1`.
+- `/Game/WMCYN/Audio/BP_WMCYN_VoiceRegistrationComponent` is active and WMCYN-owned. After the same two-second replication settle used by AFCore NameTag, each pawn's talker registers with that pawn's own PlayerState. Hidden technical session creation, mic setup, and `ToggleSpeaking 1` run only for the locally controlled pawn.
 - The hidden technical session is Unreal voice plumbing only. It does not change the persistent-world product model.
 - Latest VR Preview test passes:
   - no startup crash
@@ -74,6 +76,7 @@
 - The initial `StartLocalProcessing(0) returned 0xFFFFFFFF` happens before local talker registration; the automatic post-registration call succeeds.
 - Automatic `online voice dump` diagnostics were removed from normal startup, and `LogVoiceEngine=Error` suppresses per-frame packets plus recurring single-user PIE drop warnings while preserving errors and failures.
 - Local headset microphone capture is proven, so the standalone audio-capture lane is closed. Quest-to-Quest hearing, PCVR monitoring, OBS audio capture, and packaged Quest microphone permission remain part of the integrated three-user test.
+- Three-client PIE now produces exactly one `WMCYN Voice: local capture active` path per world and no new invalid-PlayerState/session warnings. This validates ownership and registration flow, not acoustic user-to-user hearing on separate hardware.
 - First Signal keeps a hybrid audio plan: in-game voice for world presence/reference, with external/real microphones as backup and the final clean recording source.
 
 ## Input and Avatar Notes
@@ -95,8 +98,8 @@
 
 ## Next Gate
 
-1. Retest login completion in VR Preview: enter username/password, submit once with `Enter World` and once with keyboard Enter, and confirm the menu closes, locomotion resumes, and the AFCore NameTag shows the entered display name.
-2. Run Quest user A and Quest user B in the same world runtime and prove replicated presence, names, locomotion, and two-way voice.
-3. Join with the PCVR recording user and prove both Quest users are visible and audible.
-4. Verify clean OBS video plus the intended hybrid audio workflow.
+1. Run the physical three-device checklist in `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` with distinct login names.
+2. Prove Quest user A and Quest user B see moving head/controller presence and hear each other.
+3. Prove the PCVR recording user sees both names/presences, monitors both voices, and yields a clean OBS frame and audio reference.
+4. Select the post-local networking path needed for packaged devices to enter the same persistent world runtime.
 5. Add one structured Verbatim marker with Unreal-log and debug confirmation.

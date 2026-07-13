@@ -177,10 +177,16 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Headset testing confirms the existing AFCore runtime keyboard now selects and types into both native WMCYN username/password fields. Do not replace this path with a custom keyboard.
 - Keep one WMCYN-owned login submission path. `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` both call `SubmitLogin`.
 - A successful login must explicitly close the AFCore keyboard overlay and destroy the owning world-space entry manager after restoring game input and locomotion. `RemoveFromParent` alone is insufficient for a widget hosted by an actor `WidgetComponent`.
+- Use the inherited AFCore `NameTag` and `Comp_PlayerInfo_Basic` as the First Signal display-name path. Do not create a duplicate WMCYN nameplate.
+- Correct listen-server possession timing in the WMCYN child pawn with a delayed local-hidden/remote-visible refresh of the inherited AFCore NameTag. This is a WMCYN compatibility wrapper, not an AFCore asset change.
+- Assign presence slots on server authority with a GameMode-owned monotonic counter: `0 = StandaloneVR_A`, `1 = StandaloneVR_B`, and `2 = PCVR_Recording`.
+- Keep `BP_WMCYN_VRPreviewStabilizer` spawn correction authority-only. Network clients must accept the indexed server spawn instead of snapping themselves before PlayerState replication arrives.
+- Register every replicated pawn's `VOIPTalker` with that pawn's own PlayerState, but run local session creation, microphone setup, and speaking activation only for the locally controlled pawn.
+- Keep the PCVR recording user on the shared AFCore VR pawn family until an actual OBS/capture test proves it insufficient; inspect `BP_Pawn_VR_Camera` only after that failure.
+- A three-client listen-server PIE run is the current desktop proof for indexed presence, replicated WMCYN metadata, AFCore remote NameTags, and per-world local voice ownership. It does not close the separate-device Quest-to-Quest hearing or OBS acceptance gates.
 
 ## Open Decisions
 
-- Should the PCVR recording user remain on shared `BP_Pawn_VR_Char` with spectator/camera capability support, or switch to `BP_Pawn_VR_Camera` after PIE testing?
 - What exact payload should the first Verbatim marker log contain?
 - Where should First Signal world event logs be stored during early alpha: on-screen, local file, Unreal log, replicated event list, or a combination?
 - Should First Signal in-game voice use push-to-talk or open mic plus mute?
