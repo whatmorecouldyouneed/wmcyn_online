@@ -169,6 +169,8 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Preserve the active controller's virtual-user text focus with AFCore `WidgetInteractionComponent.SetFocus`. Reuse one keyboard overlay while switching between username and password.
 - Spawn the keyboard from the login root's lower edge, not from a field-relative point. The keyboard must sit fully beyond the parent `Comp_Widget` collision rectangle; a merely visible/coplanar overlay can still lose every controller trace to the login panel.
 - Keep AFCore `BP_Overlay_Widget_Keyboard`, `Widget_Keyboard_US`, and the source `WidgetInteractionComponent`; the hit-plane correction belongs in the WMCYN wrapper. Final headset interaction confirmation remains the next login gate.
+- Keep the world-space VR login gate in `Game Only` input mode while separately ignoring locomotion input. AFCore's controller Select path must continue receiving trigger presses after an editable field gains virtual-user focus.
+- Give native WMCYN login fields explicit dark normal/focused/read-only foreground colors and placeholders; do not inherit AFCore's light parent foreground onto white field backgrounds.
 
 ## Open Decisions
 
