@@ -107,22 +107,40 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
 
     if (PreferredWidgetInteraction && OwnerCharacter)
     {
-        USkeletalMeshComponent* BodyMesh = OwnerCharacter->GetMesh();
-        if (BodyMesh && BodyMesh->GetBoneIndex(TEXT("index_03_r")) != INDEX_NONE)
+        UMotionControllerComponent* RightAimAnchor = nullptr;
+        TArray<UMotionControllerComponent*> MotionControllers;
+        Owner->GetComponents(MotionControllers);
+        for (UMotionControllerComponent* MotionController : MotionControllers)
+        {
+            if (MotionController &&
+                (MotionController->GetName().Equals(TEXT("RightAim"), ESearchCase::IgnoreCase) ||
+                 MotionController->GetTrackingMotionSource().ToString().Equals(TEXT("RightAim"), ESearchCase::IgnoreCase)))
+            {
+                RightAimAnchor = MotionController;
+                break;
+            }
+        }
+
+        if (RightAimAnchor)
         {
             PreferredWidgetInteraction->AttachToComponent(
-                BodyMesh,
-                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-                TEXT("index_03_r"));
-            PreferredWidgetInteraction->SetRelativeLocation(FVector(2.0f, 0.0f, 0.0f));
-            PreferredWidgetInteraction->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
-
-            if (BodyMesh->GetBoneIndex(TEXT("hand_r")) != INDEX_NONE)
+                RightAimAnchor,
+                FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+            PreferredWidgetInteraction->SetRelativeLocationAndRotation(
+                FVector::ZeroVector,
+                FRotator::ZeroRotator);
+        }
+        else
+        {
+            USkeletalMeshComponent* BodyMesh = OwnerCharacter->GetMesh();
+            if (BodyMesh && BodyMesh->GetBoneIndex(TEXT("index_03_r")) != INDEX_NONE)
             {
                 PreferredWidgetInteraction->AttachToComponent(
                     BodyMesh,
-                    FAttachmentTransformRules::KeepWorldTransform,
-                    TEXT("hand_r"));
+                    FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                    TEXT("index_03_r"));
+                PreferredWidgetInteraction->SetRelativeLocation(FVector(2.0f, 0.0f, 0.0f));
+                PreferredWidgetInteraction->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
             }
         }
 
@@ -213,6 +231,7 @@ void UWMCYNFirstSignalPresenceComponent::CompleteLocalLoginGate()
     }
 
     bLoginGateLockApplied = false;
+    RefreshNameplate();
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: locomotion and stick turning unlocked"));
 }
 
@@ -585,7 +604,7 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
     const APlayerState* PlayerState = OwnerCharacter->GetPlayerState();
     const FString DisplayName = ResolveDisplayName(PlayerState);
     Nameplate->SetText(FText::FromString(DisplayName.IsEmpty() ? TEXT("WMCYN User") : DisplayName));
-    Nameplate->SetVisibility(!OwnerCharacter->IsLocallyControlled());
+    Nameplate->SetVisibility(bLoginGateCompleted || !OwnerCharacter->IsLocallyControlled());
 }
 
 FString UWMCYNFirstSignalPresenceComponent::ResolveDisplayName(const APlayerState* PlayerState) const

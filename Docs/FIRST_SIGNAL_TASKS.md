@@ -25,9 +25,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Wire the native fields to the existing AFCore runtime keyboard overlay without editing AFCore.
 - [x] Preserve the active AFCore `WidgetInteractionComponent` virtual-user focus when opening or switching login fields.
 - [x] Separate keyboard text focus from pointer clicks with a WMCYN-owned, hit-testing-disabled interaction on its own virtual user.
-- [x] Align the thin cyan right-hand interaction ray at Manny's fingertip, stabilize it on `hand_r` so trigger animation cannot disturb clicks, show it throughout the login gate, and hide it after successful login.
+- [x] Drive the thin cyan login ray from the tracked `RightAim` controller pose so it points naturally forward and is independent of hand/finger animation.
 - [x] Lock locomotion and stick turning in the WMCYN native-pawn adapter until successful identity submission while preserving headset/controller tracking.
-- [ ] Reconfirm continuous username/password typing, keyboard Enter, keyboard Close, contextual fingertip ray placement, and Enter World movement unlock in the production native pawn headset path.
+- [ ] Reconfirm continuous username/password typing, keyboard Enter/Close, controller-forward `RightAim` placement, mirror nameplate visibility, and Enter World movement unlock in the production native pawn headset path.
 - [x] Move the keyboard fully beyond the login `Comp_Widget` hit-test rectangle using the root widget's lower edge.
 - [x] Keep the login gate in `Game Only` while movement is locked so AFCore receives controller Select presses after text focus.
 - [x] Set explicit dark text/hint colors for the white username and password fields.
@@ -117,7 +117,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Audit the active controller, login, voice, NameTag, and replication dependencies before switching the main map.
 - [x] Add generic indexed spawn/possession support for `BP_WMCYN_UserPawn_FirstSignal` without AFCore pawn casts.
 - [x] Connect login submission to server-owned `Username` and `DisplayName` through the native pawn adapter.
-- [x] Add a WMCYN-owned VOIPTalker/registration adapter and remote-only nameplate to the native pawn.
+- [x] Add a WMCYN-owned VOIPTalker/registration adapter and a nameplate visible to remote users and the local avatar mirror after login.
 - [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
 - [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
 - [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.
