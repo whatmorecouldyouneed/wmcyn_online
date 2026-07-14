@@ -159,7 +159,7 @@ void UWMCYNFirstSignalPresenceComponent::UpdateWidgetInteractionPresentation()
     }
 
     const bool bShowContextRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
-        PreferredWidgetInteraction->GetHoveredWidgetComponent() != nullptr;
+        !bLoginGateCompleted;
     PreferredWidgetInteraction->bShowDebug = bShowContextRay;
 }
 
