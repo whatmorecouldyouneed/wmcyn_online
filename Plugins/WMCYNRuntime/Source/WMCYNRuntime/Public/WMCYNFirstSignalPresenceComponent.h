@@ -11,6 +11,7 @@ class UMotionControllerComponent;
 class USceneComponent;
 class UTextRenderComponent;
 class UVOIPTalker;
+class UWidgetInteractionComponent;
 
 UCLASS(ClassGroup = (WMCYN), meta = (BlueprintSpawnableComponent))
 class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorComponent
@@ -27,6 +28,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Identity")
     void SubmitIdentity(const FString& Username, const FString& DisplayName);
+
+    UWidgetInteractionComponent* GetPreferredWidgetInteraction() const;
 
 protected:
     UFUNCTION(Server, Unreliable)
@@ -105,6 +108,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UVOIPTalker> VoiceTalker;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UWidgetInteractionComponent> PreferredWidgetInteraction;
 
     float NextPoseSendTime = 0.0f;
     float NextNameplateRefreshTime = 0.0f;

@@ -1,8 +1,13 @@
 #include "WMCYNFirstSignalBlueprintLibrary.h"
 
+#include "Components/WidgetComponent.h"
+#include "Components/WidgetInteractionComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/UnrealType.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogWMCYNFirstSignalUI, Log, All);
 
 bool UWMCYNFirstSignalBlueprintLibrary::SubmitLocalFirstSignalIdentity(
     const UObject* WorldContextObject,
@@ -23,5 +28,41 @@ bool UWMCYNFirstSignalBlueprintLibrary::SubmitLocalFirstSignalIdentity(
     }
 
     Presence->SubmitIdentity(Username, DisplayName);
+    return true;
+}
+
+bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction(
+    const UObject* WorldContextObject,
+    UWidgetComponent* WidgetHost)
+{
+    if (!WorldContextObject || !WidgetHost)
+    {
+        return false;
+    }
+
+    APawn* Pawn = UGameplayStatics::GetPlayerPawn(WorldContextObject, 0);
+    UWMCYNFirstSignalPresenceComponent* Presence =
+        Pawn ? Pawn->FindComponentByClass<UWMCYNFirstSignalPresenceComponent>() : nullptr;
+    UWidgetInteractionComponent* WidgetInteraction =
+        Presence ? Presence->GetPreferredWidgetInteraction() : nullptr;
+    if (!WidgetInteraction)
+    {
+        return false;
+    }
+
+    FObjectPropertyBase* LastInteractionProperty =
+        FindFProperty<FObjectPropertyBase>(WidgetHost->GetClass(), TEXT("lastWidgetInteractionComponent"));
+    if (!LastInteractionProperty ||
+        !LastInteractionProperty->PropertyClass->IsChildOf(UWidgetInteractionComponent::StaticClass()))
+    {
+        return false;
+    }
+
+    LastInteractionProperty->SetObjectPropertyValue_InContainer(WidgetHost, WidgetInteraction);
+    UE_LOG(
+        LogWMCYNFirstSignalUI,
+        Display,
+        TEXT("WMCYN UI: registered %s as the AFCore keyboard source interaction"),
+        *WidgetInteraction->GetName());
     return true;
 }

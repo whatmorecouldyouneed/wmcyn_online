@@ -4,6 +4,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "WMCYNFirstSignalBlueprintLibrary.generated.h"
 
+class UWidgetComponent;
+
 UCLASS()
 class WMCYNRUNTIME_API UWMCYNFirstSignalBlueprintLibrary : public UBlueprintFunctionLibrary
 {
@@ -15,4 +17,9 @@ public:
         const UObject* WorldContextObject,
         const FString& Username,
         const FString& DisplayName);
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|UI", meta = (WorldContext = "WorldContextObject"))
+    static bool PrepareLocalFirstSignalWidgetInteraction(
+        const UObject* WorldContextObject,
+        UWidgetComponent* WidgetHost);
 };

@@ -54,6 +54,33 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
     TArray<UWidgetInteractionComponent*> WidgetInteractions;
     Owner->GetComponents(WidgetInteractions);
 
+    PreferredWidgetInteraction = nullptr;
+    for (UWidgetInteractionComponent* WidgetInteraction : WidgetInteractions)
+    {
+        if (WidgetInteraction && WidgetInteraction->GetName().Contains(TEXT("Right"), ESearchCase::IgnoreCase))
+        {
+            PreferredWidgetInteraction = WidgetInteraction;
+            break;
+        }
+    }
+
+    if (!PreferredWidgetInteraction)
+    {
+        if (UWidgetInteractionComponent** FoundInteraction = WidgetInteractions.FindByPredicate(
+                [](const UWidgetInteractionComponent* WidgetInteraction)
+                {
+                    return WidgetInteraction && WidgetInteraction->PointerIndex == 0;
+                }))
+        {
+            PreferredWidgetInteraction = *FoundInteraction;
+        }
+    }
+
+    if (!PreferredWidgetInteraction && WidgetInteractions.Num() > 0)
+    {
+        PreferredWidgetInteraction = WidgetInteractions[0];
+    }
+
     ConfiguredWidgetInteractionCount = 0;
     for (UWidgetInteractionComponent* WidgetInteraction : WidgetInteractions)
     {
@@ -65,6 +92,12 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
         WidgetInteraction->TraceChannel = ECC_Visibility;
         WidgetInteraction->InteractionDistance = FMath::Max(WidgetInteraction->InteractionDistance, 750.0f);
         WidgetInteraction->bEnableHitTesting = true;
+        const bool bShowLocalRightRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
+            WidgetInteraction == PreferredWidgetInteraction;
+        WidgetInteraction->bShowDebug = bShowLocalRightRay;
+        WidgetInteraction->DebugColor = FLinearColor(0.0f, 0.85f, 1.0f, 1.0f);
+        WidgetInteraction->DebugLineThickness = 2.5f;
+        WidgetInteraction->DebugSphereLineThickness = 2.5f;
         ++ConfiguredWidgetInteractionCount;
     }
 
@@ -73,6 +106,11 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
         Display,
         TEXT("WMCYN UI: configured %d native widget interaction ray(s) for Visibility"),
         ConfiguredWidgetInteractionCount);
+}
+
+UWidgetInteractionComponent* UWMCYNFirstSignalPresenceComponent::GetPreferredWidgetInteraction() const
+{
+    return PreferredWidgetInteraction;
 }
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
