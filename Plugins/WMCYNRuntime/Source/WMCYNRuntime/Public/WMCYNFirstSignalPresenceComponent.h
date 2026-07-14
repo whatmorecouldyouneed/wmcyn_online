@@ -9,6 +9,7 @@ class APlayerState;
 class UCameraComponent;
 class UMotionControllerComponent;
 class USceneComponent;
+class USkeletalMeshComponent;
 class UTextRenderComponent;
 class UVOIPTalker;
 class UWidgetInteractionComponent;
@@ -30,6 +31,8 @@ public:
     void SubmitIdentity(const FString& Username, const FString& DisplayName);
 
     UWidgetInteractionComponent* GetPreferredWidgetInteraction() const;
+    UWidgetInteractionComponent* GetKeyboardInputInteraction() const;
+    void CompleteLocalLoginGate();
 
 protected:
     UFUNCTION(Server, Unreliable)
@@ -47,6 +50,8 @@ protected:
 private:
     void CacheNativeComponents();
     void ConfigureWidgetInteraction();
+    void UpdateWidgetInteractionPresentation();
+    void ApplyLocalLoginGateLock();
     void ConfigureRemoteTracking();
     void CaptureAndSendPose();
     void ApplyReplicatedPose(float DeltaTime);
@@ -112,6 +117,9 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UWidgetInteractionComponent> PreferredWidgetInteraction;
 
+    UPROPERTY(Transient)
+    TObjectPtr<UWidgetInteractionComponent> KeyboardInputInteraction;
+
     float NextPoseSendTime = 0.0f;
     float NextNameplateRefreshTime = 0.0f;
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
@@ -123,5 +131,7 @@ private:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     bool bVoiceRegistered = false;
     bool bVoiceActivationRequested = false;
+    bool bLoginGateLockApplied = false;
+    bool bLoginGateCompleted = false;
     FDelegateHandle CreateSessionDelegateHandle;
 };

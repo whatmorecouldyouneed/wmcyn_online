@@ -28,6 +28,7 @@ bool UWMCYNFirstSignalBlueprintLibrary::SubmitLocalFirstSignalIdentity(
     }
 
     Presence->SubmitIdentity(Username, DisplayName);
+    Presence->CompleteLocalLoginGate();
     return true;
 }
 
@@ -44,7 +45,7 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
     UWMCYNFirstSignalPresenceComponent* Presence =
         Pawn ? Pawn->FindComponentByClass<UWMCYNFirstSignalPresenceComponent>() : nullptr;
     UWidgetInteractionComponent* WidgetInteraction =
-        Presence ? Presence->GetPreferredWidgetInteraction() : nullptr;
+        Presence ? Presence->GetKeyboardInputInteraction() : nullptr;
     if (!WidgetInteraction)
     {
         return false;

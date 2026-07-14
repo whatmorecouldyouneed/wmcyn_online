@@ -1,10 +1,12 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
@@ -35,6 +37,7 @@ void UWMCYNFirstSignalPresenceComponent::BeginPlay()
     OwnerCharacter = Cast<ACharacter>(GetOwner());
     CacheNativeComponents();
     ConfigureWidgetInteraction();
+    ApplyLocalLoginGateLock();
     CreateNameplate();
 
     if (UWorld* World = GetWorld())
@@ -57,7 +60,8 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
     PreferredWidgetInteraction = nullptr;
     for (UWidgetInteractionComponent* WidgetInteraction : WidgetInteractions)
     {
-        if (WidgetInteraction && WidgetInteraction->GetName().Contains(TEXT("Right"), ESearchCase::IgnoreCase))
+        if (WidgetInteraction && WidgetInteraction != KeyboardInputInteraction &&
+            WidgetInteraction->GetName().Contains(TEXT("Right"), ESearchCase::IgnoreCase))
         {
             PreferredWidgetInteraction = WidgetInteraction;
             break;
@@ -69,7 +73,9 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
         if (UWidgetInteractionComponent** FoundInteraction = WidgetInteractions.FindByPredicate(
                 [](const UWidgetInteractionComponent* WidgetInteraction)
                 {
-                    return WidgetInteraction && WidgetInteraction->PointerIndex == 0;
+                    return WidgetInteraction &&
+                        !WidgetInteraction->GetName().Equals(TEXT("WMCYN_KeyboardInputInteraction")) &&
+                        WidgetInteraction->PointerIndex == 0;
                 }))
         {
             PreferredWidgetInteraction = *FoundInteraction;
@@ -84,7 +90,7 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
     ConfiguredWidgetInteractionCount = 0;
     for (UWidgetInteractionComponent* WidgetInteraction : WidgetInteractions)
     {
-        if (!WidgetInteraction)
+        if (!WidgetInteraction || WidgetInteraction == KeyboardInputInteraction)
         {
             continue;
         }
@@ -92,13 +98,40 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
         WidgetInteraction->TraceChannel = ECC_Visibility;
         WidgetInteraction->InteractionDistance = FMath::Max(WidgetInteraction->InteractionDistance, 750.0f);
         WidgetInteraction->bEnableHitTesting = true;
-        const bool bShowLocalRightRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
-            WidgetInteraction == PreferredWidgetInteraction;
-        WidgetInteraction->bShowDebug = bShowLocalRightRay;
+        WidgetInteraction->bShowDebug = false;
         WidgetInteraction->DebugColor = FLinearColor(0.0f, 0.85f, 1.0f, 1.0f);
-        WidgetInteraction->DebugLineThickness = 2.5f;
-        WidgetInteraction->DebugSphereLineThickness = 2.5f;
+        WidgetInteraction->DebugLineThickness = 0.6f;
+        WidgetInteraction->DebugSphereLineThickness = 0.8f;
         ++ConfiguredWidgetInteractionCount;
+    }
+
+    if (PreferredWidgetInteraction && OwnerCharacter)
+    {
+        USkeletalMeshComponent* BodyMesh = OwnerCharacter->GetMesh();
+        if (BodyMesh && BodyMesh->GetBoneIndex(TEXT("index_03_r")) != INDEX_NONE)
+        {
+            PreferredWidgetInteraction->AttachToComponent(
+                BodyMesh,
+                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                TEXT("index_03_r"));
+            PreferredWidgetInteraction->SetRelativeLocation(FVector(2.0f, 0.0f, 0.0f));
+            PreferredWidgetInteraction->SetRelativeRotation(FRotator::ZeroRotator);
+        }
+
+        KeyboardInputInteraction = NewObject<UWidgetInteractionComponent>(
+            OwnerCharacter,
+            TEXT("WMCYN_KeyboardInputInteraction"));
+        if (KeyboardInputInteraction)
+        {
+            KeyboardInputInteraction->SetupAttachment(OwnerCharacter->GetRootComponent());
+            KeyboardInputInteraction->VirtualUserIndex = PreferredWidgetInteraction->VirtualUserIndex + 1;
+            KeyboardInputInteraction->PointerIndex = 0;
+            KeyboardInputInteraction->InteractionSource = EWidgetInteractionSource::World;
+            KeyboardInputInteraction->bEnableHitTesting = false;
+            KeyboardInputInteraction->bShowDebug = false;
+            OwnerCharacter->AddInstanceComponent(KeyboardInputInteraction);
+            KeyboardInputInteraction->RegisterComponent();
+        }
     }
 
     UE_LOG(
@@ -111,6 +144,68 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
 UWidgetInteractionComponent* UWMCYNFirstSignalPresenceComponent::GetPreferredWidgetInteraction() const
 {
     return PreferredWidgetInteraction;
+}
+
+UWidgetInteractionComponent* UWMCYNFirstSignalPresenceComponent::GetKeyboardInputInteraction() const
+{
+    return KeyboardInputInteraction;
+}
+
+void UWMCYNFirstSignalPresenceComponent::UpdateWidgetInteractionPresentation()
+{
+    if (!PreferredWidgetInteraction)
+    {
+        return;
+    }
+
+    const bool bShowContextRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
+        PreferredWidgetInteraction->GetHoveredWidgetComponent() != nullptr;
+    PreferredWidgetInteraction->bShowDebug = bShowContextRay;
+}
+
+void UWMCYNFirstSignalPresenceComponent::ApplyLocalLoginGateLock()
+{
+    if (bLoginGateCompleted || bLoginGateLockApplied || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(OwnerCharacter->GetController());
+    if (!PlayerController)
+    {
+        return;
+    }
+
+    PlayerController->SetIgnoreMoveInput(true);
+    PlayerController->SetIgnoreLookInput(true);
+    if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
+    {
+        Movement->StopMovementImmediately();
+    }
+
+    bLoginGateLockApplied = true;
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: locomotion and stick turning locked"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::CompleteLocalLoginGate()
+{
+    bLoginGateCompleted = true;
+    if (!OwnerCharacter)
+    {
+        OwnerCharacter = Cast<ACharacter>(GetOwner());
+    }
+
+    if (OwnerCharacter && OwnerCharacter->IsLocallyControlled())
+    {
+        if (APlayerController* PlayerController = Cast<APlayerController>(OwnerCharacter->GetController()))
+        {
+            PlayerController->ResetIgnoreMoveInput();
+            PlayerController->ResetIgnoreLookInput();
+        }
+    }
+
+    bLoginGateLockApplied = false;
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: locomotion and stick turning unlocked"));
 }
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -150,6 +245,8 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (OwnerCharacter->IsLocallyControlled())
     {
+        ApplyLocalLoginGateLock();
+        UpdateWidgetInteractionPresentation();
         CaptureAndSendPose();
     }
     else
