@@ -119,6 +119,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Add generic indexed spawn/possession support for `BP_WMCYN_UserPawn_FirstSignal` without AFCore pawn casts.
 - [x] Connect login submission to server-owned `Username` and `DisplayName` through the native pawn adapter.
 - [x] Add a WMCYN-owned VOIPTalker/registration adapter and a nameplate visible to remote users and the local avatar mirror after login.
+- [x] Anchor each nameplate above the replicated HMD position and drive its text from the entered username/replicated PlayerState identity.
 - [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
 - [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
 - [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.

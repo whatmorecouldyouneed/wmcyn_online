@@ -295,6 +295,16 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (Nameplate && Nameplate->IsVisible())
     {
+        const USceneComponent* LabelAnchor = TrackedCamera;
+        if (!LabelAnchor)
+        {
+            LabelAnchor = HeadAnchor;
+        }
+        const FVector AnchorLocation = LabelAnchor
+            ? LabelAnchor->GetComponentLocation()
+            : OwnerCharacter->GetActorLocation() + FVector(0.0f, 0.0f, 170.0f);
+        Nameplate->SetWorldLocation(AnchorLocation + FVector(0.0f, 0.0f, 30.0f));
+
         if (const APlayerController* LocalController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
         {
             if (const APlayerCameraManager* CameraManager = LocalController->PlayerCameraManager)
@@ -582,15 +592,26 @@ void UWMCYNFirstSignalPresenceComponent::CreateNameplate()
     Nameplate->RegisterComponent();
     Nameplate->SetHorizontalAlignment(EHTA_Center);
     Nameplate->SetVerticalAlignment(EVRTA_TextCenter);
-    Nameplate->SetWorldSize(12.0f);
+    Nameplate->SetWorldSize(18.0f);
     Nameplate->SetTextRenderColor(FColor::White);
     Nameplate->SetCastShadow(false);
     Nameplate->SetOwnerNoSee(true);
 
-    if (HeadAnchor)
+    if (OwnerCharacter && OwnerCharacter->GetRootComponent())
     {
-        Nameplate->AttachToComponent(HeadAnchor, FAttachmentTransformRules::KeepRelativeTransform);
-        Nameplate->SetRelativeLocation(FVector(0.0f, 0.0f, 24.0f));
+        Nameplate->AttachToComponent(
+            OwnerCharacter->GetRootComponent(),
+            FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    }
+
+    const USceneComponent* LabelAnchor = TrackedCamera;
+    if (!LabelAnchor)
+    {
+        LabelAnchor = HeadAnchor;
+    }
+    if (LabelAnchor)
+    {
+        Nameplate->SetWorldLocation(LabelAnchor->GetComponentLocation() + FVector(0.0f, 0.0f, 30.0f));
     }
 }
 
