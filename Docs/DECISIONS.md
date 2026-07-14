@@ -240,6 +240,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Keep `OnlineSubsystemNull` local talker `1..3` warnings classified as PIE split-screen probe noise while real local talker `0` registers successfully. Do not mistake those warnings for separate-device voice acceptance.
 - Preserve Mimic's existing trigger-to-widget-click graphs. Fix the native pawn's WMCYN login compatibility in `WMCYN_FirstSignalPresence` by changing its inherited widget interaction trace channel from `Pawn` to `Visibility`, extending interaction distance to 750 cm, and keeping hit testing enabled. Do not duplicate the trigger graph or edit the imported pawn.
 - Treat the three indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
+- Treat the first Quest package attempt as blocked by the local UE 5.8 installation, not by project content. Enable the engine's Android optional component and configure the matching Android toolchain before changing project packaging settings.
 
 ## Open Decisions
 

@@ -146,6 +146,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 ## Build Pipeline
 
 - [x] Recover substantial free disk space before cooking or packaging.
+- [x] Attempt an isolated Android Development package smoke and capture the engine-installation blocker.
+- [ ] Enable the Android optional download component for the installed UE 5.8 build in Epic Games Launcher.
+- [ ] Configure the UE 5.8 Android SDK/NDK/JDK toolchain and verify it with Turnkey.
 - [ ] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during the next sustained cook/cache run.
 - [ ] Package the standalone Quest build.
 - [ ] Sideload to both headsets.
@@ -155,11 +158,12 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 ## Current Next Steps
 
 1. Reconfirm the existing 3D login and AFCore keyboard overlay on the production native pawn in VR Preview, including movement unlock after Enter World.
-2. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
-3. Confirm cross-device native body/head/hand tracking, two-way voice, and OBS audio/video capture.
-4. Measure Quest performance with two native Mimic users.
-5. Add the first Verbatim marker.
-6. Select the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
+2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
+3. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
+4. Confirm cross-device native body/head/hand tracking, two-way voice, and OBS audio/video capture.
+5. Measure Quest performance with two native Mimic users.
+6. Add the first Verbatim marker.
+7. Select the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
 
 ## Out of Scope
 

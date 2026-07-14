@@ -144,14 +144,22 @@
 
 ## Storage
 
-- The earlier zero-space / Zen DDC `507` blocker is cleared. `C:` currently has roughly 415 GB free.
+- The earlier zero-space / Zen DDC `507` blocker is cleared. `C:` currently has roughly 446 GB free.
 - Recheck free space before large Quest/Windows cooks, but storage is not the active implementation blocker.
+
+## Quest Build Readiness
+
+- A real Android Development `BuildCookRun` was attempted on 2026-07-13 using the production project and an isolated archive directory under `Saved/StagedBuilds/FirstSignalQuestSmoke`.
+- Unreal stopped before compilation or cooking with: `Missing files required to build Android targets. Enable Android as an optional download component in the Epic Games Launcher.`
+- The machine currently has a JDK but no discoverable Android SDK/ADB. Install the UE 5.8 Android optional component first, then run UE 5.8 `SetupAndroid.bat` or otherwise configure the SDK versions required by the engine before retrying the package smoke.
+- No project config was changed in response. Existing Android settings already target arm64, SDK 35, ES3.1/Vulkan, and Android voice.
 
 ## Next Gate
 
 1. Run the existing 3D login and AFCore keyboard on the production native pawn in VR Preview; confirm Enter World unlocks locomotion and the typed name reaches the runtime nameplate path.
-2. Run the physical three-device checklist with distinct names and confirm native body/head/hand motion is visible across Quest A, Quest B, and PCVR.
-3. Close separate-device voice hearing and PCVR/OBS audio/video capture.
-4. Measure Quest frame timing with two native Mimic users and tune only WMCYN-owned adapter rates if needed.
-5. Add the first structured Verbatim marker.
-6. Select and validate the packaged persistent-world connection path beyond local `OnlineSubsystemNull` PIE.
+2. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
+3. Run the physical three-device checklist with distinct names and confirm native body/head/hand motion is visible across Quest A, Quest B, and PCVR.
+4. Close separate-device voice hearing and PCVR/OBS audio/video capture.
+5. Measure Quest frame timing with two native Mimic users and tune only WMCYN-owned adapter rates if needed.
+6. Add the first structured Verbatim marker.
+7. Select and validate the packaged persistent-world connection path beyond local `OnlineSubsystemNull` PIE.
