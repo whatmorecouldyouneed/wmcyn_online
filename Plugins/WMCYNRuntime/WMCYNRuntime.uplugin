@@ -1,0 +1,31 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0.0",
+  "FriendlyName": "WMCYN Runtime",
+  "Description": "WMCYN-owned runtime adapters for First Signal presence.",
+  "Category": "WMCYN",
+  "EnabledByDefault": true,
+  "CanContainContent": false,
+  "Plugins": [
+    {
+      "Name": "OnlineSubsystem",
+      "Enabled": true
+    },
+    {
+      "Name": "OnlineSubsystemUtils",
+      "Enabled": true
+    }
+  ],
+  "Modules": [
+    {
+      "Name": "WMCYNRuntime",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "PlatformAllowList": [
+        "Win64",
+        "Android"
+      ]
+    }
+  ]
+}

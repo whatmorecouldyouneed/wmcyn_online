@@ -2,7 +2,7 @@
 
 This repo is WMCYN Online, an Unreal Engine 5.8 project.
 
-Use HumanCodeable AFCore / Advanced VR Framework as the baseline. The framework has already been tested and works. Do not rebuild framework systems unless AFCore cannot support the need.
+Use HumanCodeable AFCore / Advanced VR Framework for compatible reusable systems and do not edit its assets by default. The First Signal player-body source of truth is `/Game/WMCYN/Pawns/BP_WMCYN_UserPawn_FirstSignal`, a WMCYN child of Mimic Pro's native `BP_VRBodyCharacer`. Preserve its proven body, tracking hierarchy, seated calibration, locomotion, footsteps, and floor behavior. Adapt WMCYN login, identity, voice, nameplate, spawn, and replication around that pawn; do not transplant Mimic IK back into the AFCore pawn.
 
 Current goal: First Signal Build inside The WMCYN Crib.
 

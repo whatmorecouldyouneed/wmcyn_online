@@ -10,7 +10,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - The world is the anchor. Do not model a lead participant as a permanent user type; users enter The WMCYN Crib and receive presence/capability state.
 - First Signal uses two standalone VR user presences and one PCVR recording user presence.
 - HumanCodeable AFCore / Advanced VR Framework has been tested and works.
-- AFCore remains the baseline framework.
+- AFCore remains the baseline for compatible reusable framework systems and reference behavior. The native Mimic pawn is the First Signal body, tracking, locomotion, footsteps, and floor-behavior source of truth.
 - Skip the broad AFCore example-map validation loop and proceed to WMCYN integration.
 - Use `L_WMCYNOnline` / `L_crib` as the WMCYN target maps.
 - Preserve AFCore systems for locomotion, grab, hands, menus, and base multiplayer unless a concrete gap is proven.
@@ -185,6 +185,61 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Register every replicated pawn's `VOIPTalker` with that pawn's own PlayerState, but run local session creation, microphone setup, and speaking activation only for the locally controlled pawn.
 - Keep the PCVR recording user on the shared AFCore VR pawn family until an actual OBS/capture test proves it insufficient; inspect `BP_Pawn_VR_Camera` only after that failure.
 - A three-client listen-server PIE run is the current desktop proof for indexed presence, replicated WMCYN metadata, AFCore remote NameTags, and per-world local voice ownership. It does not close the separate-device Quest-to-Quest hearing or OBS acceptance gates.
+- Treat the earlier tiny-player report as incomplete body coverage, not a global scale failure. The active AFCore head and torso meshes have normal human dimensions and all relevant transforms remain at scale `1.0`; together they form only a roughly 90 cm bust with no pelvis or legs.
+- Do not enlarge the AFCore head/torso placeholders. Scaling those meshes would distort proportions without creating a full body.
+- Do not assign AFCore `SK_Framework_Movement_Mannequin` or `AnimBP_Mannequin` as a complete VR body by itself. The AFCore Animation Blueprint has idle/run/jump states but no HMD/controller-driven full-body IK.
+- Add WMCYN-owned `/Game/WMCYN/Dev/AvatarMirror/BP_WMCYN_AvatarMirror`, based on AFCore's existing render-target mirror pattern, and place `DEV_AvatarMirror_Tracking` behind StandaloneVR_A. No AFCore asset is edited.
+- Use the mirror check to decide between a lightweight WMCYN three-point tracked body proxy and a later full-body IK wrapper. Final avatar fidelity must not block the basic replicated-presence gate.
+- Select WMCYN-owned children of AFCore's left/right hand controller classes from `BP_WMCYN_QuestUserPawn`. Preserve AFCore's controller interaction, laser, teleport, finger, and replication components instead of rebuilding hands.
+- Use AFCore's `SK_Framework_Movement_Mannequin` and unmodified `AnimBP_Mannequin` only as the mesh and stable locomotion/base pose. They do not own VR tracking.
+- Implement First Signal VR tracking with WMCYN-owned `WMCYN_VRBodyMesh`, `WMCYN_VRBodyRig`, and `CR_WMCYN_VRBody`. Head and hands come from inherited AFCore tracking components.
+- Do not infer pelvis and foot locations from the HMD for First Signal. Bypass the full-body PBIK pass and let AFCore's input pose own the torso and legs; head-to-pelvis solving distorted the chest and created unwanted knee behavior.
+- Solve each arm separately with WMCYN two-bone IK. Use a world-space elbow pole derived from the shoulder/hand midpoint plus a body-relative outward/back bias; do not use a fixed world-direction pole vector.
+- Keep AFCore head and WMCYN hand actors as the visible endpoints; hide the mannequin head and hand bones to avoid duplicate geometry.
+- Treat the headset-confirmed right arm as the tracked-body calibration reference. Correct the left arm by mirroring the skeleton-axis signs required by the mannequin hierarchy; do not retune the working right arm.
+- Correct the head-in-torso issue by offsetting only the inherited visible AFCore head component from the WMCYN pawn wrapper. Do not move the HMD camera, camera proxy, capsule, torso, or AFCore source asset.
+- A second unpossessed WMCYN pawn in PIE is the current remote-render proof: the full adult-scale body renders from another user's view. Local mirror articulation and real multi-device replication still require headset evidence.
+- Do not edit AFCore assets for this body pass. All controller selection, mesh ownership, Control Rig logic, and compatibility behavior remain under `/Game/WMCYN`.
+
+## 2026-07-14
+
+- The initial entries below document the superseded AFCore-derived Mimic experiment. They remain as failure history and rollback context, not as instructions for the production player pawn.
+- Use the migrated Mimic Pro VR IK system as a WMCYN-owned body layer, not as a replacement pawn, GameMode, input stack, or locomotion system.
+- Keep `/Game/WMCYN/Pawns/BP_WMCYN_QuestUserPawn` unchanged as the stable rollback point. The active validation pawn is `/Game/WMCYN/Pawns/Experimental/BP_WMCYN_QuestUserPawn_Mimic`, a true child of that pawn.
+- Keep AFCore responsible for locomotion, HMD/controller tracking, interaction, hand actors, voice, identity, spawn handling, and multiplayer behavior. Mimic receives those tracking references and drives only the Manny body.
+- Use a WMCYN-owned child component, `BP_WMCYN_MimicBodyComponent`, for UE 5.8 compatibility guards. Do not edit the migrated Mimic source component for WMCYN-specific behavior.
+- Attach the Mimic component to `WMCYN_VRBodyMesh` during construction so its BeginPlay can discover the skeletal mesh, `ABP_VRBody`, and `CR_VRBody` in the order the package expects.
+- Superseded: the initial integration passed the body mesh as Mimic's `VR Origin`. Direct sample comparison showed this was semantically wrong; AFCore `CameraHandle` is now passed as the tracking origin.
+- Leave the solver idle when no HMD is active. Ordinary PIE remains a runtime/inheritance smoke test; VR Preview is the authoritative IK validation lane.
+- Keep the prior WMCYN arm-only Control Rig implementation on the base pawn as rollback until the Mimic mirror, Quest performance, replication, and floor-contact gates pass.
+- GameMode currently selects the Mimic child for the next hardware test. Rolling back requires only restoring `BP_WMCYN_GameMode_FirstSignal.DefaultPawnClass` to `BP_WMCYN_QuestUserPawn`.
+- Disable `Owner No See` only on the Mimic child's body mesh at runtime. Use Manny's attached head like the sample, hide the separate AFCore static bust, and keep only Manny's duplicate hand bones hidden.
+- Supersede the fixed 6 cm lift with a WMCYN visual floor anchor: place `WMCYN_VRBodyMesh` at AFCore `getPawnGroundLocation` plus the current 12 cm sole clearance after AFCore ticks. Do not use Mimic's sample `Dynamic Adjustments`, which would also modify capsule size, actor position, VR origin, movement speed, and input.
+- Reject the detection-only seated pass. Hardware testing proved that merely labeling a low HMD as seated leaves the camera in the torso and drives Mimic into a folded-knee pose.
+- Reject the follow-up per-tick `CameraHandle` rewrite as well. Hardware testing showed the view was far off. WMCYN must not derive a standing offset from AFCore capsule half-height or fight AFCore's own handle correction.
+- Treat Mimic's sample as the source of truth for later seated calibration: it uses a dedicated `Height Offset`, the rig's approximately 168.06 cm `FullBody_Component` marker, and an explicit calibration action. Adapt that structure in a WMCYN-owned layer only after the restored AFCore camera baseline passes.
+- Pass AFCore `CameraHandle`, not the Manny body mesh, into Mimic's `VR Origin` reference.
+- Use Manny's attached skeletal head like the sample and hide the separate AFCore static head/torso bust. Keep Manny's duplicate hand bones hidden because AFCore/WMCYN hand actors remain the hand endpoints.
+- Use an isolated duplicate map and WMCYN child pawn to test Mimic's native body implementation before adapting more calibration code into the First Signal pawn. Do not replace the active First Signal GameMode or modify `L_WMCYNOnline` for this diagnostic.
+- Override only the native test child's incompatible capsule defaults. The imported one-centimeter custom physics capsule falls through the repaired Crib floor; the test child uses the already-proven AFCore 26 cm `Pawn` capsule while leaving Mimic's camera, `VR Origin`, `Height Offset`, body, input, and calibration graphs unchanged.
+
+### Current Native-Pawn Decision
+
+- Headset validation of the native Mimic lane passes after left-thumbstick calibration: camera/body alignment, full-body presentation, locomotion, footsteps, and Crib-floor collision work correctly.
+- Promote the proven child to `/Game/WMCYN/Pawns/BP_WMCYN_UserPawn_FirstSignal` and make it the First Signal player source of truth. Do not continue tuning the AFCore-derived Mimic wrapper toward the same result.
+- Preserve native Mimic body, tracking hierarchy, seated calibration, locomotion, hand/body solve, and footsteps. Build WMCYN identity, login, voice, nameplate, indexed spawn, capabilities, and pose replication around it with WMCYN-owned adapters.
+- Use `BP_WMCYN_UserPawn_FirstSignal` as the shared default avatar/pawn for standalone VR and PCVR recording users. Consider a camera-specific PCVR pawn only if an OBS capture test proves the shared native pawn insufficient.
+- Keep the AFCore-derived Quest pawn and isolated native test map as rollback/diagnostic paths until the production pawn passes login, voice, replicated pose, and three-device gates.
+- Use Mimic's existing procedural foot-target system as the first walking-animation pass. `ABP_VRBody` already updates `CalculateFeetTargets` from HMD/world velocity, so do not add a competing AFCore locomotion AnimBP or custom walk-cycle system before headset testing.
+- `BP_WMCYN_UserPawn_FirstSignal` is now the production `DefaultPawnClass` in `BP_WMCYN_GameMode_FirstSignal`; `L_WMCYNOnline` no longer uses the AFCore-derived experimental body lane.
+- Keep indexed slot assignment in the existing WMCYN GameMode/PlayerState contract, but perform pawn placement through generic Pawn/Character APIs. Do not restore AFCore `BP_Pawn_Base`, `playingPawn`, or `PawnReady` assumptions around the native pawn.
+- Use the WMCYNRuntime `WMCYN_FirstSignalPresence` component as the native-pawn adapter for identity, VOIPTalker registration, remote-only nameplate rendering, and replicated head/hand transforms. Do not edit AFCore or the imported Mimic parent.
+- Login identity is server-authoritative. `SubmitLocalFirstSignalIdentity` sends a reliable pawn-owned RPC; the server sanitizes and writes `Username`, `DisplayName`, and standard PlayerName. Password text is never stored, and clients cannot assign their own capabilities.
+- Replicate head, left-controller, and right-controller relative transforms at 20 Hz with owner skipping and remote interpolation. Character movement remains responsible for root locomotion replication.
+- Three-client production PIE is the desktop acceptance proof for distinct indexed spawns, possession, remote nameplate visibility, native voice registration, and tracked-pose transport; a focused two-client probe separately proves both direct server identity submission and the client-to-server identity RPC. Physical Quest/PCVR testing remains required for comfort, hardware input, hearing, performance, and OBS.
+- Keep `OnlineSubsystemNull` local talker `1..3` warnings classified as PIE split-screen probe noise while real local talker `0` registers successfully. Do not mistake those warnings for separate-device voice acceptance.
+- Preserve Mimic's existing trigger-to-widget-click graphs. Fix the native pawn's WMCYN login compatibility in `WMCYN_FirstSignalPresence` by changing its inherited widget interaction trace channel from `Pawn` to `Visibility`, extending interaction distance to 750 cm, and keeping hit testing enabled. Do not duplicate the trigger graph or edit the imported pawn.
+- Treat the three indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
 
 ## Open Decisions
 

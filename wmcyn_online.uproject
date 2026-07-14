@@ -66,6 +66,10 @@
 				"Linux",
 				"Android"
 			]
+		},
+		{
+			"Name": "WMCYNRuntime",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

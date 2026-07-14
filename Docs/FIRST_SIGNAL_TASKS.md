@@ -78,9 +78,59 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [ ] Join with the PCVR recording user.
 - [ ] Confirm PCVR sees both standalone users and their display names.
 
+## Player Body and Mirror
+
+- [x] Audit the active WMCYN Quest pawn, AFCore inheritance chain, capsule, camera, and visual components.
+- [x] Confirm the current visible avatar is a correctly scaled AFCore head-and-torso bust with no Skeletal Mesh assigned to `CharacterMesh0`.
+- [x] Inspect AFCore's movement mannequin and Animation Blueprint for VR full-body IK.
+- [x] Confirm the AFCore mannequin is a third-person idle/run/jump body, not a drop-in headset/controller-driven VR IK body.
+- [x] Add WMCYN-owned `BP_WMCYN_AvatarMirror` and place `DEV_AvatarMirror_Tracking` near StandaloneVR_A without editing AFCore.
+- [x] Add WMCYN-owned AFCore left/right hand wrappers and select them from `BP_WMCYN_QuestUserPawn` after AFCore initialization.
+- [x] Verify the hand wrappers retain AFCore movement, interaction, laser, teleport, finger, and replication components.
+- [x] Add a dedicated WMCYN mannequin mesh plus `CR_WMCYN_VRBody` without editing AFCore.
+- [x] Drive head/hand targets from AFCore tracking and keep the lower body on AFCore's stable input pose instead of HMD-inferred pelvis/foot targets.
+- [x] Bypass the head-driven full-body solve so the AFCore base pose keeps the torso upright and legs stable.
+- [x] Replace fixed arm pole directions with WMCYN body-relative elbow targets derived from shoulder/hand midpoints.
+- [x] Preserve the headset-confirmed right arm and mirror its solve-axis basis onto the left mannequin arm.
+- [x] Raise only the visible AFCore head component from the WMCYN wrapper without changing HMD, capsule, camera proxy, or torso transforms.
+- [x] Prove a second/unpossessed WMCYN pawn renders the full adult-scale tracked-body path in PIE.
+- [x] Migrate Mimic Pro VR IK content under `/Game/FullBodyVRTemplate` and compile its UE 5.8 core assets.
+- [x] Add `BP_WMCYN_QuestUserPawn_Mimic` as a true child of the stable WMCYN Quest pawn rather than replacing AFCore gameplay systems.
+- [x] Add `BP_WMCYN_MimicBodyComponent` as a WMCYN-owned compatibility child with safe HMD velocity delta handling.
+- [x] Attach Mimic to the inherited body mesh before BeginPlay and bind it to AFCore camera/controller tracking.
+- [x] Confirm in PIE that the Mimic pawn preserves indexed spawn, stabilizer, local voice capture, login/identity inheritance, Manny mesh assignment, AnimBP startup, and component attachment.
+- [x] Make the Mimic body owner-visible; use Manny's attached head, hide the separate AFCore bust, and keep only the duplicate Manny hand bones hidden.
+- [x] Anchor the Mimic body to AFCore pawn ground plus the current 12 cm sole clearance without changing the AFCore capsule, tracking origin, or locomotion path.
+- [x] Record and remove the failed detection-only seated pass after hardware showed a torso-height camera and folded knees.
+- [x] Implement and remove the failed per-tick `CameraHandle` seated offset after hardware showed a badly displaced camera.
+- [x] Compare the migrated sample's `VR Origin`, `Height Offset`, calibration marker, and head presentation directly against the WMCYN child.
+- [x] Pass AFCore `CameraHandle` as Mimic's `VR Origin`, restore the untouched AFCore camera path, show Manny's attached head, and hide the separate AFCore head/torso bust.
+- [x] Create an isolated native-Mimic A/B map, seated test child, and minimal GameMode without changing `L_WMCYNOnline`.
+- [x] Replace only the native test child's one-centimeter custom physics capsule with the proven AFCore 26 cm `Pawn` collision settings; confirm stable Crib-floor contact in desktop PIE.
+- [x] Run native Mimic VR Preview while seated and click the left thumbstick once to execute the package's own height calibration.
+- [x] Confirm native Mimic VR Preview works flawlessly after calibration, including footstep audio and stable Crib-floor collision.
+- [x] Promote the proven child to `/Game/WMCYN/Pawns/BP_WMCYN_UserPawn_FirstSignal` as the production player source of truth.
+- [x] Audit the active controller, login, voice, NameTag, and replication dependencies before switching the main map.
+- [x] Add generic indexed spawn/possession support for `BP_WMCYN_UserPawn_FirstSignal` without AFCore pawn casts.
+- [x] Connect login submission to server-owned `Username` and `DisplayName` through the native pawn adapter.
+- [x] Add a WMCYN-owned VOIPTalker/registration adapter and remote-only nameplate to the native pawn.
+- [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
+- [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
+- [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.
+- [x] Remove the false `BAD SIZE` editor badges from the three indexed First Signal markers without changing their transforms, capsules, or AFCore source asset.
+- [ ] Reconfirm the 3D login, AFCore keyboard, Enter World unlock, and typed identity on the production native pawn in VR Preview.
+- [x] Confirm Mimic's existing AnimBP already drives procedural alternating foot targets from tracked world velocity.
+- [x] Confirm the native Mimic hierarchy, attached Manny head, seated calibration, controller reach, locomotion, footsteps, and floor contact pass together in headset.
+- [x] Retire further tuning of the AFCore-derived Mimic wrapper; keep it only as rollback evidence.
+- [ ] Preserve the production native pawn's explicit left-thumbstick calibration behavior while adding WMCYN adapters.
+- [ ] Measure Quest frame timing and decide whether the full Mimic solver is acceptable for two standalone users.
+- [ ] Capture one mirror screenshot or short OBS clip.
+- [ ] Confirm the local mirror shows body/hands and the direct first-person view shows chest/arms without head occlusion.
+- [x] Confirm native headset/controller motion drives the Mimic body correctly in the successful hardware pass.
+
 ## PCVR and OBS
 
-- [x] Keep PCVR on the shared AFCore VR pawn family unless capture proves it insufficient.
+- [x] Use `BP_WMCYN_UserPawn_FirstSignal` as the shared default pawn for standalone VR and PCVR; inspect a camera-specific pawn only if OBS capture proves it necessary.
 - [x] Assign local PIE slot `2` the replicated `PCVR` mode and `Recording` plus `CanTriggerVerbatimMarker` capabilities.
 - [ ] Inspect `BP_Pawn_VR_Camera` only if the shared pawn cannot support clean capture.
 - [ ] Establish an OBS-friendly spectator/camera output.
@@ -104,10 +154,12 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
-2. Select and implement the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
-3. Close Quest A <-> Quest B voice and PCVR monitoring/OBS checks with hardware evidence.
-4. Add the first Verbatim marker.
+1. Reconfirm the existing 3D login and AFCore keyboard overlay on the production native pawn in VR Preview, including movement unlock after Enter World.
+2. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
+3. Confirm cross-device native body/head/hand tracking, two-way voice, and OBS audio/video capture.
+4. Measure Quest performance with two native Mimic users.
+5. Add the first Verbatim marker.
+6. Select the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
 
 ## Out of Scope
 
