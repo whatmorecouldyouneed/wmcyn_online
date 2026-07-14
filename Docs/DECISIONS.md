@@ -244,6 +244,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Enable and refresh the local runtime nameplate immediately after identity submission, but retain `Owner No See` so it renders in the avatar mirror and remote-user views without floating in front of the owner's HMD camera.
 - Reinforce the login gate in the WMCYN native-pawn adapter. Ignore locomotion and stick-look input and stop current character movement until local identity submission succeeds; do not disable HMD/controller tracking or trigger input needed to use the menu.
 - Treat the three indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
+- Keep `PLAYERSTART_FirstSignal_Default` and `SPAWN_FirstSignal_StandaloneVR_A` aligned at the same location and yaw `180`. The login gate intentionally locks stick turning, so initial entry orientation must face the intended Crib/menu direction without requiring camera rotation.
 - Treat the first Quest package attempt as blocked by the local UE 5.8 installation, not by project content. Enable the engine's Android optional component and configure the matching Android toolchain before changing project packaging settings.
 
 ## Open Decisions

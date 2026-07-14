@@ -10,6 +10,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Use `L_WMCYNOnline` and the Crib as the active First Signal world.
 - [x] Create WMCYN-owned Content folder scaffolding.
 - [x] Create deterministic markers for StandaloneVR_A, StandaloneVR_B, and PCVR_Recording.
+- [x] Align the default PlayerStart and StandaloneVR_A at yaw `180` so the login-locked user spawns facing the intended direction.
 - [x] Create `BP_WMCYN_QuestUserPawn` as a child of AFCore `BP_Pawn_VR_Char`.
 - [x] Configure WMCYN Level Data, GameMode, PlayerController, and PlayerState wrappers.
 - [x] Spawn and possess `BP_WMCYN_QuestUserPawn` in VR Preview.
