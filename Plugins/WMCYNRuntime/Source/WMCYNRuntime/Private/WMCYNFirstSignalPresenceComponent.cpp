@@ -116,6 +116,14 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
                 TEXT("index_03_r"));
             PreferredWidgetInteraction->SetRelativeLocation(FVector(2.0f, 0.0f, 0.0f));
             PreferredWidgetInteraction->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+
+            if (BodyMesh->GetBoneIndex(TEXT("hand_r")) != INDEX_NONE)
+            {
+                PreferredWidgetInteraction->AttachToComponent(
+                    BodyMesh,
+                    FAttachmentTransformRules::KeepWorldTransform,
+                    TEXT("hand_r"));
+            }
         }
 
         KeyboardInputInteraction = NewObject<UWidgetInteractionComponent>(

@@ -25,7 +25,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Wire the native fields to the existing AFCore runtime keyboard overlay without editing AFCore.
 - [x] Preserve the active AFCore `WidgetInteractionComponent` virtual-user focus when opening or switching login fields.
 - [x] Separate keyboard text focus from pointer clicks with a WMCYN-owned, hit-testing-disabled interaction on its own virtual user.
-- [x] Attach the thin cyan right-hand interaction ray to Manny's `index_03_r` fingertip, show it throughout the login gate, and hide it after successful login.
+- [x] Align the thin cyan right-hand interaction ray at Manny's fingertip, stabilize it on `hand_r` so trigger animation cannot disturb clicks, show it throughout the login gate, and hide it after successful login.
 - [x] Lock locomotion and stick turning in the WMCYN native-pawn adapter until successful identity submission while preserving headset/controller tracking.
 - [ ] Reconfirm continuous username/password typing, keyboard Enter, keyboard Close, contextual fingertip ray placement, and Enter World movement unlock in the production native pawn headset path.
 - [x] Move the keyboard fully beyond the login `Comp_Widget` hit-test rectangle using the root widget's lower edge.
