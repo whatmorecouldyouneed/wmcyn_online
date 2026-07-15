@@ -52,7 +52,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 - [x] Create `WBP_WMCYN_RuntimeMenu` as a WMCYN-owned composition of AFCore scaffold, vertical tabs, and widget switcher behavior.
 - [x] Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the post-login runtime menu without editing AFCore.
-- [x] Toggle the menu with Quest right `B`/desktop `M`; use `Escape` as the desktop close fallback.
+- [ ] Verify the runtime menu opens and closes in-headset through AFCore's `FaceButton02Right` mapping on Quest right `B`; desktop `M` remains the toggle fallback and `Escape` closes it.
 - [x] Prove in PIE that successful login creates the menu and the AFCore Players roster displays the submitted identity.
 - [ ] Headset-confirm runtime menu pointer interaction, roster refresh, and Audio Apply/Reset behavior.
 

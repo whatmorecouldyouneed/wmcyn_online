@@ -1,6 +1,7 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
@@ -249,6 +250,13 @@ void UWMCYNFirstSignalPresenceComponent::CompleteLocalLoginGate()
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (RuntimeMenuInputComponent.IsValid() && RuntimeMenuInputBindingHandle != INDEX_NONE)
+    {
+        RuntimeMenuInputComponent->RemoveActionBindingForHandle(RuntimeMenuInputBindingHandle);
+    }
+    RuntimeMenuInputBindingHandle = INDEX_NONE;
+    RuntimeMenuInputComponent.Reset();
+
     if (IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld()))
     {
         if (const IOnlineSessionPtr SessionInterface = Subsystem->GetSessionInterface(); SessionInterface.IsValid())
@@ -792,10 +800,9 @@ void UWMCYNFirstSignalPresenceComponent::UpdateRuntimeMenuInput()
         return;
     }
 
-    const bool bToggleRequested =
-        PlayerController->WasInputKeyJustPressed(EKeys::M) ||
-        PlayerController->WasInputKeyJustPressed(FKey(TEXT("OculusTouch_Right_B_Click"))) ||
-        PlayerController->WasInputKeyJustPressed(FKey(TEXT("ValveIndex_Right_B_Click")));
+    EnsureRuntimeMenuInputBinding();
+
+    const bool bToggleRequested = PlayerController->WasInputKeyJustPressed(EKeys::M);
     const bool bCloseRequested =
         PlayerController->WasInputKeyJustPressed(EKeys::Escape);
 
@@ -806,6 +813,44 @@ void UWMCYNFirstSignalPresenceComponent::UpdateRuntimeMenuInput()
     else if (bCloseRequested && bRuntimeMenuVisible)
     {
         SetRuntimeMenuVisible(false);
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::EnsureRuntimeMenuInputBinding()
+{
+    if (RuntimeMenuInputBindingHandle != INDEX_NONE || !OwnerCharacter || !OwnerCharacter->InputComponent)
+    {
+        return;
+    }
+
+    UInputComponent* InputComponent = OwnerCharacter->InputComponent;
+    FInputActionBinding& MenuBinding = InputComponent->BindAction(
+        TEXT("FaceButton02Right"),
+        IE_Pressed,
+        this,
+        &UWMCYNFirstSignalPresenceComponent::HandleRuntimeMenuToggle);
+    MenuBinding.bConsumeInput = false;
+    RuntimeMenuInputBindingHandle = MenuBinding.GetHandle();
+    RuntimeMenuInputComponent = InputComponent;
+
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Menu: bound AFCore FaceButton02Right action"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::HandleRuntimeMenuToggle()
+{
+    if (!bLoginGateCompleted)
+    {
+        return;
+    }
+
+    if (!RuntimeMenu)
+    {
+        CreateRuntimeMenu();
+    }
+
+    if (RuntimeMenu)
+    {
+        SetRuntimeMenuVisible(!bRuntimeMenuVisible);
     }
 }
 

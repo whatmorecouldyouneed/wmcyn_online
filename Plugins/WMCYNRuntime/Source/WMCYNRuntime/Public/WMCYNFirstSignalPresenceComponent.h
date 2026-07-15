@@ -12,6 +12,7 @@ class USceneComponent;
 class USkeletalMeshComponent;
 class UVOIPTalker;
 class UUserWidget;
+class UInputComponent;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
 
@@ -60,6 +61,8 @@ private:
     void CreateNameplate();
     void RefreshNameplate();
     void CreateRuntimeMenu();
+    void EnsureRuntimeMenuInputBinding();
+    void HandleRuntimeMenuToggle();
     void UpdateRuntimeMenuInput();
     void SetRuntimeMenuVisible(bool bVisible);
     void PositionRuntimeMenu();
@@ -153,5 +156,7 @@ private:
     bool bLoginGateLockApplied = false;
     bool bLoginGateCompleted = false;
     bool bRuntimeMenuVisible = false;
+    int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
+    TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;
     FDelegateHandle CreateSessionDelegateHandle;
 };
