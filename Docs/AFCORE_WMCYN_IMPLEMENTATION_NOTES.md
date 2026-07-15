@@ -129,7 +129,7 @@ For First Signal, inspect these assets before building a WMCYN custom lobby:
 - `Comp_Replication`
 - `Comp_RPC`
 
-Keep the first persistent-world entry path simple: username/password login, enter The WMCYN Crib, display connected users, capture from the PCVR machine, and record one marker.
+Keep the first persistent-world entry path simple: username-or-email/password login, enter The WMCYN Crib, display connected users, and capture from the PCVR machine. Marker work is a stretch feature.
 
 ## Verbatim Marker Direction
 

@@ -29,7 +29,7 @@ Use three distinct test identities:
 1. Start the shared WMCYN world runtime and confirm `L_WMCYNOnline` is active.
 2. Launch the packaged Quest build on Quest A and Quest B.
 3. Launch the Windows PCVR recording build on the OBS machine.
-4. On each device, enter username/password and select `Enter World`. There is no access code or session picker.
+4. On each device, enter username or email plus password and select `Enter World`. There is no access code or session picker.
 5. Confirm Quest A and Quest B occupy separate Crib floor starts and the PCVR user occupies the recording start.
 6. From every device, confirm both other users' head/controller presence and display names are visible.
 7. Move both Quest users independently and confirm motion remains smooth and distinct on the PCVR view.

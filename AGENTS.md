@@ -8,7 +8,7 @@ Current goal: First Signal Build inside The WMCYN Crib.
 
 Canonical First Signal target:
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, OBS-friendly capture from the PCVR machine, and one Verbatim world marker.
+Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
 
 Prioritize:
 - `L_WMCYNOnline` / `L_crib` integration
@@ -17,9 +17,10 @@ Prioritize:
 - display names
 - user presence and temporary capabilities
 - avatar placeholders
-- username/password login into the persistent WMCYN world
+- username-or-email/password login into the persistent WMCYN world
 - OBS-friendly PCVR capture
-- Verbatim world marker event
+- existing Firebase identity/profile integration
+- hidden listen-server hardware proof before persistent server deployment
 
 Do not prioritize:
 - public matchmaking
@@ -30,8 +31,9 @@ Do not prioritize:
 - multiple rooms
 - creator tools
 - economy
-- full backend auth
-- dedicated servers
+- full public account administration
+- production-scale dedicated-server fleet orchestration
+- Verbatim marker work before the primary First Signal gates pass
 
 Read `Docs/CURRENT_STATE.md` first. Read `Docs/HC_AVF_ASSET_AUDIT.md` before touching framework assets. Read `Docs/WMCYN_ONLINE_PRD.md` when scope or product behavior is unclear.
 

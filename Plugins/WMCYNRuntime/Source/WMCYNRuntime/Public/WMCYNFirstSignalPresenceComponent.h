@@ -10,9 +10,10 @@ class UCameraComponent;
 class UMotionControllerComponent;
 class USceneComponent;
 class USkeletalMeshComponent;
-class UTextRenderComponent;
 class UVOIPTalker;
+class UUserWidget;
 class UWidgetInteractionComponent;
+class UWidgetComponent;
 
 UCLASS(ClassGroup = (WMCYN), meta = (BlueprintSpawnableComponent))
 class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorComponent
@@ -58,7 +59,6 @@ private:
     void ApplyIdentity(const FString& Username, const FString& DisplayName);
     void CreateNameplate();
     void RefreshNameplate();
-    FString ResolveDisplayName(const APlayerState* PlayerState) const;
     void RegisterVoice();
     void ActivateLocalVoice();
     void HandleVoiceSessionCreated(FName SessionName, bool bWasSuccessful);
@@ -109,7 +109,16 @@ private:
     TObjectPtr<USceneComponent> HeadAnchor;
 
     UPROPERTY(Transient)
-    TObjectPtr<UTextRenderComponent> Nameplate;
+    TObjectPtr<UWidgetComponent> Nameplate;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Identity")
+    TSoftClassPtr<UUserWidget> NameplateWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Identity")
+    TSoftClassPtr<UWidgetComponent> NameplateHostClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Identity")
+    TSoftObjectPtr<UObject> NameplateThemeAsset;
 
     UPROPERTY(Transient)
     TObjectPtr<UVOIPTalker> VoiceTalker;

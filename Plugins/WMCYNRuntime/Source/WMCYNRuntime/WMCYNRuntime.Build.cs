@@ -12,6 +12,8 @@ public class WMCYNRuntime : ModuleRules
             "CoreUObject",
             "Engine",
             "HeadMountedDisplay",
+            "HTTP",
+            "Json",
             "OnlineSubsystem",
             "OnlineSubsystemUtils",
             "UMG"

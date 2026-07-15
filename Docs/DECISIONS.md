@@ -6,7 +6,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 
 - WMCYN Online uses Unreal Engine 5.8.
 - First Signal Build is the active target, not the full future product.
-- Canonical First Signal target: Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, OBS-friendly capture from the PCVR machine, and one Verbatim world marker.
+- Canonical First Signal target: Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
 - The world is the anchor. Do not model a lead participant as a permanent user type; users enter The WMCYN Crib and receive presence/capability state.
 - First Signal uses two standalone VR user presences and one PCVR recording user presence.
 - HumanCodeable AFCore / Advanced VR Framework has been tested and works.
@@ -15,7 +15,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Use `L_WMCYNOnline` / `L_crib` as the WMCYN target maps.
 - Preserve AFCore systems for locomotion, grab, hands, menus, and base multiplayer unless a concrete gap is proven.
 - Create WMCYN wrapper/child classes only where WMCYN behavior is needed.
-- WMCYN-specific custom work should focus on user identity, live presence, temporary capabilities, persistent-world entry, PCVR recording capture, Verbatim marker, and world event logging.
+- WMCYN-specific custom work should focus on verified user identity, live presence, persistent-world entry, voice, PCVR recording capture, and the handheld camera path. Verbatim is deferred.
 - MCP initially exposed AgentSkill tools only. Unreal Editor Toolset access was later enabled, exposing scene/actor/asset-level tools; still do not modify Unreal assets or maps unless explicitly asked.
 - `Specs/001-avf-class-selection/AFCORE_PRESENCE_BASELINE_SELECTION.md` is the current draft plan for choosing AFCore presence baselines before creating WMCYN wrappers.
 
@@ -113,11 +113,11 @@ This is the running decision log. Add concise dated entries when scope, architec
 - VR Preview audio output through the Oculus virtual headphone device is good enough to continue; do not chase the WASAPI raw-mode warning unless audio output actually fails.
 - Do not treat `LogVoiceEncode` alone as proof that voice works. First Signal still needs a microphone capture and user-to-user voice test.
 - The OpenXR mapping-context warning is acceptable temporarily if it preserves working AFCore controller input. Clean it up only through a complete Enhanced Input migration that includes AFCore locomotion/controllers, not by registering a partial WMCYN-only context.
-- First Signal product flow is now: username/password login -> persistent WMCYN Crib world -> user identity appears in-world.
-- First Signal uses only username/password login and Enter World for entry into the persistent Crib.
+- First Signal product flow is now: username-or-email/password login -> persistent WMCYN Crib world -> verified user identity appears in-world.
+- First Signal uses only one identifier field, password, and Enter World for entry into the persistent Crib.
 - Login stores display name/username, presence mode (`Quest` or `PCVR`), and temporary capabilities such as `Recording` and `CanTriggerVerbatimMarker`.
 - Successful login enters `L_WMCYNOnline` / The WMCYN Crib. The Crib is the world.
-- Use AFCore `NameTag` if possible for the first nameplate. If that path is awkward, use the smallest WMCYN-owned nameplate wrapper rather than editing AFCore.
+- Use AFCore's built-in pawn name tag for player display names: `/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag`. `Widget_Tag_Simple` is generic board/signage UI, not the pawn identity widget.
 - Next implementation layer is identity/nameplate/presence only after the active VR runtime path stays stable in headset.
 - Use `/Game/WMCYN/Core/BP_WMCYN_PlayerState_FirstSignal`, a child of AFCore `BP_PlayerState_Main`, as the first replicated WMCYN identity/presence store.
 - First Signal PlayerState fields start as `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
@@ -146,7 +146,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - After that proof, VR Preview began crashing on startup with the crash stack passing through `OnlineSubsystemUtils` and `OnlineSubsystemNull`. Park automatic hidden session creation, `ToggleSpeaking 1`, and `online voice dump` on BeginPlay until VR Preview stability is reconfirmed.
 - A follow-up in-viewport smoke run still crashed through `OnlineSubsystemUtils` / `OnlineSubsystemNull` before WMCYN voice registration messages. Fully park the WMCYN voice registration component and temporarily disable Unreal voice config until VR Preview stability is restored.
 - Reintroduce local talker registration later as an explicit isolated pass, not as automatic BeginPlay behavior.
-- Continue to call this a technical runtime registration helper in WMCYN docs. Product language remains: username/password login -> persistent WMCYN Crib world.
+- Continue to call this a technical runtime registration helper in WMCYN docs. Product language remains: username-or-email/password login -> persistent WMCYN Crib world.
 
 ## 2026-07-12
 
@@ -154,7 +154,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Restore the complete working WMCYN voice path instead of keeping voice parked.
 - Keep the implementation WMCYN-owned: `BP_WMCYN_VoiceRegistrationComponent` handles mic threshold, `CreateTalkerForPlayer`, `RegisterWithPlayerState`, hidden technical session creation, and automatic `ToggleSpeaking 1`.
 - Re-enable project voice config for the First Signal audio lane: `bHasVoiceEnabled=true`, `[Voice] bEnabled=true`, and `bAndroidVoiceEnabled=True`.
-- Continue treating the hidden technical session as internal Unreal voice plumbing only. The product model remains username/password login into the persistent WMCYN Crib world.
+- Continue treating the hidden technical session as internal Unreal voice plumbing only. The product model remains username-or-email/password login into the persistent WMCYN Crib world.
 - Keep `MaxLocalTalkers=1`. UE 5.8 defines `MAX_SPLITSCREEN_TALKERS` as one on Windows, and `FVoiceEngineImpl::Init` indexes its fixed local-talker array using the configured value. The previous value of four caused repeatable memory corruption and a VR Preview access violation during `OnlineSubsystemNull` voice startup. Each First Signal device has one local user; the other users belong in the remote-talker pool.
 - Close the standalone First Signal audio-capture lane: Oculus headset microphone capture, local talker registration, voice encoding, and speaking state have been proven in VR Preview.
 - Keep hybrid audio as the First Signal MVP plan: in-game voice provides world presence and reference audio; external/real microphones remain the backup and final clean recording path.
@@ -162,7 +162,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Move active implementation to identity/nameplates. `WBP_WMCYN_LoginJoin` now uses only username, password, and Enter World; its old selector and marker-relocation path are no longer active.
 - On Enter World, submit the username through inherited `Comp_PlayerInfo_Basic.SetPlayerName`. Its existing server update and `Updated_PlayerName` dispatcher remain the networked name source.
 - `BP_WMCYN_PlayerState_FirstSignal` listens to `Updated_PlayerName` and, on server authority, mirrors `Username`, `DisplayName`, the current Quest-first `PresenceMode`, and temporary `Capabilities` into WMCYN-owned replicated fields.
-- Drive the existing AFCore NameTag from that same inherited player-name path; do not edit AFCore assets or create a second nameplate system unless it fails in a multi-user test.
+- Drive AFCore `Widget_NameTag` through its intended `Comp_PlayerInfo_Basic.Updated_PlayerName` path while retaining WMCYN/Unreal PlayerState identity fields; do not edit AFCore assets or create a second visual nameplate system unless it fails in a multi-user test.
 - Do not embed AFCore `Widget_Input_TextBox` in WMCYN UMG assets. Its UE 5.8 Designer/thumbnail path through `Widget_Base` design-time theming and `AFCore_Border` can crash Slate/UMGEditor.
 - Keep username and password as native Unreal `EditableTextBox` controls inside `WBP_WMCYN_LoginJoin`.
 - Reuse AFCore's runtime `BP_Overlay_Widget_Keyboard` and `Widget_Keyboard_US` through the WMCYN login widget's `Widget_Base` parent instead of rebuilding a keyboard or modifying AFCore.
@@ -178,7 +178,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Keep one WMCYN-owned login submission path. `BTN_EnterWorld.OnClicked` and password `OnTextCommitted(OnEnter)` both call `SubmitLogin`.
 - A successful login must explicitly close the AFCore keyboard overlay and destroy the owning world-space entry manager after restoring game input and locomotion. `RemoveFromParent` alone is insufficient for a widget hosted by an actor `WidgetComponent`.
 - Resolve VR login field selection from the pointer event's screen position and each native field's cached geometry, with password checked before username. Do not use persistent `IsHovered` state to choose the target field because a stale virtual-user hover can redirect password clicks to username.
-- Use the inherited AFCore `NameTag` and `Comp_PlayerInfo_Basic` as the First Signal display-name path. Do not create a duplicate WMCYN nameplate.
+- Use AFCore `Widget_NameTag` and the WMCYN replicated identity path for First Signal display names. AFCore's `NameTag` terminology is correct for pawn identity; `SimpleTag` refers to a separate generic board label.
 - Correct listen-server possession timing in the WMCYN child pawn with a delayed local-hidden/remote-visible refresh of the inherited AFCore NameTag. This is a WMCYN compatibility wrapper, not an AFCore asset change.
 - Assign presence slots on server authority with a GameMode-owned monotonic counter: `0 = StandaloneVR_A`, `1 = StandaloneVR_B`, and `2 = PCVR_Recording`.
 - Keep `BP_WMCYN_VRPreviewStabilizer` spawn correction authority-only. Network clients must accept the indexed server spawn instead of snapping themselves before PlayerState replication arrives.
@@ -243,15 +243,32 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Attach the local right-hand pointer at zero offset to the native pawn's tracked `RightAim` motion-controller component. Use the OpenXR controller aim pose as the interaction source; do not derive laser direction from animated finger or hand bones. Keep its cyan debug line thin and scoped to the login gate, then hide it immediately after successful login.
 - Enable and refresh the local runtime nameplate immediately after identity submission, but retain `Owner No See` so it renders in the avatar mirror and remote-user views without floating in front of the owner's HMD camera.
 - Position every runtime nameplate from the replicated HMD camera plus a fixed world-up offset. Keep pitch and roll locked to zero and billboard only around world yaw; use player yaw when the viewer has no horizontal separation. Use `25 cm` text after the oversized headset diagnostic confirmed visibility and orientation.
+- Replace the temporary WMCYN `TextRenderComponent` with a WMCYN-owned `WidgetComponent` hosting AFCore `Widget_NameTag`. Preserve the approved `25 cm` width, HMD anchor, yaw-only billboard, owner-hidden mirror/remote visibility, and replicated identity source. Mirror successful login into AFCore `Comp_PlayerInfo_Basic.PlayerName` and trigger its existing RepNotify dispatcher. Load the widget softly during `BeginPlay`; eager native-constructor loading occurs before UE 5.8 Typed Elements registration and prevents editor startup.
+- Host `Widget_NameTag` with AFCore `Comp_Widget` and `DA_Theme_Default`, matching AFCore's character pawn template. A plain Unreal `WidgetComponent` bypasses AFCore's `FL_UI`/`M_UIMaster` theme initialization and can render the tag as white text on a white block. Keep the compatibility host WMCYN-owned and do not modify `M_UIMaster` or AFCore widget assets.
 - Reinforce the login gate in the WMCYN native-pawn adapter. Ignore locomotion and stick-look input and stop current character movement until local identity submission succeeds; do not disable HMD/controller tracking or trigger input needed to use the menu.
 - Treat the three indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
 - Treat yaw `0` on `SPAWN_FirstSignal_StandaloneVR_A` as the approved runtime entry facing. The login gate intentionally locks stick turning, so the delayed stabilizer must reapply the complete indexed marker transform after HMD reset. Reconcile the default PlayerStart yaw with that marker before packaging.
 - Treat the first Quest package attempt as blocked by the local UE 5.8 installation, not by project content. Enable the engine's Android optional component and configure the matching Android toolchain before changing project packaging settings.
+- Move Verbatim out of the First Signal acceptance gate. It remains a possible stretch feature after login, shared-world presence, voice, PCVR/OBS capture, and the initial camera path are proven.
+- Reuse the existing Firebase backend for identity and profile bootstrap rather than inventing a second account system. Existing clients use Firebase email/password and the backend verifies Firebase ID tokens.
+- Do not reuse the backend's six-digit headset pairing flow for WMCYN Online First Signal. The approved product flow remains direct credentials -> verified identity -> automatic Crib world entry.
+- Keep passwords, Firebase tokens, and join tickets out of replicated Unreal state. Only verified UID, username/display name, presence mode, slot, and server-assigned capabilities may reach PlayerState.
+- Treat the current Unreal login submission as a local prototype until it authenticates asynchronously. Movement may unlock only after authentication, profile/bootstrap resolution, and successful world entry.
+- Use a hidden PC listen server for the first same-LAN three-device proof if needed. This is temporary infrastructure and must not add a user-facing host/session flow.
+- The persistent product target is an authoritative Unreal world runtime discovered through the backend. Add explicit world runtime registration/heartbeat and authenticated entry/bootstrap contracts before claiming internet multiplayer.
+- Repair or replace `C:/Users/jvred/Documents/WMCYN/wmcyn-backend-infra` from upstream before backend implementation. Its local Git metadata and route source tree are incomplete, while upstream `main` at audit commit `b2f260b` builds cleanly.
+- Harden the backend before reactivation: remove public config debug output, disable `x-uid` in production, restore rate limiting, review public profile reads and anonymous admin-route access, and address dependency audit findings.
+- First Signal's credential field accepts username, `@username`, or email plus password. Initial users are created manually in Firebase Authentication, `users/{uid}`, and the server-only `loginHandles/{handleNormalized}` index.
+- Keep `WBP_WMCYN_LoginJoin` as the single login surface. `WBP_WMCYN_BootLogin` had zero referencers and is retired; do not create a second login state machine.
+- Reuse AFCore `Widget_Multiplayer_Players` and `Widget_Multiplayer_PlayerField` through WMCYN child `WBP_WMCYN_WhosHere`; do not reimplement player enumeration or rows.
+- Reuse AFCore `Widget_Settings_Audio` and its scaffold Apply/Reset path through WMCYN child `WBP_WMCYN_Settings_Audio`.
+- Keep AFCore Graphics settings PCVR-only until reviewed. Do not expose the full scalability page on Quest before hardware performance validation.
+- Treat the missing MSVC `14.50.35717` toolchain as the current Unreal C++ verification blocker. Do not alter project configuration to work around an engine compiler requirement.
 
 ## Open Decisions
 
-- What exact payload should the first Verbatim marker log contain?
-- Where should First Signal world event logs be stored during early alpha: on-screen, local file, Unreal log, replicated event list, or a combination?
+- What machine hosts the first same-LAN listen-server proof, and how will Quest builds receive its address without exposing a session picker?
+- What is the first production Unreal world-server host and deployment target after the LAN proof?
 - Should First Signal in-game voice use push-to-talk or open mic plus mute?
 - Which real online voice backend should replace the local `Null` validation path when persistent-world networking is ready?
 - If the hidden technical session causes multiplayer/world-entry side effects later, should WMCYN replace it with a small C++/Blueprint bridge that registers local talker `0` directly?

@@ -5,7 +5,7 @@ Last updated: 2026-07-10
 
 ## Core Model
 
-The WMCYN Crib is the world. First Signal enters that world through username/password login.
+The WMCYN Crib is the world. First Signal enters that world through username-or-email/password login.
 
 The intended first-run flow is:
 
@@ -14,7 +14,7 @@ The intended first-run flow is:
 3. Sideload the build to Quest hardware.
 4. User opens WMCYN Online on the headset or PCVR machine.
 5. User sees a simple login screen.
-6. User enters username and password.
+6. User enters username or email and password.
 7. User selects Enter World.
 8. Login identifies the user and stores display/presence data.
 9. User appears in `L_WMCYNOnline` / The WMCYN Crib.
@@ -22,7 +22,6 @@ The intended first-run flow is:
 11. Other standalone VR and PCVR users enter the same persistent Crib world.
 12. Quest users move, speak, and see each other's basic head/hand/controller presence.
 13. PCVR recording user sees the Quest users and captures the world through OBS.
-14. A permitted user triggers one Verbatim world marker.
 
 ## Login Scope
 
@@ -42,7 +41,7 @@ The first identity layer should store:
 
 - `DisplayName` / username
 - `PresenceMode`: `Quest` or `PCVR`
-- `Capabilities`: examples include `Recording` and `CanTriggerVerbatimMarker`
+- `Capabilities`: First Signal requires `Recording` where appropriate; additional capabilities can be added later.
 
 The data should remain WMCYN-owned and replicated. Do not edit AFCore PlayerState directly.
 
@@ -53,5 +52,8 @@ The data should remain WMCYN-owned and replicated. Do not edit AFCore PlayerStat
 - Both Quest users can move with analog-stick locomotion.
 - Both Quest users see each other's basic VR presence and name.
 - PCVR recording user logs in, appears in the same world, sees the Quest users, and can frame OBS capture.
-- One Verbatim marker logs user and world context.
 - Quest build can be packaged, sideloaded, launched, and retested consistently.
+
+## Stretch Features
+
+- Verbatim world markers are deferred until shared-world presence, voice, OBS capture, and the initial camera path are proven.

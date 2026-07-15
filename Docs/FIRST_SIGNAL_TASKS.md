@@ -2,7 +2,7 @@
 
 ## Acceptance Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user in the same persistent world, with basic presence, username/display name, two-way voice, OBS-friendly capture, and one Verbatim marker.
+Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user in the same persistent world, with basic presence, username/display name, two-way voice, and OBS-friendly capture.
 
 ## Completed Baseline
 
@@ -23,7 +23,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Login and Identity
 
-- [x] Reduce the visible login screen to username, password, and Enter World.
+- [x] Reduce the visible login screen to username-or-email, password, and Enter World.
 - [x] Keep username/password on stable native Unreal `EditableTextBox` controls.
 - [x] Wire the native fields to the existing AFCore runtime keyboard overlay without editing AFCore.
 - [x] Preserve the active AFCore `WidgetInteractionComponent` virtual-user focus when opening or switching login fields.
@@ -38,6 +38,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Route `Enter World` and password keyboard Enter through one `SubmitLogin` path.
 - [x] Close the AFCore keyboard overlay and owning 3D entry manager after successful submission.
 - [x] Confirm a headset login submission stores identity, closes the menu, and restores world control.
+- [x] Retire the unreferenced `WBP_WMCYN_BootLogin`; keep one active login surface.
 - [x] Run a focused VR login regression check covering both fields, keyboard controls, identity storage, and login-gate closure.
 - [x] Create replicated WMCYN PlayerState fields: `Username`, `DisplayName`, `PresenceMode`, and `Capabilities`.
 - [x] Remove superseded access-code/session-selection and marker-relocation logic from the active login graph.
@@ -75,7 +76,18 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Multiplayer Presence
 
-- [ ] Select the real persistent-world networking/backend path beyond local `OnlineSubsystemNull` validation.
+- [x] Audit the existing Firebase backend and identify its reusable authentication/profile contracts.
+- [x] Confirm upstream backend `main` builds and lints from a clean clone.
+- [x] Repair the local `wmcyn-backend-infra` checkout from upstream while preserving existing local work.
+- [x] Remove public debug config output and production authentication bypasses before reactivating Firebase.
+- [x] Support one identifier field accepting username, `@username`, or email plus password.
+- [x] Add an authenticated VR bootstrap response containing verified identity and the current Crib runtime endpoint.
+- [x] Add the WMCYN Unreal HTTP authentication/profile subsystem source without storing or replicating the password/token.
+- [ ] Install UE 5.8's preferred MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and connect the active login Blueprint to the asynchronous subsystem.
+- [ ] Keep locomotion locked until authentication and world entry succeed.
+- [ ] Select the real persistent-world networking path beyond local `OnlineSubsystemNull` validation.
+- [ ] Run the first same-LAN proof with the PC as a hidden listen server if needed.
+- [ ] Define Unreal world-runtime registration, heartbeat, build compatibility, and short-lived join-ticket contracts.
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
 - [x] Confirm the three server-authoritative pawn transforms remain separated at the three indexed spawn markers.
 - [x] Confirm each client hides its own AFCore NameTag and renders both remote AFCore NameTags.
@@ -120,9 +132,11 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Audit the active controller, login, voice, NameTag, and replication dependencies before switching the main map.
 - [x] Add generic indexed spawn/possession support for `BP_WMCYN_UserPawn_FirstSignal` without AFCore pawn casts.
 - [x] Connect login submission to server-owned `Username` and `DisplayName` through the native pawn adapter.
-- [x] Add a WMCYN-owned VOIPTalker/registration adapter and a nameplate visible to remote users and the local avatar mirror after login.
-- [x] Anchor each nameplate above the replicated HMD position and drive its text from the entered username/replicated PlayerState identity.
-- [x] Headset-validate the upright yaw-only nameplate and settle its final First Signal text size at `25 cm`.
+- [x] Add a WMCYN-owned VOIPTalker/registration adapter and host AFCore pawn `Widget_NameTag` for remote users and the local avatar mirror after login.
+- [x] Anchor each AFCore NameTag above the replicated HMD and bridge entered/replicated identity into `Comp_PlayerInfo_Basic.Updated_PlayerName`.
+- [x] Headset-validate the upright yaw-only NameTag and settle its final First Signal width at `25 cm`.
+- [x] Replace the plain runtime widget host with AFCore `Comp_Widget` + `DA_Theme_Default` so `M_UIMaster` receives the intended theme parameters.
+- [ ] Headset-confirm the AFCore-themed NameTag no longer renders white-on-white after login.
 - [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
 - [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
 - [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.
@@ -145,8 +159,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [ ] Establish an OBS-friendly spectator/camera output.
 - [ ] Confirm framing, stable output, and usable audio/video capture.
 
-## Verbatim Marker
+## Stretch: Verbatim Marker
 
+- [ ] Do not schedule this work until the First Signal shared-world, voice, OBS, and camera gates pass.
 - [ ] Add one WMCYN-owned trigger for a structured Verbatim world marker.
 - [ ] Include timestamp, world/location, runtime ID, user identity, presence mode/slot, capabilities, map, and note.
 - [ ] Log to Unreal and provide simple on-screen/debug confirmation first.
@@ -166,13 +181,13 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Reconfirm the existing 3D login and AFCore keyboard overlay on the production native pawn in VR Preview, including movement unlock after Enter World.
-2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
-3. Run `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md` on Quest A, Quest B, and the PCVR/OBS machine using distinct login names.
-4. Confirm cross-device native body/head/hand tracking, two-way voice, and OBS audio/video capture.
-5. Measure Quest performance with two native Mimic users.
-6. Add the first Verbatim marker.
-7. Select the packaged-device persistent-world connection path beyond local `OnlineSubsystemNull` validation.
+1. Install MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and wire `WBP_WMCYN_LoginJoin` to backend state/ready delegates while retaining explicit PIE fallback.
+2. Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the AFCore-hosted runtime menu.
+3. Run headset regression for login, keyboard, NameTag, roster refresh, Voice Apply/Reset, and movement unlock.
+4. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
+5. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen-server path.
+6. Confirm cross-device body/head/hand tracking, display names, two-way voice, and OBS audio/video capture.
+7. Measure Quest performance with two native Mimic users, then specify the handheld camera feature.
 
 ## Out of Scope
 
@@ -181,7 +196,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - mobile feed
 - concerts or multiple rooms
 - creator tools
-- full backend authentication
-- dedicated servers
+- full account administration, password recovery, or public registration UI
+- production-scale dedicated-server fleet orchestration
 - custom locomotion, grabbing, or base menu systems
 - MetaHuman/avatar-fidelity work
+- Verbatim marker before the primary First Signal gates pass

@@ -34,7 +34,7 @@ This spec is the next validation gate after Quest locomotion and Crib collision 
 ## Product Flow For This Gate
 
 1. User launches WMCYN Online on Quest.
-2. User logs in with username/password.
+2. User logs in with username-or-email/password.
 3. User enters the persistent WMCYN Crib world.
 4. User can move normally.
 5. User speaks.

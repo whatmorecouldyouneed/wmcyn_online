@@ -32,7 +32,7 @@ The product strategy is to build the world from culture outward.
 
 ## First Signal Canonical Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, OBS-friendly capture from the PCVR machine, and one Verbatim world marker.
+Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
 
 Terminology update:
 
@@ -41,8 +41,9 @@ Terminology update:
 * Presence is a user's live in-world embodiment.
 * First Signal has two standalone VR presences and one PCVR recording presence.
 * Recording is a temporary capability on the PCVR user, not a permanent user class.
-* First Signal login is username, password, and Enter World.
-* First Signal enters the persistent Crib world through username/password login.
+* First Signal login is username or email, password, and Enter World.
+* First Signal enters the persistent Crib world through username-or-email/password login.
+* Initial First Signal accounts are provisioned manually; public registration is out of scope.
 * Avoid lead/visitor/operator role language for current scope unless describing older source material.
 ---
 # 2. Primary MVP Customer
@@ -178,7 +179,7 @@ Access grows the world.
 ---
 # 8. MVP Magic Moment
 The MVP magic moment is:
-**Two standalone VR users and one PCVR recording user are present together in the WMCYN Crib, the conversation becomes clip-worthy, a Verbatim world marker is triggered, and that moment later becomes a piece of content people want to watch.**
+**Two standalone VR users and one PCVR recording user are present together in the WMCYN Crib, the conversation becomes clip-worthy, and the PCVR recording becomes a piece of content people want to watch.**
 This is the moment where WMCYN Online stops feeling like a tech demo and starts feeling like
 a real cultural place.
 The product is working when the team feels:
@@ -301,7 +302,7 @@ Admin can overlap with the PCVR recording user in MVP.
 ## Flow: Entering the WMCYN Crib
 1. User opens WMCYN Online.
 2. User lands on a simple login screen.
-3. User enters username and password.
+3. User enters username or email and password.
 4. User selects Enter World.
 5. System identifies the user.
 6. System stores display name, presence mode, and temporary capabilities.
@@ -320,7 +321,7 @@ Admin can overlap with the PCVR recording user in MVP.
 # 12. PCVR Recording Flow
 1. Open WMCYN Online PCVR build.
 2. Enter The WMCYN Crib.
-3. Login with username/password and confirm recording capability.
+3. Login with username-or-email/password and confirm recording capability.
 4. See list of connected users.
 5. Confirm both standalone VR users are present.
 6. Switch to recording/capture mode if needed.
@@ -341,7 +342,7 @@ Admin can overlap with the PCVR recording user in MVP.
 ---
 # 13. Standalone VR User Flow
 1. Open WMCYN Online standalone headset build.
-2. Login with username and password.
+2. Login with username or email and password.
 3. Select Enter World.
 4. Load assigned avatar.
 5. Spawn inside the Crib.
@@ -356,7 +357,7 @@ The Crib must support an actual repeatable production workflow, not just a playa
 ## 14.1 Before Recording Run
 Before a Crib recording run, the team should:
 * confirm the persistent Crib world is reachable
-* confirm username/password login works
+* confirm username-or-email/password login works
 * assign capabilities
 * assign avatars
 * confirm standalone VR users are ready
@@ -454,7 +455,7 @@ These are required for the MVP to be valid.
 * PCVR machine can frame and record the Crib
 * OBS can capture clean PCVR output
 * couch and banner wall exist as recognizable Crib anchors
-* one Verbatim world marker can be triggered
+* Verbatim marker work is deferred until the primary shared-world and capture gates pass
 * world events can be logged locally or prepared for backend
 ## 16.2 P1 - Should Have
 These should be built once P0 is stable.
@@ -944,7 +945,7 @@ By end of September 2026, success means:
 * one interaction replicates
 * saved camera angles work
 * OBS clean output works
-* Verbatim marker event exists
+* Verbatim marker event is an optional stretch result
 * one real test conversation or interview moment is recorded
 ---
 # 23. Product Validation Metrics
@@ -967,7 +968,7 @@ The MVP can graduate from v0.1 to Private Alpha when:
 * voice workflow is usable
 * OBS capture is reliable
 * couch/banner wall anchors are recognizable
-* at least one Verbatim marker can be created
+* Verbatim marker creation is optional and does not block MVP graduation
 * one full test recording run is recorded
 * clips can be produced from that recording
 * the team agrees the Crib feels like WMCYN, not a generic VR room

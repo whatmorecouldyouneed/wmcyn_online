@@ -4,9 +4,9 @@
 
 - WMCYN Online is an Unreal Engine 5.8 project.
 - Current target: First Signal Build inside The WMCYN Crib.
-- Canonical outcome: two standalone VR users and one PCVR recording user in the same persistent world, with basic presence, display names, voice, OBS-friendly capture, and one Verbatim marker.
+- Canonical outcome: two standalone VR users and one PCVR recording user in the same persistent world, with basic presence, display names, voice, and OBS-friendly capture.
 - Active map: `/Game/Levels/L_WMCYNOnline` using the WMCYN Crib environment.
-- Product flow: username/password login -> persistent WMCYN world -> user identity appears in-world. There is no user-facing host/guest flow, session picker, or access code.
+- Product flow: username or email + password -> persistent WMCYN world -> verified user identity appears in-world. There is no user-facing host/guest flow, session picker, or access code.
 
 ## AFCore Baseline
 
@@ -59,7 +59,7 @@
 - The imported sample's one-centimeter custom physics capsule fell through the Crib immediately. The WMCYN test child copies the working AFCore capsule compatibility values: 26 cm radius, `Pawn` profile, `QueryAndPhysics`, and physics simulation disabled. Desktop PIE confirms the test pawn remains stable on the Crib floor.
 - Headset validation passes the native lane: after left-thumbstick calibration, the pawn has correct camera/body alignment, full-body presentation, working locomotion and footstep audio, and stable Crib-floor collision.
 - The proven test child has been promoted to `/Game/WMCYN/Pawns/BP_WMCYN_UserPawn_FirstSignal`. It keeps `PlayMode = Seated`, the proven capsule compatibility values, native Mimic behavior, `bReplicates = true`, movement replication, and 100 Hz net update frequency. It is now the production default in `L_WMCYNOnline`.
-- `Plugins/WMCYNRuntime` supplies the smallest WMCYN-owned adapter around the native pawn. `WMCYN_FirstSignalPresence` handles reliable login identity submission, dynamic VOIPTalker registration, a runtime nameplate for remote views and the local mirror, and 20 Hz replicated head/left-hand/right-hand transforms with interpolation.
+- `Plugins/WMCYNRuntime` supplies the smallest WMCYN-owned adapter around the native pawn. `WMCYN_FirstSignalPresence` handles reliable login identity submission, dynamic VOIPTalker registration, AFCore's pawn `Widget_NameTag` for remote views and the local mirror, and 20 Hz replicated head/left-hand/right-hand transforms with interpolation.
 - The same adapter normalizes the native pawn's two inherited `WidgetInteractionComponent` rays to the `Visibility` UI trace channel at 750 cm while preserving the package's existing left/right trigger `PressPointerKey` and `ReleasePointerKey` graphs. Production PIE confirms both rays are configured and hit testing is enabled; no imported Mimic or AFCore asset is edited.
 - Three-client listen-server PIE on production `L_WMCYNOnline` proves distinct indexed spawns, ownership, remote-only nameplate visibility, voice registration, and live tracked-pose transport. Every client hides its local label and shows two remote labels; remote pawns received and applied hundreds of pose updates. Slot `2` carries `PCVR`, `Recording`, and `CanTriggerVerbatimMarker`.
 - The production `L_WMCYNOnline` smoke run confirms the native pawn spawns exactly at `StandaloneVR_A`, the 3D login gate starts with locomotion locked, voice registers, pose capture advances, and no new Blueprint runtime error occurs.
@@ -79,7 +79,8 @@
 
 ## Identity and Login
 
-- `/Game/WMCYN/UI/WBP_WMCYN_LoginJoin` now contains only username, password, Enter World, and status UI in its active entry path.
+- `/Game/WMCYN/UI/WBP_WMCYN_LoginJoin` is the only active login surface and contains identifier, password, Enter World, and status UI. The identifier accepts username or email.
+- `/Game/WMCYN/UI/WBP_WMCYN_BootLogin` had zero referencers and was deleted on 2026-07-14. Do not restore a parallel boot-login path.
 - `WBP_WMCYN_LoginJoin` keeps native Unreal `EditableTextBox` fields and inherits AFCore `Widget_Base` so it can reuse AFCore overlay plumbing without embedding AFCore's unstable input wrapper.
 - Selecting username or password spawns the existing AFCore `BP_Overlay_Widget_Keyboard` with `Widget_Keyboard_US`. The WMCYN wrapper stores one overlay instance, reuses it while switching fields, and explicitly focuses the selected field through AFCore's active `WidgetInteractionComponent` virtual user.
 - Headset testing showed that the first lowered keyboard was visible but non-interactive: it remained coplanar with and partly inside the login `Comp_Widget` component's invisible 1600x1000 hit-test rectangle, so the login panel won the controller trace before the keyboard.
@@ -100,11 +101,27 @@
   - `DisplayName`
   - `PresenceMode`
   - `Capabilities`
-- Successful entry calls `WMCYN|Identity|SubmitLocalFirstSignalIdentity`. The pawn-owned runtime component sends a reliable server RPC, sanitizes the username/display name, writes `Username` and `DisplayName` on `BP_WMCYN_PlayerState_FirstSignal`, updates Unreal's standard player name, and forces replication. Password text is not stored.
+- The currently loaded editor module still uses `WMCYN|Identity|SubmitLocalFirstSignalIdentity` as the explicit PIE development fallback. Production entry is being consolidated behind `UWMCYNBackendSubsystem`; it must authenticate and load bootstrap data before locomotion unlocks. Password text and backend tokens are never stored in replicated state.
 - `PresenceMode`, `Capabilities`, and indexed slot assignment remain server-owned. Login cannot grant itself recording or marker capabilities.
-- The native pawn uses `WMCYN_Nameplate_Runtime`, a lightweight WMCYN-owned text component for every avatar. Successful login refreshes and enables the entered username immediately. The label follows the replicated HMD position with a fixed `30 cm` world-up offset and uses a headset-approved `25 cm` text size. Its billboard rotation is yaw-only: pitch and roll stay at zero, with player yaw as the fallback when no horizontal viewer direction exists. `Owner No See` keeps it out of the user's direct HMD view while allowing the local mirror and remote users to render it. It reads replicated `DisplayName` with standard PlayerName as fallback.
+- The native pawn's WMCYN adapter hosts AFCore `/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag` in runtime component `WMCYN_AFCoreNameTag_Runtime`. This is AFCore's intended player identity widget: the VR, mobile, and desktop character pawns reference it directly, and it binds to `Comp_PlayerInfo_Basic.Updated_PlayerName`. The host is AFCore `/Game/AFCore/Blueprints/Components/UI/Comp_Widget`, not a plain Unreal `WidgetComponent`; this preserves AFCore theme initialization through `FL_UI` and `/Game/AFCore/Materials/UI/UI/M_UIMaster`. It uses `DA_Theme_Default`, matching AFCore's pawn template and preventing the white-on-white fallback seen with the plain host. Successful login mirrors the server-authoritative display name into the AFCore component as well as WMCYN/Unreal PlayerState fields. The desired-size widget is constrained to a `25 cm` world width, follows the replicated HMD with a fixed `30 cm` world-up offset, and billboards around world yaw only. `Owner No See` keeps it out of the user's direct HMD view while allowing the local mirror and remote users to render it. No AFCore asset is modified.
 - A two-client identity probe proves both the listen-server path and client-to-server RPC path. Both PlayerStates replicated `NetworkProbe`, and each opposite client displayed that value on the remote nameplate. The probe actor was removed from the active test map after validation.
 - No AFCore asset was edited. The AFCore runtime keyboard remains the input mechanism; WMCYN owns identity storage and display for the native pawn.
+
+## Backend and World Entry
+
+- The existing backend is the Firebase project `wmcyn-online-mobile`, documented locally at `C:/Users/jvred/Documents/WMCYN/wmcyn-backend-infra` and hosted through Firebase Cloud Functions/Cloud Run when billing is active.
+- The local backend checkout was repaired from upstream `main` at `b2f260b` while preserving its existing local CORS work. Active backend work is on `codex/first-signal-backend-bootstrap`.
+- The deployed service is intentionally unavailable while Firebase billing is inactive. Current HTTP `500/503` responses are an infrastructure state, not evidence that the upstream source fails to build.
+- `POST /v1/auth/login` accepts one `identifier` field plus password. It supports email, username, or `@username`; usernames resolve through server-only `loginHandles/{handleNormalized}` before Firebase email/password exchange.
+- `GET /v1/vr/bootstrap` returns verified identity and the configured Crib runtime endpoint behind Firebase Bearer authentication. The world remains offline until a valid host/port record exists.
+- Initial users are provisioned manually through Firebase Authentication plus `users/{uid}` and `loginHandles/{handleNormalized}` as documented in `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`.
+- Existing headset pairing-code endpoints are not part of the WMCYN Online First Signal product flow. First Signal remains login -> automatic world entry, with no visible access code or session picker.
+- The backend does not currently register or discover an Unreal world runtime. It has AR world/scene and livestream records, but no authoritative Unreal server host, port, build ID, heartbeat, or join-ticket contract.
+- Packaging Quest and Windows clients alone does not create an online world. The first physical proof may use the PC as a hidden listen server; the persistent product target requires an Unreal world runtime plus an authenticated discovery/bootstrap contract.
+- The backend hardening pass removed public `/debug/env`, limits development `x-uid` auth to the Auth emulator plus an explicit flag, restored rate limiting, restricted user/profile reads, removed anonymous admin mutation access, and replaced direct live-route `x-uid` trust.
+- `UWMCYNBackendSubsystem` implements asynchronous login and bootstrap in WMCYN-owned C++ with private token storage and a command-line backend URL override. Its editor build is blocked before module compilation because this machine lacks UE 5.8's preferred MSVC `14.50.35717`; installed `14.38` fails in an engine header and `14.43` is banned by UnrealBuildTool.
+- AFCore reuse wrappers now exist at `/Game/WMCYN/UI/Multiplayer/WBP_WMCYN_WhosHere` and `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_Audio`. Both compile and inherit AFCore behavior; runtime menu exposure and headset regression remain pending.
+- Verbatim is a stretch feature and is not part of the First Signal acceptance gate.
 
 ## Voice State
 
@@ -159,10 +176,10 @@
 
 ## Next Gate
 
-1. Run the existing 3D login and AFCore keyboard on the production native pawn in VR Preview; confirm Enter World unlocks locomotion and the typed name reaches the runtime nameplate path.
-2. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
-3. Run the physical three-device checklist with distinct names and confirm native body/head/hand motion is visible across Quest A, Quest B, and PCVR.
-4. Close separate-device voice hearing and PCVR/OBS audio/video capture.
-5. Measure Quest frame timing with two native Mimic users and tune only WMCYN-owned adapter rates if needed.
-6. Add the first structured Verbatim marker.
-7. Select and validate the packaged persistent-world connection path beyond local `OnlineSubsystemNull` PIE.
+1. Complete the AFCore reuse pass for login cleanup, player roster, and selected settings pages.
+2. Repair the backend checkout, harden its production auth boundary, and settle email-versus-handle login semantics.
+3. Connect verified Firebase identity/bootstrap to the existing 3D login gate without replacing the AFCore keyboard.
+4. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
+5. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen server.
+6. Close separate-device presence, voice, and PCVR/OBS audio/video capture.
+7. Measure Quest frame timing with two native Mimic users, then specify the handheld camera feature.

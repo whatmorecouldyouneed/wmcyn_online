@@ -2,7 +2,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/TextRenderComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Character.h"
@@ -19,6 +19,7 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "Blueprint/UserWidget.h"
 #include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNPresence, Log, All);
@@ -28,6 +29,13 @@ UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.TickInterval = 0.05f;
     SetIsReplicatedByDefault(true);
+
+    NameplateWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(
+        TEXT("/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag.Widget_NameTag_C")));
+    NameplateHostClass = TSoftClassPtr<UWidgetComponent>(FSoftObjectPath(
+        TEXT("/Game/AFCore/Blueprints/Components/UI/Comp_Widget.Comp_Widget_C")));
+    NameplateThemeAsset = TSoftObjectPtr<UObject>(FSoftObjectPath(
+        TEXT("/Game/AFCore/DataAsset/Theme/DA_Theme_Default.DA_Theme_Default")));
 }
 
 void UWMCYNFirstSignalPresenceComponent::BeginPlay()
@@ -295,6 +303,13 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (Nameplate && Nameplate->IsVisible())
     {
+        const FVector2D CurrentDrawSize = Nameplate->GetCurrentDrawSize();
+        if (CurrentDrawSize.X > 0)
+        {
+            const float NameplateScale = 25.0f / static_cast<float>(CurrentDrawSize.X);
+            Nameplate->SetWorldScale3D(FVector(NameplateScale));
+        }
+
         const USceneComponent* LabelAnchor = TrackedCamera;
         if (!LabelAnchor)
         {
@@ -400,7 +415,34 @@ void UWMCYNFirstSignalPresenceComponent::ApplyIdentity(const FString& Username, 
     }
 
     PlayerState->SetPlayerName(CleanDisplayName);
+
+    bool bUpdatedAFCorePlayerInfo = false;
+    TArray<UActorComponent*> PlayerStateComponents;
+    PlayerState->GetComponents(PlayerStateComponents);
+    for (UActorComponent* Component : PlayerStateComponents)
+    {
+        if (!Component || !Component->GetClass()->GetName().Contains(TEXT("Comp_PlayerInfo_Basic")))
+        {
+            continue;
+        }
+
+        if (FTextProperty* PlayerNameProperty = FindFProperty<FTextProperty>(Component->GetClass(), TEXT("PlayerName")))
+        {
+            PlayerNameProperty->SetPropertyValue_InContainer(Component, FText::FromString(CleanDisplayName));
+            if (UFunction* OnRepPlayerName = Component->FindFunction(TEXT("OnRep_PlayerName")))
+            {
+                Component->ProcessEvent(OnRepPlayerName, nullptr);
+            }
+            bUpdatedAFCorePlayerInfo = true;
+        }
+        break;
+    }
+
     PlayerState->ForceNetUpdate();
+    if (!bUpdatedAFCorePlayerInfo)
+    {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN Identity: AFCore Comp_PlayerInfo_Basic was not available"));
+    }
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Identity: server accepted %s"), *CleanDisplayName);
 }
 
@@ -577,8 +619,16 @@ void UWMCYNFirstSignalPresenceComponent::ApplyReplicatedPose(const float DeltaTi
 
 void UWMCYNFirstSignalPresenceComponent::CreateNameplate()
 {
-    if (Nameplate || !GetOwner())
+    if (Nameplate || !GetOwner() || NameplateWidgetClass.IsNull() || NameplateHostClass.IsNull())
     {
+        return;
+    }
+
+    UClass* ResolvedNameplateClass = NameplateWidgetClass.LoadSynchronous();
+    UClass* ResolvedNameplateHostClass = NameplateHostClass.LoadSynchronous();
+    if (!ResolvedNameplateClass || !ResolvedNameplateHostClass)
+    {
+        UE_LOG(LogWMCYNPresence, Error, TEXT("WMCYN Identity: AFCore NameTag widget or Comp_Widget host could not be loaded"));
         return;
     }
 
@@ -587,26 +637,51 @@ void UWMCYNFirstSignalPresenceComponent::CreateNameplate()
         CacheNativeComponents();
     }
 
-    Nameplate = NewObject<UTextRenderComponent>(GetOwner(), TEXT("WMCYN_Nameplate_Runtime"));
+    Nameplate = NewObject<UWidgetComponent>(
+        GetOwner(),
+        ResolvedNameplateHostClass,
+        TEXT("WMCYN_AFCoreNameTag_Runtime"));
     if (!Nameplate)
     {
         return;
     }
 
-    Nameplate->RegisterComponent();
-    Nameplate->SetHorizontalAlignment(EHTA_Center);
-    Nameplate->SetVerticalAlignment(EVRTA_TextCenter);
-    Nameplate->SetWorldSize(25.0f);
-    Nameplate->SetTextRenderColor(FColor::White);
-    Nameplate->SetCastShadow(false);
+    if (FBoolProperty* CustomThemeProperty = FindFProperty<FBoolProperty>(Nameplate->GetClass(), TEXT("customTheme")))
+    {
+        CustomThemeProperty->SetPropertyValue_InContainer(Nameplate, false);
+    }
+    if (FObjectPropertyBase* ThemeProperty = FindFProperty<FObjectPropertyBase>(Nameplate->GetClass(), TEXT("theme")))
+    {
+        ThemeProperty->SetObjectPropertyValue_InContainer(Nameplate, NameplateThemeAsset.LoadSynchronous());
+    }
+    if (FBoolProperty* WidgetVisibilityProperty = FindFProperty<FBoolProperty>(Nameplate->GetClass(), TEXT("widgetVisibility")))
+    {
+        WidgetVisibilityProperty->SetPropertyValue_InContainer(Nameplate, true);
+    }
+    if (FBoolProperty* RangeChecksProperty = FindFProperty<FBoolProperty>(Nameplate->GetClass(), TEXT("useRangeChecks")))
+    {
+        RangeChecksProperty->SetPropertyValue_InContainer(Nameplate, false);
+    }
+
+    Nameplate->SetWidgetClass(ResolvedNameplateClass);
+    Nameplate->SetWidgetSpace(EWidgetSpace::World);
+    Nameplate->SetDrawSize(FVector2D(500.0, 500.0));
+    Nameplate->SetDrawAtDesiredSize(true);
+    Nameplate->SetPivot(FVector2D(0.5, 0.5));
+    Nameplate->SetBlendMode(EWidgetBlendMode::Masked);
+    Nameplate->SetTwoSided(false);
+    Nameplate->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Nameplate->SetOwnerNoSee(true);
 
     if (OwnerCharacter && OwnerCharacter->GetRootComponent())
     {
-        Nameplate->AttachToComponent(
-            OwnerCharacter->GetRootComponent(),
-            FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        Nameplate->SetupAttachment(OwnerCharacter->GetRootComponent());
     }
+
+    GetOwner()->AddInstanceComponent(Nameplate);
+    Nameplate->RegisterComponent();
+    Nameplate->SetWorldScale3D(FVector(0.2f));
+    Nameplate->InitWidget();
 
     const USceneComponent* LabelAnchor = TrackedCamera;
     if (!LabelAnchor)
@@ -626,29 +701,7 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
         return;
     }
 
-    const APlayerState* PlayerState = OwnerCharacter->GetPlayerState();
-    const FString DisplayName = ResolveDisplayName(PlayerState);
-    Nameplate->SetText(FText::FromString(DisplayName.IsEmpty() ? TEXT("WMCYN User") : DisplayName));
     Nameplate->SetVisibility(bLoginGateCompleted || !OwnerCharacter->IsLocallyControlled());
-}
-
-FString UWMCYNFirstSignalPresenceComponent::ResolveDisplayName(const APlayerState* PlayerState) const
-{
-    if (!PlayerState)
-    {
-        return FString();
-    }
-
-    if (const FStrProperty* DisplayNameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("displayName")))
-    {
-        const FString DisplayName = DisplayNameProperty->GetPropertyValue_InContainer(PlayerState);
-        if (!DisplayName.IsEmpty())
-        {
-            return DisplayName;
-        }
-    }
-
-    return PlayerState->GetPlayerName();
 }
 
 void UWMCYNFirstSignalPresenceComponent::RegisterVoice()

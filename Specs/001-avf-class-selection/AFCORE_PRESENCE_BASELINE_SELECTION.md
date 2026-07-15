@@ -6,7 +6,7 @@ Last updated: 2026-07-10
 
 ## Canonical First Signal Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, OBS-friendly capture from the PCVR machine, and one Verbatim world marker.
+Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine. Verbatim is retained below only as a deferred technical reference.
 
 ## Decision Summary
 
