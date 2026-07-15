@@ -274,6 +274,11 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Bind the runtime menu non-destructively to AFCore's existing `FaceButton02Right` action for Quest right `B`; desktop `M` toggles and `Escape` closes it. The pointer ray appears while login or the runtime menu is active.
 - Defer successful login-overlay destruction by one engine tick. AFCore's Return key finishes its click and sound path before WMCYN closes the keyboard, avoiding a pending-kill `Comp_Widget` runtime error without editing AFCore.
 - Accept the engine-driven PIE result as the desktop implementation gate: the production submit function stored `CodexSmoke`, unlocked locomotion, created the AFCore-hosted menu, and displayed that user in Who's Here. Keep headset roster refresh and Audio Apply/Reset as hardware regression checks.
+- Treat the headset-confirmed Quest right `B` menu toggle as the accepted runtime-menu input path. Keep AFCore's existing `FaceButton02Right` mapping and do not add a competing input system.
+- Compose Settings from the existing AFCore Audio wrapper plus a WMCYN-owned respawn button. Respawn must be server-authoritative and call the current controller's proven indexed `SyncPresencePawn` path; do not reload the map, replace the pawn, or edit AFCore.
+- Treat the current UE 5.8 Android packaging gate as an engine-installation/toolchain issue. Enable the Launcher's Android optional component before installing the exact UE 5.8 SDK/NDK versions; do not change project gameplay/configuration to bypass missing engine platform binaries.
+- Ship/cook `L_WMCYNOnline`, not the inherited AFCore example and template maps. Exclude AFCore's dormant legacy hand AnimBP folder from WMCYN packages because its removed SteamVR Input structs fail UE 5.8 cook and the production native Mimic pawn does not depend on it.
+- Accept the successful Win64 Development cook/archive and packaged no-HMD world startup as the PC build-pipeline smoke. Keep real PCVR/OBS behavior as a hardware gate, and track the nonfatal AFCore `Comp_Widget` startup ensure separately.
 
 ## Open Decisions
 

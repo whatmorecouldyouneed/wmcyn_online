@@ -121,7 +121,9 @@
 - Packaging Quest and Windows clients alone does not create an online world. The first physical proof may use the PC as a hidden listen server; the persistent product target requires an Unreal world runtime plus an authenticated discovery/bootstrap contract.
 - The backend hardening pass removed public `/debug/env`, limits development `x-uid` auth to the Auth emulator plus an explicit flag, restored rate limiting, restricted user/profile reads, removed anonymous admin mutation access, and replaced direct live-route `x-uid` trust.
 - `UWMCYNBackendSubsystem` implements asynchronous login and bootstrap in WMCYN-owned C++ with private token storage and a command-line backend URL override. MSVC `14.50.35717` is installed, UnrealBuildTool selects toolchain `14.50.35737`, and `wmcyn_onlineEditor` now compiles and links `UnrealEditor-WMCYNRuntime.dll` successfully under UE 5.8.
-- AFCore reuse wrappers exist at `/Game/WMCYN/UI/Multiplayer/WBP_WMCYN_WhosHere` and `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_Audio`. `/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu` exposes both through an AFCore scaffold, vertical tabs, and widget switcher hosted by the native pawn adapter. The adapter binds non-destructively to AFCore's existing `FaceButton02Right` action for Quest right `B`; desktop `M` toggles the menu and `Escape` closes it.
+- AFCore reuse wrappers exist at `/Game/WMCYN/UI/Multiplayer/WBP_WMCYN_WhosHere` and `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_Audio`. `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_FirstSignal` composes the AFCore audio page with a WMCYN-owned `RESPAWN TO ENTRY` action, and `/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu` exposes the roster and Settings through an AFCore scaffold, vertical tabs, and widget switcher hosted by the native pawn adapter.
+- The runtime menu binds non-destructively to AFCore's existing `FaceButton02Right` action for Quest right `B`; desktop `M` toggles the menu and `Escape` closes it. Headset testing confirms right `B` now opens and closes the menu and the pointer can interact with it.
+- Respawn is server-authoritative and reuses the controller's proven indexed `SyncPresencePawn` path. It stops movement, returns the current possessed pawn to its assigned presence slot, preserves login/identity/voice, closes the menu, and does not reload the level or replace the pawn.
 - An engine-driven PIE smoke submitted `CodexSmoke` through the production `SubmitLogin` function, unlocked the gate, created `WMCYN_AFCoreRuntimeMenu`, and opened it with `M`. The captured runtime menu showed `CodexSmoke` in the AFCore Players roster and exposed the Audio tab. The temporary auto-submit event was removed before the widget was compiled and saved.
 - Verbatim is a stretch feature and is not part of the First Signal acceptance gate.
 
@@ -173,14 +175,24 @@
 
 - A real Android Development `BuildCookRun` was attempted on 2026-07-13 using the production project and an isolated archive directory under `Saved/StagedBuilds/FirstSignalQuestSmoke`.
 - Unreal stopped before compilation or cooking with: `Missing files required to build Android targets. Enable Android as an optional download component in the Epic Games Launcher.`
-- The machine currently has a JDK but no discoverable Android SDK/ADB. Install the UE 5.8 Android optional component first, then run UE 5.8 `SetupAndroid.bat` or otherwise configure the SDK versions required by the engine before retrying the package smoke.
+- The UE 5.8 installation is missing its Android target binaries and AutomationTool/UnrealBuildTool platform assemblies, so Turnkey currently discovers only Win64. The machine also has no discoverable Android SDK/ADB.
+- In Epic Games Launcher, open UE 5.8 **Options**, enable the **Android target platform**, and apply the installation change. Then install/configure the UE 5.8 toolchain (`platforms;android-34`, `build-tools;35.0.1`, `cmake;3.22.1`, and NDK `27.2.12479018` / r27c) through `SetupAndroid.bat` before retrying the Quest package smoke.
 - No project config was changed in response. Existing Android settings already target arm64, SDK 35, ES3.1/Vulkan, and Android voice.
+
+## Windows PCVR Build Readiness
+
+- A production-map-only Win64 Development `BuildCookRun` now succeeds and archives to `Builds/PCVR/FirstSignal-Development/Windows`.
+- The archive contains the runnable `wmcyn_online.exe`, a 557 MB pak, and roughly 1.61 GB total staged content.
+- Packaging now cooks only `/Game/Levels/L_WMCYNOnline`; the inherited AFCore demo/template map list is no longer part of the WMCYN shipping manifest.
+- `/Game/AFCore/AnimBP/Hand` is excluded from WMCYN packages because its legacy Epic-hand AnimBPs contain removed SteamVR Input structs. The production native Mimic pawn does not depend on those assets, and no AFCore asset was modified.
+- A packaged `-nohmd` startup smoke stayed responsive, loaded `L_WMCYNOnline`, created `BP_WMCYN_GameMode_FirstSignal`, assigned/synced slot `0`, locked movement behind login, and initialized the native voice path.
+- Packaged startup reports a handled `Comp_Widget` custom-property-list ensure, then continues into the world. Treat this as an AFCore UE 5.8 compatibility follow-up; it is not the current startup-crash path and was not "fixed" by editing AFCore.
 
 ## Next Gate
 
-1. Headset-regress the production login, AFCore keyboard, themed NameTag, runtime roster, Audio Apply/Reset, and post-login movement unlock.
+1. Headset-confirm Settings respawn returns the current user to the assigned entry slot while preserving login, voice, body tracking, and movement.
 2. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
-3. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen server.
+3. Run the packaged Windows build in PCVR, then prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen server.
 4. Confirm cross-device body/head/hand tracking, distinct display names, two-way voice, and PCVR/OBS audio/video capture.
 5. Restore Firebase billing and run one real `-WMCYNForceBackendAuth` login/bootstrap proof against the hardened backend.
 6. Measure Quest frame timing with two native Mimic users, then specify the handheld camera feature.

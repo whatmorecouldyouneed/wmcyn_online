@@ -1,6 +1,7 @@
 ﻿# Unreal build artifacts
 Binaries/
 Build/
+Builds/
 DerivedDataCache/
 Intermediate/
 Saved/
@@ -24,3 +25,4 @@ node_modules/
 # OS cruft
 .DS_Store
 Thumbs.db
+desktop.ini

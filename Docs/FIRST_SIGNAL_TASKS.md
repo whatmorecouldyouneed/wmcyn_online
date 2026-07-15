@@ -52,9 +52,12 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 - [x] Create `WBP_WMCYN_RuntimeMenu` as a WMCYN-owned composition of AFCore scaffold, vertical tabs, and widget switcher behavior.
 - [x] Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the post-login runtime menu without editing AFCore.
-- [ ] Verify the runtime menu opens and closes in-headset through AFCore's `FaceButton02Right` mapping on Quest right `B`; desktop `M` remains the toggle fallback and `Escape` closes it.
+- [x] Verify the runtime menu opens and closes in-headset through AFCore's `FaceButton02Right` mapping on Quest right `B`; desktop `M` remains the toggle fallback and `Escape` closes it.
 - [x] Prove in PIE that successful login creates the menu and the AFCore Players roster displays the submitted identity.
 - [ ] Headset-confirm runtime menu pointer interaction, roster refresh, and Audio Apply/Reset behavior.
+- [x] Add `WBP_WMCYN_Settings_FirstSignal`, composing the AFCore Audio page with a WMCYN-owned Respawn button.
+- [x] Implement server-authoritative respawn by reusing the current indexed `SyncPresencePawn` path without reloading the level or replacing the pawn.
+- [ ] Headset-confirm Respawn returns the current possessed user to the assigned slot and preserves login, voice, tracking, and movement.
 
 ## Voice Validation
 
@@ -181,15 +184,18 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Attempt an isolated Android Development package smoke and capture the engine-installation blocker.
 - [ ] Enable the Android optional download component for the installed UE 5.8 build in Epic Games Launcher.
 - [ ] Configure the UE 5.8 Android SDK/NDK/JDK toolchain and verify it with Turnkey.
-- [ ] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during the next sustained cook/cache run.
+- [x] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during a full Windows cook/cache run.
 - [ ] Package the standalone Quest build.
 - [ ] Sideload to both headsets.
-- [ ] Package the Windows PCVR recording build.
+- [x] Package and archive the Windows PCVR Development build from `L_WMCYNOnline`.
+- [x] Smoke-test packaged Windows startup through map load, indexed pawn sync, login gate, and native voice initialization.
+- [ ] Run the packaged Windows build with the PCVR headset and OBS.
+- [ ] Review the nonfatal AFCore `Comp_Widget` custom-property-list ensure without editing AFCore by default.
 - [ ] Run the repeatable three-device First Signal test.
 
 ## Current Next Steps
 
-1. Run headset regression for login, keyboard, NameTag, runtime-menu interaction, roster refresh, Audio Apply/Reset, and movement unlock.
+1. Headset-confirm Settings respawn preserves login, voice, tracking, and movement while returning the current pawn to its assigned slot.
 2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
 3. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen-server path.
 4. Confirm cross-device body/head/hand tracking, display names, two-way voice, and OBS audio/video capture.

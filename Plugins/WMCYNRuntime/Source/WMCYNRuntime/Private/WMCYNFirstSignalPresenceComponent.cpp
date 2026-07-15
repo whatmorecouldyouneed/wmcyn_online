@@ -8,6 +8,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
@@ -246,6 +247,64 @@ void UWMCYNFirstSignalPresenceComponent::CompleteLocalLoginGate()
     RefreshNameplate();
     CreateRuntimeMenu();
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: locomotion and stick turning unlocked"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestRespawnToPresenceSlot()
+{
+    if (!bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    if (bRuntimeMenuVisible)
+    {
+        SetRuntimeMenuVisible(false);
+    }
+
+    if (OwnerCharacter->HasAuthority())
+    {
+        RespawnToPresenceSlot();
+    }
+    else
+    {
+        ServerRequestRespawnToPresenceSlot();
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerRequestRespawnToPresenceSlot_Implementation()
+{
+    RespawnToPresenceSlot();
+}
+
+void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
+{
+    if (!OwnerCharacter || !OwnerCharacter->HasAuthority())
+    {
+        return;
+    }
+
+    AController* Controller = OwnerCharacter->GetController();
+    UFunction* SyncPresencePawn = Controller ? Controller->FindFunction(TEXT("SyncPresencePawn")) : nullptr;
+    if (!SyncPresencePawn)
+    {
+        UE_LOG(LogWMCYNPresence, Error, TEXT("WMCYN Respawn: controller has no SyncPresencePawn function"));
+        return;
+    }
+
+    if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
+    {
+        Movement->StopMovementImmediately();
+    }
+
+    Controller->ProcessEvent(SyncPresencePawn, nullptr);
+
+    if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
+    {
+        Movement->StopMovementImmediately();
+    }
+
+    OwnerCharacter->ForceNetUpdate();
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Respawn: returned local user to assigned presence slot"));
 }
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

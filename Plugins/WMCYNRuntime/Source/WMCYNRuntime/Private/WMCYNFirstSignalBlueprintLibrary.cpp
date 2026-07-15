@@ -83,3 +83,22 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
         *WidgetInteraction->GetName());
     return true;
 }
+
+bool UWMCYNFirstSignalBlueprintLibrary::RequestLocalFirstSignalRespawn(const UObject* WorldContextObject)
+{
+    if (!WorldContextObject)
+    {
+        return false;
+    }
+
+    APawn* Pawn = UGameplayStatics::GetPlayerPawn(WorldContextObject, 0);
+    UWMCYNFirstSignalPresenceComponent* Presence =
+        Pawn ? Pawn->FindComponentByClass<UWMCYNFirstSignalPresenceComponent>() : nullptr;
+    if (!Presence)
+    {
+        return false;
+    }
+
+    Presence->RequestRespawnToPresenceSlot();
+    return true;
+}

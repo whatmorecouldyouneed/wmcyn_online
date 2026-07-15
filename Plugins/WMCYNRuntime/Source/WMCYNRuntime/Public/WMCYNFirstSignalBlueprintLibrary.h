@@ -34,4 +34,7 @@ public:
     static bool PrepareLocalFirstSignalWidgetInteraction(
         const UObject* WorldContextObject,
         UWidgetComponent* WidgetHost);
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Presence", meta = (WorldContext = "WorldContextObject"))
+    static bool RequestLocalFirstSignalRespawn(const UObject* WorldContextObject);
 };

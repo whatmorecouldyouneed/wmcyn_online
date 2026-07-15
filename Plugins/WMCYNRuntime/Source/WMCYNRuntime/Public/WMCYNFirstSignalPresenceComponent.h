@@ -36,6 +36,9 @@ public:
     UWidgetInteractionComponent* GetKeyboardInputInteraction() const;
     void CompleteLocalLoginGate();
 
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Presence")
+    void RequestRespawnToPresenceSlot();
+
 protected:
     UFUNCTION(Server, Unreliable)
     void ServerUpdateTrackedPose(
@@ -49,6 +52,9 @@ protected:
     UFUNCTION(Server, Reliable)
     void ServerSubmitIdentity(const FString& Username, const FString& DisplayName);
 
+    UFUNCTION(Server, Reliable)
+    void ServerRequestRespawnToPresenceSlot();
+
 private:
     void CacheNativeComponents();
     void ConfigureWidgetInteraction();
@@ -58,6 +64,7 @@ private:
     void CaptureAndSendPose();
     void ApplyReplicatedPose(float DeltaTime);
     void ApplyIdentity(const FString& Username, const FString& DisplayName);
+    void RespawnToPresenceSlot();
     void CreateNameplate();
     void RefreshNameplate();
     void CreateRuntimeMenu();
