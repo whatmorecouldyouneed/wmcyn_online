@@ -253,7 +253,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Reuse the existing Firebase backend for identity and profile bootstrap rather than inventing a second account system. Existing clients use Firebase email/password and the backend verifies Firebase ID tokens.
 - Do not reuse the backend's six-digit headset pairing flow for WMCYN Online First Signal. The approved product flow remains direct credentials -> verified identity -> automatic Crib world entry.
 - Keep passwords, Firebase tokens, and join tickets out of replicated Unreal state. Only verified UID, username/display name, presence mode, slot, and server-assigned capabilities may reach PlayerState.
-- Treat the current Unreal login submission as a local prototype until it authenticates asynchronously. Movement may unlock only after authentication, profile/bootstrap resolution, and successful world entry.
+- At the 2026-07-14 checkpoint, treat Unreal login submission as a local prototype until it authenticates asynchronously. This condition is superseded by the native bridge decision recorded on 2026-07-15.
 - Use a hidden PC listen server for the first same-LAN three-device proof if needed. This is temporary infrastructure and must not add a user-facing host/session flow.
 - The persistent product target is an authoritative Unreal world runtime discovered through the backend. Add explicit world runtime registration/heartbeat and authenticated entry/bootstrap contracts before claiming internet multiplayer.
 - Repair or replace `C:/Users/jvred/Documents/WMCYN/wmcyn-backend-infra` from upstream before backend implementation. Its local Git metadata and route source tree are incomplete, while upstream `main` at audit commit `b2f260b` builds cleanly.
@@ -263,7 +263,16 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Reuse AFCore `Widget_Multiplayer_Players` and `Widget_Multiplayer_PlayerField` through WMCYN child `WBP_WMCYN_WhosHere`; do not reimplement player enumeration or rows.
 - Reuse AFCore `Widget_Settings_Audio` and its scaffold Apply/Reset path through WMCYN child `WBP_WMCYN_Settings_Audio`.
 - Keep AFCore Graphics settings PCVR-only until reviewed. Do not expose the full scalability page on Quest before hardware performance validation.
-- Treat the missing MSVC `14.50.35717` toolchain as the current Unreal C++ verification blocker. Do not alter project configuration to work around an engine compiler requirement.
+- At the 2026-07-14 checkpoint, treat missing MSVC `14.50.35717` as the Unreal C++ verification blocker. Do not alter project configuration to work around an engine compiler requirement; the installation and build result are recorded on 2026-07-15.
+
+## 2026-07-15
+
+- The UE 5.8 compiler gate is closed. Install MSVC `14.50.35717` and let UnrealBuildTool select compiler `14.50.35737`; do not restore the banned `14.43` or force `14.38` through engine headers.
+- Keep one login graph. `WBP_WMCYN_LoginJoin` sends identifier/password to the WMCYN native login bridge; the bridge owns asynchronous Firebase login/bootstrap, status updates, verified identity submission, and successful gate closure. Do not add a parallel Blueprint auth state machine.
+- Allow local identity only as an explicit development path: automatic in PIE unless `-WMCYNForceBackendAuth` is present, or in a packaged build only when launched with `-WMCYNLocalIdentity`. Normal packaged entry requires backend success before movement unlocks.
+- Expose AFCore roster and audio behavior through one WMCYN-owned runtime composition: AFCore scaffold + vertical tabs + widget switcher containing `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio`. Keep AFCore assets unchanged.
+- Use Quest left `Y`/desktop `M` to toggle the runtime menu and Quest right `B`/`Escape` to close it. The pointer ray appears while login or the runtime menu is active.
+- Accept the engine-driven PIE result as the desktop implementation gate: the production submit function stored `CodexSmoke`, unlocked locomotion, created the AFCore-hosted menu, and displayed that user in Who's Here. Keep headset roster refresh and Audio Apply/Reset as hardware regression checks.
 
 ## Open Decisions
 

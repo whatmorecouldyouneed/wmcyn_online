@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "HeadMountedDisplayTypes.h"
+#include "InputCoreTypes.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "MotionControllerComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -36,6 +37,8 @@ UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
         TEXT("/Game/AFCore/Blueprints/Components/UI/Comp_Widget.Comp_Widget_C")));
     NameplateThemeAsset = TSoftObjectPtr<UObject>(FSoftObjectPath(
         TEXT("/Game/AFCore/DataAsset/Theme/DA_Theme_Default.DA_Theme_Default")));
+    RuntimeMenuWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(
+        TEXT("/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu.WBP_WMCYN_RuntimeMenu_C")));
 }
 
 void UWMCYNFirstSignalPresenceComponent::BeginPlay()
@@ -193,7 +196,7 @@ void UWMCYNFirstSignalPresenceComponent::UpdateWidgetInteractionPresentation()
     }
 
     const bool bShowContextRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
-        !bLoginGateCompleted;
+        (!bLoginGateCompleted || bRuntimeMenuVisible);
     PreferredWidgetInteraction->bShowDebug = bShowContextRay;
 }
 
@@ -240,6 +243,7 @@ void UWMCYNFirstSignalPresenceComponent::CompleteLocalLoginGate()
 
     bLoginGateLockApplied = false;
     RefreshNameplate();
+    CreateRuntimeMenu();
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: locomotion and stick turning unlocked"));
 }
 
@@ -282,6 +286,7 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
     {
         ApplyLocalLoginGateLock();
         UpdateWidgetInteractionPresentation();
+        UpdateRuntimeMenuInput();
         CaptureAndSendPose();
     }
     else
@@ -702,6 +707,150 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
     }
 
     Nameplate->SetVisibility(bLoginGateCompleted || !OwnerCharacter->IsLocallyControlled());
+}
+
+void UWMCYNFirstSignalPresenceComponent::CreateRuntimeMenu()
+{
+    if (RuntimeMenu || !bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled() ||
+        RuntimeMenuWidgetClass.IsNull() || NameplateHostClass.IsNull())
+    {
+        return;
+    }
+
+    UClass* ResolvedMenuClass = RuntimeMenuWidgetClass.LoadSynchronous();
+    UClass* ResolvedHostClass = NameplateHostClass.LoadSynchronous();
+    if (!ResolvedMenuClass || !ResolvedHostClass)
+    {
+        UE_LOG(LogWMCYNPresence, Error, TEXT("WMCYN Menu: runtime widget or AFCore Comp_Widget host could not be loaded"));
+        return;
+    }
+
+    RuntimeMenu = NewObject<UWidgetComponent>(
+        OwnerCharacter,
+        ResolvedHostClass,
+        TEXT("WMCYN_AFCoreRuntimeMenu"));
+    if (!RuntimeMenu)
+    {
+        return;
+    }
+
+    if (FBoolProperty* CustomThemeProperty = FindFProperty<FBoolProperty>(RuntimeMenu->GetClass(), TEXT("customTheme")))
+    {
+        CustomThemeProperty->SetPropertyValue_InContainer(RuntimeMenu, false);
+    }
+    if (FObjectPropertyBase* ThemeProperty = FindFProperty<FObjectPropertyBase>(RuntimeMenu->GetClass(), TEXT("theme")))
+    {
+        ThemeProperty->SetObjectPropertyValue_InContainer(RuntimeMenu, NameplateThemeAsset.LoadSynchronous());
+    }
+    if (FBoolProperty* WidgetVisibilityProperty = FindFProperty<FBoolProperty>(RuntimeMenu->GetClass(), TEXT("widgetVisibility")))
+    {
+        WidgetVisibilityProperty->SetPropertyValue_InContainer(RuntimeMenu, true);
+    }
+    if (FBoolProperty* RangeChecksProperty = FindFProperty<FBoolProperty>(RuntimeMenu->GetClass(), TEXT("useRangeChecks")))
+    {
+        RangeChecksProperty->SetPropertyValue_InContainer(RuntimeMenu, false);
+    }
+
+    RuntimeMenu->SetWidgetClass(ResolvedMenuClass);
+    RuntimeMenu->SetWidgetSpace(EWidgetSpace::World);
+    RuntimeMenu->SetDrawSize(FVector2D(1600.0f, 1000.0f));
+    RuntimeMenu->SetDrawAtDesiredSize(false);
+    RuntimeMenu->SetPivot(FVector2D(0.5f, 0.5f));
+    RuntimeMenu->SetBlendMode(EWidgetBlendMode::Transparent);
+    RuntimeMenu->SetTwoSided(true);
+    RuntimeMenu->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    RuntimeMenu->SetCollisionResponseToAllChannels(ECR_Ignore);
+    RuntimeMenu->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
+    if (OwnerCharacter->GetRootComponent())
+    {
+        RuntimeMenu->SetupAttachment(OwnerCharacter->GetRootComponent());
+    }
+
+    OwnerCharacter->AddInstanceComponent(RuntimeMenu);
+    RuntimeMenu->RegisterComponent();
+    RuntimeMenu->SetWorldScale3D(FVector(0.06f));
+    RuntimeMenu->InitWidget();
+    RuntimeMenu->SetVisibility(false);
+}
+
+void UWMCYNFirstSignalPresenceComponent::UpdateRuntimeMenuInput()
+{
+    if (!bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    if (!RuntimeMenu)
+    {
+        CreateRuntimeMenu();
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(OwnerCharacter->GetController());
+    if (!PlayerController || !RuntimeMenu)
+    {
+        return;
+    }
+
+    const bool bToggleRequested =
+        PlayerController->WasInputKeyJustPressed(EKeys::M) ||
+        PlayerController->WasInputKeyJustPressed(FKey(TEXT("OculusTouch_Left_Y_Click"))) ||
+        PlayerController->WasInputKeyJustPressed(FKey(TEXT("ValveIndex_Left_B_Click")));
+    const bool bCloseRequested =
+        PlayerController->WasInputKeyJustPressed(EKeys::Escape) ||
+        PlayerController->WasInputKeyJustPressed(FKey(TEXT("OculusTouch_Right_B_Click"))) ||
+        PlayerController->WasInputKeyJustPressed(FKey(TEXT("ValveIndex_Right_B_Click")));
+
+    if (bToggleRequested)
+    {
+        SetRuntimeMenuVisible(!bRuntimeMenuVisible);
+    }
+    else if (bCloseRequested && bRuntimeMenuVisible)
+    {
+        SetRuntimeMenuVisible(false);
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::SetRuntimeMenuVisible(const bool bVisible)
+{
+    if (!RuntimeMenu)
+    {
+        return;
+    }
+
+    bRuntimeMenuVisible = bVisible;
+    if (bRuntimeMenuVisible)
+    {
+        PositionRuntimeMenu();
+    }
+    RuntimeMenu->SetVisibility(bRuntimeMenuVisible);
+    UpdateWidgetInteractionPresentation();
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Menu: %s"), bRuntimeMenuVisible ? TEXT("opened") : TEXT("closed"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::PositionRuntimeMenu()
+{
+    if (!RuntimeMenu || !OwnerCharacter)
+    {
+        return;
+    }
+
+    const USceneComponent* ViewAnchor = TrackedCamera
+        ? static_cast<USceneComponent*>(TrackedCamera.Get())
+        : HeadAnchor.Get();
+    const FVector ViewLocation = ViewAnchor
+        ? ViewAnchor->GetComponentLocation()
+        : OwnerCharacter->GetActorLocation() + FVector(0.0f, 0.0f, 160.0f);
+    const FRotator ViewRotation = ViewAnchor
+        ? ViewAnchor->GetComponentRotation()
+        : OwnerCharacter->GetActorRotation();
+    const FRotator FlatViewRotation(0.0f, ViewRotation.Yaw, 0.0f);
+    const FVector MenuLocation = ViewLocation + FlatViewRotation.Vector() * 100.0f - FVector(0.0f, 0.0f, 10.0f);
+    FVector ToViewer = ViewLocation - MenuLocation;
+    ToViewer.Z = 0.0f;
+
+    RuntimeMenu->SetWorldLocation(MenuLocation);
+    RuntimeMenu->SetWorldRotation(FRotator(0.0f, ToViewer.Rotation().Yaw, 0.0f));
 }
 
 void UWMCYNFirstSignalPresenceComponent::RegisterVoice()

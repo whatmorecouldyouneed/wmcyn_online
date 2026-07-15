@@ -48,6 +48,14 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Confirm three-client PIE receives replicated identity state and shows both remote AFCore NameTags on each client.
 - [ ] Confirm the same NameTag behavior with distinct login names on the physical three-device run.
 
+## Runtime Menu and AFCore Reuse
+
+- [x] Create `WBP_WMCYN_RuntimeMenu` as a WMCYN-owned composition of AFCore scaffold, vertical tabs, and widget switcher behavior.
+- [x] Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the post-login runtime menu without editing AFCore.
+- [x] Toggle the menu with Quest left `Y`/desktop `M` and close it with Quest right `B`/`Escape`.
+- [x] Prove in PIE that successful login creates the menu and the AFCore Players roster displays the submitted identity.
+- [ ] Headset-confirm runtime menu pointer interaction, roster refresh, and Audio Apply/Reset behavior.
+
 ## Voice Validation
 
 - [x] Add WMCYN-owned `WMCYN_VOIPTalker` to the active Quest pawn.
@@ -83,8 +91,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Support one identifier field accepting username, `@username`, or email plus password.
 - [x] Add an authenticated VR bootstrap response containing verified identity and the current Crib runtime endpoint.
 - [x] Add the WMCYN Unreal HTTP authentication/profile subsystem source without storing or replicating the password/token.
-- [ ] Install UE 5.8's preferred MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and connect the active login Blueprint to the asynchronous subsystem.
-- [ ] Keep locomotion locked until authentication and world entry succeed.
+- [x] Install UE 5.8's preferred MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and connect the active login Blueprint to the asynchronous subsystem.
+- [x] Keep locomotion locked until authentication and world entry succeed; retain an explicit local fallback for PIE development only.
 - [ ] Select the real persistent-world networking path beyond local `OnlineSubsystemNull` validation.
 - [ ] Run the first same-LAN proof with the PC as a hidden listen server if needed.
 - [ ] Define Unreal world-runtime registration, heartbeat, build compatibility, and short-lived join-ticket contracts.
@@ -181,13 +189,12 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 
 ## Current Next Steps
 
-1. Install MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and wire `WBP_WMCYN_LoginJoin` to backend state/ready delegates while retaining explicit PIE fallback.
-2. Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the AFCore-hosted runtime menu.
-3. Run headset regression for login, keyboard, NameTag, roster refresh, Voice Apply/Reset, and movement unlock.
-4. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
-5. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen-server path.
-6. Confirm cross-device body/head/hand tracking, display names, two-way voice, and OBS audio/video capture.
-7. Measure Quest performance with two native Mimic users, then specify the handheld camera feature.
+1. Run headset regression for login, keyboard, NameTag, runtime-menu interaction, roster refresh, Audio Apply/Reset, and movement unlock.
+2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
+3. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen-server path.
+4. Confirm cross-device body/head/hand tracking, display names, two-way voice, and OBS audio/video capture.
+5. Restore Firebase billing and run one real backend login/bootstrap proof.
+6. Measure Quest performance with two native Mimic users, then specify the handheld camera feature.
 
 ## Out of Scope
 

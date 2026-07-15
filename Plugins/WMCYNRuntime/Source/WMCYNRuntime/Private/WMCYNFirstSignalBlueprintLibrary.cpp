@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/UnrealType.h"
+#include "WMCYNFirstSignalLoginAsyncAction.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNFirstSignalUI, Log, All);
@@ -30,6 +31,21 @@ bool UWMCYNFirstSignalBlueprintLibrary::SubmitLocalFirstSignalIdentity(
     Presence->SubmitIdentity(Username, DisplayName);
     Presence->CompleteLocalLoginGate();
     return true;
+}
+
+bool UWMCYNFirstSignalBlueprintLibrary::SubmitFirstSignalLogin(
+    const UObject* WorldContextObject,
+    UUserWidget* LoginWidget,
+    const FString& Identifier,
+    const FString& Password,
+    const bool bAllowPIEDevelopmentFallback)
+{
+    return UWMCYNFirstSignalLoginAsyncAction::StartForLoginWidget(
+        WorldContextObject,
+        LoginWidget,
+        Identifier,
+        Password,
+        bAllowPIEDevelopmentFallback);
 }
 
 bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction(

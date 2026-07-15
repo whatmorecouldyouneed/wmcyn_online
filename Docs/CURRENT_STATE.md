@@ -101,7 +101,8 @@
   - `DisplayName`
   - `PresenceMode`
   - `Capabilities`
-- The currently loaded editor module still uses `WMCYN|Identity|SubmitLocalFirstSignalIdentity` as the explicit PIE development fallback. Production entry is being consolidated behind `UWMCYNBackendSubsystem`; it must authenticate and load bootstrap data before locomotion unlocks. Password text and backend tokens are never stored in replicated state.
+- `WBP_WMCYN_LoginJoin.SubmitLogin` now calls WMCYN-owned `Submit First Signal Login`. The native bridge runs `UWMCYNBackendSubsystem` asynchronously, reports progress through the existing status text, submits verified identity into the replicated presence layer, and closes the existing 3D gate only after success. Password text and backend tokens are never stored in replicated state.
+- PIE uses an explicit local identity fallback so VR/editor iteration does not depend on Firebase billing. `-WMCYNForceBackendAuth` exercises the real service in PIE, while packaged clients use backend authentication unless explicitly launched with the development-only `-WMCYNLocalIdentity` switch.
 - `PresenceMode`, `Capabilities`, and indexed slot assignment remain server-owned. Login cannot grant itself recording or marker capabilities.
 - The native pawn's WMCYN adapter hosts AFCore `/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag` in runtime component `WMCYN_AFCoreNameTag_Runtime`. This is AFCore's intended player identity widget: the VR, mobile, and desktop character pawns reference it directly, and it binds to `Comp_PlayerInfo_Basic.Updated_PlayerName`. The host is AFCore `/Game/AFCore/Blueprints/Components/UI/Comp_Widget`, not a plain Unreal `WidgetComponent`; this preserves AFCore theme initialization through `FL_UI` and `/Game/AFCore/Materials/UI/UI/M_UIMaster`. It uses `DA_Theme_Default`, matching AFCore's pawn template and preventing the white-on-white fallback seen with the plain host. Successful login mirrors the server-authoritative display name into the AFCore component as well as WMCYN/Unreal PlayerState fields. The desired-size widget is constrained to a `25 cm` world width, follows the replicated HMD with a fixed `30 cm` world-up offset, and billboards around world yaw only. `Owner No See` keeps it out of the user's direct HMD view while allowing the local mirror and remote users to render it. No AFCore asset is modified.
 - A two-client identity probe proves both the listen-server path and client-to-server RPC path. Both PlayerStates replicated `NetworkProbe`, and each opposite client displayed that value on the remote nameplate. The probe actor was removed from the active test map after validation.
@@ -119,8 +120,9 @@
 - The backend does not currently register or discover an Unreal world runtime. It has AR world/scene and livestream records, but no authoritative Unreal server host, port, build ID, heartbeat, or join-ticket contract.
 - Packaging Quest and Windows clients alone does not create an online world. The first physical proof may use the PC as a hidden listen server; the persistent product target requires an Unreal world runtime plus an authenticated discovery/bootstrap contract.
 - The backend hardening pass removed public `/debug/env`, limits development `x-uid` auth to the Auth emulator plus an explicit flag, restored rate limiting, restricted user/profile reads, removed anonymous admin mutation access, and replaced direct live-route `x-uid` trust.
-- `UWMCYNBackendSubsystem` implements asynchronous login and bootstrap in WMCYN-owned C++ with private token storage and a command-line backend URL override. Its editor build is blocked before module compilation because this machine lacks UE 5.8's preferred MSVC `14.50.35717`; installed `14.38` fails in an engine header and `14.43` is banned by UnrealBuildTool.
-- AFCore reuse wrappers now exist at `/Game/WMCYN/UI/Multiplayer/WBP_WMCYN_WhosHere` and `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_Audio`. Both compile and inherit AFCore behavior; runtime menu exposure and headset regression remain pending.
+- `UWMCYNBackendSubsystem` implements asynchronous login and bootstrap in WMCYN-owned C++ with private token storage and a command-line backend URL override. MSVC `14.50.35717` is installed, UnrealBuildTool selects toolchain `14.50.35737`, and `wmcyn_onlineEditor` now compiles and links `UnrealEditor-WMCYNRuntime.dll` successfully under UE 5.8.
+- AFCore reuse wrappers exist at `/Game/WMCYN/UI/Multiplayer/WBP_WMCYN_WhosHere` and `/Game/WMCYN/UI/Settings/WBP_WMCYN_Settings_Audio`. `/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu` exposes both through an AFCore scaffold, vertical tabs, and widget switcher hosted by the native pawn adapter. Quest left `Y` or desktop `M` toggles the menu; Quest right `B` or `Escape` closes it.
+- An engine-driven PIE smoke submitted `CodexSmoke` through the production `SubmitLogin` function, unlocked the gate, created `WMCYN_AFCoreRuntimeMenu`, and opened it with `M`. The captured runtime menu showed `CodexSmoke` in the AFCore Players roster and exposed the Audio tab. The temporary auto-submit event was removed before the widget was compiled and saved.
 - Verbatim is a stretch feature and is not part of the First Signal acceptance gate.
 
 ## Voice State
@@ -176,10 +178,9 @@
 
 ## Next Gate
 
-1. Complete the AFCore reuse pass for login cleanup, player roster, and selected settings pages.
-2. Repair the backend checkout, harden its production auth boundary, and settle email-versus-handle login semantics.
-3. Connect verified Firebase identity/bootstrap to the existing 3D login gate without replacing the AFCore keyboard.
-4. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
-5. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen server.
-6. Close separate-device presence, voice, and PCVR/OBS audio/video capture.
-7. Measure Quest frame timing with two native Mimic users, then specify the handheld camera feature.
+1. Headset-regress the production login, AFCore keyboard, themed NameTag, runtime roster, Audio Apply/Reset, and post-login movement unlock.
+2. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
+3. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen server.
+4. Confirm cross-device body/head/hand tracking, distinct display names, two-way voice, and PCVR/OBS audio/video capture.
+5. Restore Firebase billing and run one real `-WMCYNForceBackendAuth` login/bootstrap proof against the hardened backend.
+6. Measure Quest frame timing with two native Mimic users, then specify the handheld camera feature.

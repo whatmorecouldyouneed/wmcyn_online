@@ -5,6 +5,7 @@
 #include "WMCYNFirstSignalBlueprintLibrary.generated.h"
 
 class UWidgetComponent;
+class UUserWidget;
 
 UCLASS()
 class WMCYNRUNTIME_API UWMCYNFirstSignalBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -17,6 +18,17 @@ public:
         const UObject* WorldContextObject,
         const FString& Username,
         const FString& DisplayName);
+
+    UFUNCTION(
+        BlueprintCallable,
+        Category = "WMCYN|Backend",
+        meta = (WorldContext = "WorldContextObject", DisplayName = "Submit First Signal Login"))
+    static bool SubmitFirstSignalLogin(
+        const UObject* WorldContextObject,
+        UUserWidget* LoginWidget,
+        const FString& Identifier,
+        const FString& Password,
+        bool bAllowPIEDevelopmentFallback = true);
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|UI", meta = (WorldContext = "WorldContextObject"))
     static bool PrepareLocalFirstSignalWidgetInteraction(

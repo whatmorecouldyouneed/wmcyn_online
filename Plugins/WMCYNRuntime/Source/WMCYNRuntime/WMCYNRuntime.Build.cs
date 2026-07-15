@@ -13,6 +13,7 @@ public class WMCYNRuntime : ModuleRules
             "Engine",
             "HeadMountedDisplay",
             "HTTP",
+            "InputCore",
             "Json",
             "OnlineSubsystem",
             "OnlineSubsystemUtils",

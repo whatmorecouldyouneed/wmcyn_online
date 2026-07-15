@@ -59,6 +59,10 @@ private:
     void ApplyIdentity(const FString& Username, const FString& DisplayName);
     void CreateNameplate();
     void RefreshNameplate();
+    void CreateRuntimeMenu();
+    void UpdateRuntimeMenuInput();
+    void SetRuntimeMenuVisible(bool bVisible);
+    void PositionRuntimeMenu();
     void RegisterVoice();
     void ActivateLocalVoice();
     void HandleVoiceSessionCreated(FName SessionName, bool bWasSuccessful);
@@ -121,6 +125,12 @@ private:
     TSoftObjectPtr<UObject> NameplateThemeAsset;
 
     UPROPERTY(Transient)
+    TObjectPtr<UWidgetComponent> RuntimeMenu;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|UI")
+    TSoftClassPtr<UUserWidget> RuntimeMenuWidgetClass;
+
+    UPROPERTY(Transient)
     TObjectPtr<UVOIPTalker> VoiceTalker;
 
     UPROPERTY(Transient)
@@ -142,5 +152,6 @@ private:
     bool bVoiceActivationRequested = false;
     bool bLoginGateLockApplied = false;
     bool bLoginGateCompleted = false;
+    bool bRuntimeMenuVisible = false;
     FDelegateHandle CreateSessionDelegateHandle;
 };
