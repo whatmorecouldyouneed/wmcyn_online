@@ -4,6 +4,7 @@
 #include "Components/WidgetInteractionComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "UObject/UnrealType.h"
 #include "WMCYNFirstSignalLoginAsyncAction.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
@@ -101,4 +102,26 @@ bool UWMCYNFirstSignalBlueprintLibrary::RequestLocalFirstSignalRespawn(const UOb
 
     Presence->RequestRespawnToPresenceSlot();
     return true;
+}
+
+void UWMCYNFirstSignalBlueprintLibrary::PlayFirstSignalFootstep(
+    const UObject* WorldContextObject,
+    const bool bRightFoot,
+    const float Intensity,
+    const FTransform& WorldTransform,
+    USoundBase* LeftFootstep,
+    USoundBase* RightFootstep)
+{
+    USoundBase* Footstep = bRightFoot ? RightFootstep : LeftFootstep;
+    if (!WorldContextObject || !Footstep)
+    {
+        return;
+    }
+
+    UGameplayStatics::PlaySoundAtLocation(
+        WorldContextObject,
+        Footstep,
+        WorldTransform.GetLocation(),
+        WorldTransform.Rotator(),
+        FMath::Max(Intensity, 0.0f));
 }

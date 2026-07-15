@@ -32,14 +32,14 @@ The product strategy is to build the world from culture outward.
 
 ## First Signal Canonical Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
+Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user, all present in the same always-on world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
 
 Terminology update:
 
 * The Crib is the anchor. Do not frame it as a disposable private copy.
 * Users are persistent identities.
 * Presence is a user's live in-world embodiment.
-* First Signal has two standalone VR presences and one PCVR recording presence.
+* First Signal has three standalone Quest presences and one PCVR recording presence.
 * Recording is a temporary capability on the PCVR user, not a permanent user class.
 * First Signal login is username or email, password, and Enter World.
 * First Signal enters the persistent Crib world through username-or-email/password login.
@@ -179,7 +179,7 @@ Access grows the world.
 ---
 # 8. MVP Magic Moment
 The MVP magic moment is:
-**Two standalone VR users and one PCVR recording user are present together in the WMCYN Crib, the conversation becomes clip-worthy, and the PCVR recording becomes a piece of content people want to watch.**
+**Three standalone Quest users and one PCVR recording user are present together in the WMCYN Crib, the conversation becomes clip-worthy, and the PCVR recording becomes a piece of content people want to watch.**
 This is the moment where WMCYN Online stops feeling like a tech demo and starts feeling like
 a real cultural place.
 The product is working when the team feels:
@@ -323,7 +323,7 @@ Admin can overlap with the PCVR recording user in MVP.
 2. Enter The WMCYN Crib.
 3. Login with username-or-email/password and confirm recording capability.
 4. See list of connected users.
-5. Confirm both standalone VR users are present.
+5. Confirm all three standalone Quest users are present.
 6. Switch to recording/capture mode if needed.
 7. Choose saved shot:
 
@@ -445,7 +445,7 @@ These may be future roadmap items.
 These are required for the MVP to be valid.
 * PCVR build runs
 * standalone headset build runs
-* two standalone VR users and one PCVR recording user can enter The WMCYN Crib together
+* three standalone Quest users and one PCVR recording user can enter The WMCYN Crib together
 * basic user identity exists
 * users have display names
 * users have presence modes and temporary capabilities
@@ -937,7 +937,7 @@ By August 7, 2026, success means:
 ## Private Alpha Success
 By end of September 2026, success means:
 * PCVR recording user can enter
-* two standalone VR users can enter
+* three standalone Quest users can enter
 * users load account-bound avatars
 * users can hang out in the Crib
 * couch/banner wall are recognizable
@@ -1073,14 +1073,14 @@ app integration.
 1. What is the official lore location of the Crib?
 2. Is it in the WMCYN District, a digital L.A.-inspired city, or somewhere else?
 3. What is the first public-facing name: WMCYN Online, The Crib, or WMCYN Crib?
-4. Who are the first three users/avatars?
+4. Who are the first four users/avatars?
 5. Which first users/avatars appear in the First Signal recording?
 6. What is the first content format: interview, hangout, Verbatim marker, or lore teaser?
 7. What exact moment would make the team say, "This is the Crib"?
 ## Technical Questions
 1. Which Unreal Engine version should be used after the standalone headset spike?
 2. What Meta XR plugin version is stable for the target standalone headset?
-3. Should the first multiplayer test use listen server or dedicated server?
+3. What internet host and deployment process should run the canonical authoritative Unreal world server?
 4. How will local/dev login work?
 5. How will avatars be loaded and optimized for standalone headsets?
 6. What is the simplest OBS capture workflow?

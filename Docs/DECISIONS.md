@@ -6,9 +6,9 @@ This is the running decision log. Add concise dated entries when scope, architec
 
 - WMCYN Online uses Unreal Engine 5.8.
 - First Signal Build is the active target, not the full future product.
-- Canonical First Signal target: Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
+- Canonical First Signal target: Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user, all present in the same always-on world, with basic presence, voice, and OBS-friendly capture from the PCVR machine.
 - The world is the anchor. Do not model a lead participant as a permanent user type; users enter The WMCYN Crib and receive presence/capability state.
-- First Signal uses two standalone VR user presences and one PCVR recording user presence.
+- First Signal uses three standalone Quest user presences and one PCVR recording user presence.
 - HumanCodeable AFCore / Advanced VR Framework has been tested and works.
 - AFCore remains the baseline for compatible reusable framework systems and reference behavior. The native Mimic pawn is the First Signal body, tracking, locomotion, footsteps, and floor-behavior source of truth.
 - Skip the broad AFCore example-map validation loop and proceed to WMCYN integration.
@@ -21,7 +21,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 
 ## 2026-06-23
 
-- Use `BP_Pawn_VR_Char` as the initial First Signal presence baseline for both standalone VR users and the PCVR recording user.
+- Use `BP_Pawn_VR_Char` as the initial First Signal presence baseline for all three standalone Quest users and the PCVR recording user.
 - Use AFCore `BP_PlayerPosition` actors as the initial level spawn markers in `L_WMCYNOnline`.
 - Keep placed `BP_Pawn_VR_Char` instances as `PREVIEW_` actors tagged `WMCYN_PreviewOnly` until the runtime spawn flow is wired.
 - Name the three initial spawn lanes `StandaloneVR_A`, `StandaloneVR_B`, and `PCVR_Recording`; do not revive old lead/visitor/operator terminology.
@@ -76,7 +76,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - `BP_WMCYN_GameMode_FirstSignal` is the level GameMode wrapper for `L_WMCYNOnline`.
 - `BP_WMCYN_PlayerController_FirstSignal` inherits AFCore `BP_PlayerController_Main`, forces the VR pawn selection lane, and syncs the runtime WMCYN Quest pawn into AFCore's `playingPawn` reference.
 - Keep First Signal local test entry deterministic by using `SPAWN_FirstSignal_StandaloneVR_A` as the first local standalone VR spawn.
-- Keep spawn marker indices simple: `StandaloneVR_A = 0/default`, `StandaloneVR_B = 1`, `PCVR_Recording = 2`.
+- Superseded on 2026-07-15: the three-slot layout was expanded to `StandaloneVR_A = 0/default`, `StandaloneVR_B = 1`, `StandaloneVR_C = 2`, and `PCVR_Recording = 3`.
 - Use `BP_WMCYN_VRPreviewStabilizer` as a temporary WMCYN-owned VR Preview stabilization hook. It may reset HMD tracking and snap the current local WMCYN Quest pawn to `WMCYN_Spawn_StandaloneVR_A`.
 - This stabilizer snap is not the final multiplayer spawn/runtime system. It is a local First Signal test-lane fix to stop the pawn from starting at the PCVR marker and collision-shoving above the Crib.
 - AFCore assets remain untouched for this fix.
@@ -184,7 +184,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Keep `BP_WMCYN_VRPreviewStabilizer` spawn correction authority-only. Network clients must accept the indexed server spawn instead of snapping themselves before PlayerState replication arrives.
 - Register every replicated pawn's `VOIPTalker` with that pawn's own PlayerState, but run local session creation, microphone setup, and speaking activation only for the locally controlled pawn.
 - Keep the PCVR recording user on the shared AFCore VR pawn family until an actual OBS/capture test proves it insufficient; inspect `BP_Pawn_VR_Camera` only after that failure.
-- A three-client listen-server PIE run is the current desktop proof for indexed presence, replicated WMCYN metadata, AFCore remote NameTags, and per-world local voice ownership. It does not close the separate-device Quest-to-Quest hearing or OBS acceptance gates.
+- The earlier three-client listen-server PIE run proves the base indexed presence, replicated metadata, remote NameTag, and per-world local voice ownership paths. It does not close the new four-client or remote four-device gates.
 - Treat the earlier tiny-player report as incomplete body coverage, not a global scale failure. The active AFCore head and torso meshes have normal human dimensions and all relevant transforms remain at scale `1.0`; together they form only a roughly 90 cm bust with no pelvis or legs.
 - Do not enlarge the AFCore head/torso placeholders. Scaling those meshes would distort proportions without creating a full body.
 - Do not assign AFCore `SK_Framework_Movement_Mannequin` or `AnimBP_Mannequin` as a complete VR body by itself. The AFCore Animation Blueprint has idle/run/jump states but no HMD/controller-driven full-body IK.
@@ -229,14 +229,14 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Promote the proven child to `/Game/WMCYN/Pawns/BP_WMCYN_UserPawn_FirstSignal` and make it the First Signal player source of truth. Do not continue tuning the AFCore-derived Mimic wrapper toward the same result.
 - Preserve native Mimic body, tracking hierarchy, seated calibration, locomotion, hand/body solve, and footsteps. Build WMCYN identity, login, voice, nameplate, indexed spawn, capabilities, and pose replication around it with WMCYN-owned adapters.
 - Use `BP_WMCYN_UserPawn_FirstSignal` as the shared default avatar/pawn for standalone VR and PCVR recording users. Consider a camera-specific PCVR pawn only if an OBS capture test proves the shared native pawn insufficient.
-- Keep the AFCore-derived Quest pawn and isolated native test map as rollback/diagnostic paths until the production pawn passes login, voice, replicated pose, and three-device gates.
+- Keep the AFCore-derived Quest pawn and isolated native test map as rollback/diagnostic paths until the production pawn passes login, voice, replicated pose, and four-device gates.
 - Use Mimic's existing procedural foot-target system as the first walking-animation pass. `ABP_VRBody` already updates `CalculateFeetTargets` from HMD/world velocity, so do not add a competing AFCore locomotion AnimBP or custom walk-cycle system before headset testing.
 - `BP_WMCYN_UserPawn_FirstSignal` is now the production `DefaultPawnClass` in `BP_WMCYN_GameMode_FirstSignal`; `L_WMCYNOnline` no longer uses the AFCore-derived experimental body lane.
 - Keep indexed slot assignment in the existing WMCYN GameMode/PlayerState contract, but perform pawn placement through generic Pawn/Character APIs. Do not restore AFCore `BP_Pawn_Base`, `playingPawn`, or `PawnReady` assumptions around the native pawn.
 - Use the WMCYNRuntime `WMCYN_FirstSignalPresence` component as the native-pawn adapter for identity, VOIPTalker registration, remote-only nameplate rendering, and replicated head/hand transforms. Do not edit AFCore or the imported Mimic parent.
 - Login identity is server-authoritative. `SubmitLocalFirstSignalIdentity` sends a reliable pawn-owned RPC; the server sanitizes and writes `Username`, `DisplayName`, and standard PlayerName. Password text is never stored, and clients cannot assign their own capabilities.
 - Replicate head, left-controller, and right-controller relative transforms at 20 Hz with owner skipping and remote interpolation. Character movement remains responsible for root locomotion replication.
-- Three-client production PIE is the desktop acceptance proof for distinct indexed spawns, possession, remote nameplate visibility, native voice registration, and tracked-pose transport; a focused two-client probe separately proves both direct server identity submission and the client-to-server identity RPC. Physical Quest/PCVR testing remains required for comfort, hardware input, hearing, performance, and OBS.
+- Earlier three-client production PIE is retained as desktop evidence for distinct indexed spawns, possession, remote nameplates, native voice registration, and tracked-pose transport; a new four-client regression is required after the slot expansion. Physical Quest/PCVR internet testing remains required for comfort, hardware input, hearing, performance, and OBS.
 - Keep `OnlineSubsystemNull` local talker `1..3` warnings classified as PIE split-screen probe noise while real local talker `0` registers successfully. Do not mistake those warnings for separate-device voice acceptance.
 - Preserve Mimic's existing trigger-to-widget-click graphs. Fix the native pawn's WMCYN login compatibility in `WMCYN_FirstSignalPresence` by changing its inherited widget interaction trace channel from `Pawn` to `Visibility`, extending interaction distance to 750 cm, and keeping hit testing enabled. Do not duplicate the trigger graph or edit the imported pawn.
 - AFCore's keyboard sends characters through the overlay's source `WidgetInteractionComponent`. Because the native Mimic pawn does not populate AFCore `Comp_Widget.lastWidgetInteractionComponent`, register a WMCYN-owned focus-only interaction with the login widget host before every keyboard spawn or field switch. Give it a separate virtual user and disable hit testing so visible pointer clicks cannot steal text focus between letters.
@@ -246,7 +246,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Replace the temporary WMCYN `TextRenderComponent` with a WMCYN-owned `WidgetComponent` hosting AFCore `Widget_NameTag`. Preserve the approved `25 cm` width, HMD anchor, yaw-only billboard, owner-hidden mirror/remote visibility, and replicated identity source. Mirror successful login into AFCore `Comp_PlayerInfo_Basic.PlayerName` and trigger its existing RepNotify dispatcher. Load the widget softly during `BeginPlay`; eager native-constructor loading occurs before UE 5.8 Typed Elements registration and prevents editor startup.
 - Host `Widget_NameTag` with AFCore `Comp_Widget` and `DA_Theme_Default`, matching AFCore's character pawn template. A plain Unreal `WidgetComponent` bypasses AFCore's `FL_UI`/`M_UIMaster` theme initialization and can render the tag as white text on a white block. Keep the compatibility host WMCYN-owned and do not modify `M_UIMaster` or AFCore widget assets.
 - Reinforce the login gate in the WMCYN native-pawn adapter. Ignore locomotion and stick-look input and stop current character movement until local identity submission succeeds; do not disable HMD/controller tracking or trigger input needed to use the menu.
-- Treat the three indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
+- Treat the four indexed `BP_PlayerPosition` actors as WMCYN post-possession transform anchors. Keep their transforms/capsules unchanged and suppress only the misleading per-instance `BAD SIZE` editor sprite; do not scale the pawn, move the Crib, or alter AFCore's source `BP_PlayerPosition` asset.
 - Treat yaw `0` on `SPAWN_FirstSignal_StandaloneVR_A` as the approved runtime entry facing. The login gate intentionally locks stick turning, so the delayed stabilizer must reapply the complete indexed marker transform after HMD reset. Reconcile the default PlayerStart yaw with that marker before packaging.
 - Treat the first Quest package attempt as blocked by the local UE 5.8 installation, not by project content. Enable the engine's Android optional component and configure the matching Android toolchain before changing project packaging settings.
 - Move Verbatim out of the First Signal acceptance gate. It remains a possible stretch feature after login, shared-world presence, voice, PCVR/OBS capture, and the initial camera path are proven.
@@ -254,7 +254,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Do not reuse the backend's six-digit headset pairing flow for WMCYN Online First Signal. The approved product flow remains direct credentials -> verified identity -> automatic Crib world entry.
 - Keep passwords, Firebase tokens, and join tickets out of replicated Unreal state. Only verified UID, username/display name, presence mode, slot, and server-assigned capabilities may reach PlayerState.
 - At the 2026-07-14 checkpoint, treat Unreal login submission as a local prototype until it authenticates asynchronously. This condition is superseded by the native bridge decision recorded on 2026-07-15.
-- Use a hidden PC listen server for the first same-LAN three-device proof if needed. This is temporary infrastructure and must not add a user-facing host/session flow.
+- Superseded on 2026-07-15: a hidden same-LAN listen-server proof is no longer the acceptance path. It remains historical local-test context only.
 - The persistent product target is an authoritative Unreal world runtime discovered through the backend. Add explicit world runtime registration/heartbeat and authenticated entry/bootstrap contracts before claiming internet multiplayer.
 - Repair or replace `C:/Users/jvred/Documents/WMCYN/wmcyn-backend-infra` from upstream before backend implementation. Its local Git metadata and route source tree are incomplete, while upstream `main` at audit commit `b2f260b` builds cleanly.
 - Harden the backend before reactivation: remove public config debug output, disable `x-uid` in production, restore rate limiting, review public profile reads and anonymous admin-route access, and address dependency audit findings.
@@ -279,11 +279,19 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Treat the current UE 5.8 Android packaging gate as an engine-installation/toolchain issue. Enable the Launcher's Android optional component before installing the exact UE 5.8 SDK/NDK versions; do not change project gameplay/configuration to bypass missing engine platform binaries.
 - Ship/cook `L_WMCYNOnline`, not the inherited AFCore example and template maps. Exclude AFCore's dormant legacy hand AnimBP folder from WMCYN packages because its removed SteamVR Input structs fail UE 5.8 cook and the production native Mimic pawn does not depend on it.
 - Accept the successful Win64 Development cook/archive and packaged no-HMD world startup as the PC build-pipeline smoke. Keep real PCVR/OBS behavior as a hardware gate, and track the nonfatal AFCore `Comp_Widget` startup ensure separately.
+- Expand First Signal capacity to three standalone Quest users plus one PCVR recording user. Keep fixed server-authoritative slots `StandaloneVR_A = 0`, `StandaloneVR_B = 1`, `StandaloneVR_C = 2`, and `PCVR_Recording = 3` for the current implementation.
+- Simplify Settings audio to Master, Music, Voice, and SFX; hide Audio Quality. Apply the AFCore sound-mix class overrides live from the WMCYN wrapper.
+- Route WMCYN-owned copies of the imported Mimic footstep cues through AFCore `SC_SFX` so Master/SFX control the current footsteps. Do not modify AFCore or the imported Mimic source cues.
+- Treat The WMCYN Crib as exactly one canonical logical world. No player hosts it, creates it, browses copies, or selects a session. One authoritative internet-reachable Unreal runtime serves `L_WMCYNOnline`.
+- Use Firebase for identity, access, runtime discovery, build compatibility, slot reservation, and short-lived join-ticket issuance. Firebase does not simulate or host the live Unreal world.
+- Adopt `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md` as the deployment contract: singleton runtime record, server-only registration, 10-second heartbeat, 30-second lease, stale-runtime rejection, per-process runtime ID, reconnect, and four-device remote acceptance.
+- Replace LAN acceptance language with remote internet validation from three Quest locations and one PCVR/OBS location.
 
 ## Open Decisions
 
-- What machine hosts the first same-LAN listen-server proof, and how will Quest builds receive its address without exposing a session picker?
-- What is the first production Unreal world-server host and deployment target after the LAN proof?
+- What cloud/colo machine and deployment process will host the first canonical Unreal world runtime?
+- Which server authentication mechanism will protect runtime registration and heartbeat in the deployment environment?
+- What signing and Unreal-side validation mechanism will be used for short-lived join tickets?
 - Should First Signal in-game voice use push-to-talk or open mic plus mute?
 - Which real online voice backend should replace the local `Null` validation path when persistent-world networking is ready?
 - If the hidden technical session causes multiplayer/world-entry side effects later, should WMCYN replace it with a small C++/Blueprint bridge that registers local talker `0` directly?

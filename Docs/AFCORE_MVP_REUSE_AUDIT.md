@@ -57,7 +57,7 @@ The physical camera should be WMCYN-owned while reusing AFCore interaction and s
 
 1. Thin the active login widget around one WMCYN authentication/bootstrap call while preserving the proven AFCore keyboard.
 2. Keep the old local identity path available only as an explicit development fallback.
-3. Host `Widget_Multiplayer_Players` in a small WMCYN `Who's Here` surface and verify three replicated names.
+3. Host `Widget_Multiplayer_Players` in a small WMCYN `Who's Here` surface and verify four replicated names.
 4. Host AFCore Audio settings and Apply/Reset behavior in a WMCYN settings wrapper.
 5. Add platform filtering before exposing Graphics settings.
 6. Run VR login, keyboard, locomotion gate, NameTag, roster, and audio-setting regressions.

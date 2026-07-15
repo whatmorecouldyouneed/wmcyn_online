@@ -6,6 +6,7 @@
 
 class UWidgetComponent;
 class UUserWidget;
+class USoundBase;
 
 UCLASS()
 class WMCYNRUNTIME_API UWMCYNFirstSignalBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -37,4 +38,13 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Presence", meta = (WorldContext = "WorldContextObject"))
     static bool RequestLocalFirstSignalRespawn(const UObject* WorldContextObject);
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Audio", meta = (WorldContext = "WorldContextObject"))
+    static void PlayFirstSignalFootstep(
+        const UObject* WorldContextObject,
+        bool bRightFoot,
+        float Intensity,
+        const FTransform& WorldTransform,
+        USoundBase* LeftFootstep,
+        USoundBase* RightFootstep);
 };

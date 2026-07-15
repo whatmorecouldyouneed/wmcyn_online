@@ -6,7 +6,7 @@ Last updated: 2026-07-10
 
 ## Canonical First Signal Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user, all present in the same world, with basic presence, voice, and OBS-friendly capture from the PCVR machine. Verbatim is retained below only as a deferred technical reference.
+Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user, all present in the same always-on world, with basic presence, voice, and OBS-friendly capture from the PCVR machine. Verbatim is retained below only as a deferred technical reference.
 
 ## Decision Summary
 
@@ -38,7 +38,7 @@ Do not create old lead/visitor-specific pawn classes. The PCVR recording user is
 - 2026-06-25: `/Game/WMCYN/Data/DA_WMCYN_FirstSignal_Level` was created with `default_Pawn_VR` set to `BP_WMCYN_QuestUserPawn`.
 - 2026-06-25: `BP_MapInfo_WMCYN_FirstSignal` was added to `L_WMCYNOnline` with `levelKey` set to the WMCYN First Signal Level Data asset.
 - In-viewport PIE now starts without the Jared Blueprint compile blocker, but non-HMD in-viewport PIE currently spawns AFCore `BP_Pawn_Mobile_Char_C_0`.
-- Current required proof is multi-user persistent-world validation: two Quest users and one PCVR recording user appear in The WMCYN Crib with basic presence/name.
+- Current required proof is remote multi-user validation: three Quest users and one PCVR recording user appear in The WMCYN Crib with basic presence/name.
 
 ## Product Model
 
@@ -242,7 +242,7 @@ Primary candidates:
 
 Recommendation:
 
-Use AFCore's simple login/replication/runtime path as the first inspection path. Keep public matchmaking, backend auth, and dedicated server architecture out of First Signal unless local/LAN-style persistent-world testing cannot satisfy the milestone.
+Use AFCore's simple login/replication/runtime path as the first inspection path. Keep public matchmaking out of First Signal, but connect the proven gameplay path to Firebase-authenticated bootstrap and one authoritative internet-hosted Unreal runtime. LAN/player-hosted sessions are not the acceptance model.
 
 ## Spawn Markers
 
@@ -325,7 +325,7 @@ Prefer composition/data over class multiplication.
 
 Manual Unreal visual/PIE inspection should answer these three questions:
 
-1. Does `BP_Pawn_VR_Char` look acceptable as the baseline for both standalone VR users?
+1. Does `BP_Pawn_VR_Char` look acceptable as the baseline for all three standalone Quest users?
 2. Is the PCVR recording user the same pawn plus `Recording` capability, or does `BP_Pawn_VR_Camera` provide a better base in actual capture?
 3. Can AFCore PlayerState/PlayerInfo carry display names, presence modes, and capabilities without replacing AFCore game classes?
 

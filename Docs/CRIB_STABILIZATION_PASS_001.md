@@ -7,7 +7,7 @@ Goal: make one conversation area in `L_WMCYNOnline` readable and frameable for F
 1. Save a backup/checkpoint of the current level state before moving actors.
 2. In `L_WMCYNOnline`, pick one small conversation zone in the visible Crib FBX.
 3. Ignore the rest of the Crib unless it affects the chosen camera frame.
-4. Place temporary markers for two standalone VR users and one PCVR recording user.
+4. Place temporary markers for three standalone Quest users and one PCVR recording user.
 5. Add only lighting, blocking, spawn-marker, and camera-framing helpers needed for this one shot.
 
 ## 2. Do Not Touch Yet
@@ -57,7 +57,7 @@ Use these exact names for new helper actors:
 
 ## 5. Lighting Checklist
 
-- [ ] Both standalone VR users' faces/hands are readable from `CAM_FirstSignal_VRPair_TwoShot`.
+- [ ] All three standalone Quest users' faces/hands are readable from the chosen conversation framing.
 - [ ] Key light gives shape without blowing out the FBX materials.
 - [ ] Fill light lifts shadows enough for standalone headset readability.
 - [ ] Back/rim light separates avatars from the background.
@@ -69,7 +69,7 @@ Use these exact names for new helper actors:
 ## 6. Collision Checklist
 
 - [ ] Add simple blocking only where needed for the chosen area.
-- [ ] Floor collision feels stable around both standalone VR positions.
+- [ ] Floor collision feels stable around all three standalone Quest positions.
 - [ ] PCVR recording area is not blocked by accidental collision.
 - [ ] No invisible collision blocks the intended camera shot.
 - [ ] Do not collision-polish the entire Crib yet.
@@ -94,7 +94,7 @@ Use these exact names for new helper actors:
 
 ## 9. Done Means
 
-This pass is done when one Crib conversation area is readable, both standalone VR positions and the PCVR recording position are obvious, the two-shot is frameable, and lighting/collision are stable enough for the next implementation checkpoint.
+This pass is done when one Crib conversation area is readable, all three standalone Quest positions and the PCVR recording position are obvious, the group shot is frameable, and lighting/collision are stable enough for the next implementation checkpoint.
 
 Do not continue polishing after that. Stop when the first usable shot exists.
 

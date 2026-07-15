@@ -2,7 +2,7 @@
 
 ## Summary
 
-WMCYN's Firebase backend is now the identity/bootstrap service for First Signal. It accepts username or email plus password and returns verified identity with the configured Crib runtime endpoint. AFCore remains the Unreal-side framework; an Unreal listen or dedicated server still supplies the live world.
+WMCYN's Firebase backend is the identity/bootstrap service for First Signal. It accepts username or email plus password and returns verified identity with the canonical Crib runtime endpoint. Firebase does not host the live world: one authoritative, always-on Unreal server supplies it. Players never create or host sessions.
 
 ## Sources Inspected
 
@@ -61,22 +61,13 @@ Initial users are created manually. See `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`
 }
 ```
 
-The Firebase ID token authenticates the API request and remains private in the Unreal GameInstance subsystem. A short-lived Unreal join ticket is intentionally deferred and remains required before claiming secure internet entry. Neither value may be replicated to other players.
+The Firebase ID token authenticates the API request and remains private in the Unreal GameInstance subsystem. The currently implemented response still returns `joinTicket: null`; a short-lived Unreal join ticket is required before secure internet entry can pass. Neither value may be replicated to other players.
 
 ### Unreal Runtime Registry
 
-The backend needs a minimal server-side record for:
+`Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md` is now the normative contract. The backend must maintain exactly one current `worldRuntimes/wmcyn-online` record with stable world/location IDs, per-process runtime ID, public host/port, region, build/protocol compatibility, four-user capacity, status, connected-user count, heartbeat, and lease expiry.
 
-- World and location IDs
-- Runtime ID
-- Host and port
-- Region
-- Compatible build ID
-- Capacity and status
-- Last heartbeat
-- Join-ticket signing/validation
-
-For the first same-LAN hardware proof, the PC may be a hidden listen server and use a development endpoint override. That is a stepping stone, not the persistent deployment model.
+The Unreal server registers with a server-only credential, reports ready state after `L_WMCYNOnline` loads, heartbeats every 10 seconds, and receives a 30-second lease. Stale runtimes are unavailable. Remote acceptance does not use a LAN address, player-hosted listen server, session browser, or endpoint picker.
 
 ## Security Gate Status
 
@@ -101,15 +92,15 @@ Refactor the existing WMCYN login gate into these states:
 5. Entered world
 6. Error with retry
 
-The current login widget, AFCore keyboard, and locomotion lock remain. `UWMCYNBackendSubsystem` now implements authentication/bootstrap with private token storage and a `-WMCYNBackendUrl=` override. The existing local PlayerState submission becomes an explicit PIE fallback only. Production still needs the active Blueprint wired to the subsystem's state/ready delegates after the C++ module rebuilds.
+The current login widget, AFCore keyboard, and locomotion lock remain. `UWMCYNBackendSubsystem` implements authentication/bootstrap with private token storage and a `-WMCYNBackendUrl=` override. The existing local PlayerState submission is an explicit PIE fallback only. The active login Blueprint is connected to the asynchronous native bridge.
 
-The Unreal rebuild is currently blocked before project-module compilation: UE 5.8 requests MSVC `14.50.35717`; installed `14.43` is banned and installed `14.38` fails in an engine shared header. Visual Studio Installer must be run elevated to install/update the preferred toolchain.
+The compiler gate is closed: UE 5.8 builds `WMCYNRuntime` with MSVC `14.50.35717` / compiler `14.50.35737`.
 
 ## Implementation Order
 
-1. Install MSVC `14.50.35717` and rebuild `WMCYNRuntime`.
-2. Connect the existing login widget to the asynchronous subsystem while retaining explicit PIE fallback.
-3. Configure one development `worldRuntimes/{worldId}` record for the same-LAN hidden listen-server proof.
-4. Prove Quest A, Quest B, and PCVR entry through that hidden listen server.
-5. Add runtime heartbeat/build compatibility and short-lived join tickets.
-6. Move to a hosted authoritative Unreal runtime after the hardware proof.
+1. Restore Firebase billing and re-run real login/bootstrap against the hardened API.
+2. Implement server-only runtime registration, ready state, heartbeat lease, and stale-runtime rejection for `worldRuntimes/wmcyn-online`.
+3. Add build/protocol compatibility plus short-lived signed join-ticket issuance and Unreal-side validation.
+4. Deploy one internet-reachable authoritative Unreal runtime for `L_WMCYNOnline`.
+5. Connect three remote Quest clients and one remote PCVR recording client through automatic bootstrap.
+6. Prove reconnect to the same logical world across transport loss and server-process restart.

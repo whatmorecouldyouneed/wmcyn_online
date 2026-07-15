@@ -6,7 +6,7 @@ Last updated: 2026-07-11
 
 ## Goal
 
-Prove that two Quest users can speak and hear each other inside the persistent WMCYN Crib world, and that one PCVR recording user can hear them and capture usable audio through OBS.
+Prove that three remote Quest users can speak and hear each other inside the persistent WMCYN Crib world, and that one remote PCVR recording user can hear them and capture usable audio through OBS.
 
 This spec is the next validation gate after Quest locomotion and Crib collision became usable.
 
@@ -39,7 +39,7 @@ This spec is the next validation gate after Quest locomotion and Crib collision 
 4. User can move normally.
 5. User speaks.
 6. Other Quest user hears them.
-7. PCVR recording user hears both Quest users.
+7. PCVR recording user hears all three Quest users.
 8. OBS captures usable world audio from the PCVR machine.
 
 ## In Scope
@@ -166,7 +166,7 @@ This spec is complete when:
 - Quest A mic capture is confirmed.
 - Quest B mic capture is confirmed.
 - Quest A and Quest B can hear each other.
-- PCVR recording user can hear both Quest users.
+- PCVR recording user can hear all three Quest users.
 - OBS can capture usable audio from the PCVR machine.
 - The team knows whether First Signal uses push-to-talk or open mic plus mute.
 - Any WMCYN voice wrapper is WMCYN-owned and does not modify AFCore.

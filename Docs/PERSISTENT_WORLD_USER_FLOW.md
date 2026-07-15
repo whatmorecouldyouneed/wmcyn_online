@@ -1,7 +1,7 @@
 # Persistent World User Flow
 
 Status: First Signal product model  
-Last updated: 2026-07-10
+Last updated: 2026-07-15
 
 ## Core Model
 
@@ -16,12 +16,14 @@ The intended first-run flow is:
 5. User sees a simple login screen.
 6. User enters username or email and password.
 7. User selects Enter World.
-8. Login identifies the user and stores display/presence data.
-9. User appears in `L_WMCYNOnline` / The WMCYN Crib.
-10. Username/display name appears above or near the user's avatar.
-11. Other standalone VR and PCVR users enter the same persistent Crib world.
-12. Quest users move, speak, and see each other's basic head/hand/controller presence.
-13. PCVR recording user sees the Quest users and captures the world through OBS.
+8. Login verifies identity, requests the current Firebase bootstrap, and automatically connects to the one canonical Crib runtime.
+9. Server validates the join ticket and assigns a server-authoritative presence slot.
+10. User appears in `L_WMCYNOnline` / The WMCYN Crib.
+11. Username/display name appears above or near the user's avatar.
+12. Three Quest users and one PCVR recording user enter the same always-on Crib world from their separate locations.
+13. Quest users move, speak, and see each other's basic body/head/hand/controller presence.
+14. PCVR recording user sees the three Quest users and captures the world through OBS.
+15. On disconnect, the client automatically re-bootstraps and reconnects to the same logical world.
 
 ## Login Scope
 
@@ -49,9 +51,11 @@ The data should remain WMCYN-owned and replicated. Do not edit AFCore PlayerStat
 
 - Quest user A logs in and appears in the Crib.
 - Quest user B logs in and appears in the Crib.
-- Both Quest users can move with analog-stick locomotion.
-- Both Quest users see each other's basic VR presence and name.
-- PCVR recording user logs in, appears in the same world, sees the Quest users, and can frame OBS capture.
+- Quest user C logs in and appears in the Crib.
+- All three Quest users can move with analog-stick locomotion.
+- All three Quest users see each other's basic VR presence and name.
+- PCVR recording user logs in, appears in the same world, sees all three Quest users, and can frame OBS capture.
+- All four clients connect through the canonical internet runtime; LAN and player-hosted sessions are not acceptance paths.
 - Quest build can be packaged, sideloaded, launched, and retested consistently.
 
 ## Stretch Features

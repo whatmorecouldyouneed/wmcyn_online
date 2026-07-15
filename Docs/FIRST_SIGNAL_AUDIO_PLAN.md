@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make sure two standalone Quest users can speak and hear each other in the persistent WMCYN Crib world, while the PCVR recording user can monitor the conversation.
+Make sure three standalone Quest users can speak and hear each other in the persistent WMCYN Crib world, while the PCVR recording user can monitor the conversation.
 
 For First Signal, audio is a capability gate, not a polish pass.
 
@@ -79,8 +79,8 @@ The desired user experience is:
   - For a small Crib conversation, open mic plus mute is probably better.
   - Do not change this until the first Quest mic test proves the current behavior.
 - Voice backend:
-  - `Null` subsystem may be enough for local/editor/LAN-style tests.
-  - A persistent online world will eventually need a real voice/network backend.
+  - `Null` remains useful for local/editor diagnostics only; it is not a remote acceptance path.
+  - The canonical internet-hosted world needs a real voice/network backend.
   - Do not choose EOS/Vivox/Meta voice until basic local voice behavior and build constraints are known.
 - Spatial voice:
   - First Signal can start with simple proximity/spatial voice if AFCore's attenuation path works.
@@ -96,7 +96,7 @@ The desired user experience is:
   - `/Game/WMCYN/Input/IA_WMCYN_PushToTalk`
   - `/Game/WMCYN/Input/IMC_WMCYN_FirstSignal_VR`
 - The WMCYN First Signal PlayerController has an enhanced-action branch, but this should not be relied on while AFCore controller input remains on the legacy mapping path.
-- `VoiPSoundClass` currently points at `SC_SFX`, while AFCore also has `SC_Voice`; this may be intentional, but should be inspected before changing.
+- `VoiPSoundClass` now points at AFCore `SC_Voice`; the Voice slider controls in-world VOIP independently from SFX/footsteps.
 - The active pawn now has WMCYN-owned VOIPTalker registration. This removes the first runtime setup blocker, but it does not prove mic capture or user-to-user voice.
 - OnlineSubsystem `Null` is not a final persistent-world backend.
 
@@ -104,9 +104,8 @@ The desired user experience is:
 
 1. Confirm the packaged Quest app requests/has microphone permission.
 2. Confirm push-to-talk behavior in headset, or switch to open mic plus mute if push-to-talk blocks natural conversation.
-3. Confirm Quest A can hear Quest B in the same world.
-4. Confirm Quest B can hear Quest A in the same world.
-5. Confirm PCVR recording user can hear both Quest users.
+3. Confirm Quest A, Quest B, and Quest C hear one another in the same world.
+4. Confirm PCVR recording user can hear all three Quest users.
 6. Confirm OBS captures the intended hybrid audio path.
 7. Add a small WMCYN voice state surface only if the integrated test shows it is needed:
    - muted/unmuted
@@ -116,9 +115,8 @@ The desired user experience is:
 
 ## Acceptance Gate
 
-- Quest user A speaks and Quest user B hears them.
-- Quest user B speaks and Quest user A hears them.
-- PCVR recording user can hear/monitor both Quest users.
+- Quest users A, B, and C can all speak and hear one another.
+- PCVR recording user can hear/monitor all three Quest users.
 - The voice workflow is understandable to the users.
 - OBS has a usable recording path.
 - No AFCore assets are edited directly.

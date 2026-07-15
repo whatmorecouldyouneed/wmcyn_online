@@ -119,4 +119,4 @@ Generated from filesystem inspection of the local WMCYN Online Unreal project. U
 - MCP currently does not expose editor asset graph, actor, or level inspection tools, so this audit cannot prove Blueprint parent classes, component wiring, replication settings, or map contents.
 - `.uasset` and `.umap` files are binary; conclusions are name/path/config based.
 - The project currently defaults to AFCore example maps rather than `L_WMCYNOnline`; switching maps/settings should be planned separately and done only after manual editor confirmation.
-- Online subsystem is currently `Null`, so standalone headset + PCVR same-world testing may work only as local/LAN-style testing until a real online subsystem path is chosen.
+- Online subsystem `Null` is retained for local/editor diagnostics only. Remote First Signal acceptance requires the canonical internet-hosted Unreal runtime and real online voice/network path.

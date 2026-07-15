@@ -2,14 +2,14 @@
 
 ## Acceptance Target
 
-Bring The WMCYN Crib online with two standalone VR users and one PCVR recording user in the same persistent world, with basic presence, username/display name, two-way voice, and OBS-friendly capture.
+Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user in the same always-on world, with basic presence, username/display name, two-way voice, and OBS-friendly capture.
 
 ## Completed Baseline
 
 - [x] Preserve HumanCodeable AFCore / Advanced VR Framework as the runtime baseline.
 - [x] Use `L_WMCYNOnline` and the Crib as the active First Signal world.
 - [x] Create WMCYN-owned Content folder scaffolding.
-- [x] Create deterministic markers for StandaloneVR_A, StandaloneVR_B, and PCVR_Recording.
+- [x] Create deterministic markers for StandaloneVR_A, StandaloneVR_B, StandaloneVR_C, and PCVR_Recording.
 - [x] Confirm yaw `0` on StandaloneVR_A as the correct runtime entry facing and reapply it through the delayed stabilizer.
 - [ ] Reconcile the default PlayerStart yaw with the approved StandaloneVR_A marker before packaging.
 - [x] Reapply the indexed marker rotation in the delayed VR stabilizer so native HMD/body initialization cannot reverse the approved entry facing.
@@ -45,8 +45,9 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Mirror successful AFCore player-name updates into the authoritative WMCYN PlayerState identity fields.
 - [x] Enter the persistent Crib world after login without a user-facing session picker.
 - [x] Drive the inherited AFCore NameTag from `DisplayName` through `Comp_PlayerInfo_Basic`.
-- [x] Confirm three-client PIE receives replicated identity state and shows both remote AFCore NameTags on each client.
-- [ ] Confirm the same NameTag behavior with distinct login names on the physical three-device run.
+- [x] Confirm the earlier three-client PIE receives replicated identity state and shows remote AFCore NameTags on each client.
+- [ ] Confirm four-client PIE shows three remote AFCore NameTags per client.
+- [ ] Confirm the same NameTag behavior with distinct login names on the physical four-device internet run.
 
 ## Runtime Menu and AFCore Reuse
 
@@ -54,10 +55,13 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Expose `WBP_WMCYN_WhosHere` and `WBP_WMCYN_Settings_Audio` from the post-login runtime menu without editing AFCore.
 - [x] Verify the runtime menu opens and closes in-headset through AFCore's `FaceButton02Right` mapping on Quest right `B`; desktop `M` remains the toggle fallback and `Escape` closes it.
 - [x] Prove in PIE that successful login creates the menu and the AFCore Players roster displays the submitted identity.
-- [ ] Headset-confirm runtime menu pointer interaction, roster refresh, and Audio Apply/Reset behavior.
+- [ ] Headset-confirm runtime menu pointer interaction and four-user roster refresh.
 - [x] Add `WBP_WMCYN_Settings_FirstSignal`, composing the AFCore Audio page with a WMCYN-owned Respawn button.
+- [x] Remove Audio Quality from the active Settings page and expose only Master, Music, Voice, and SFX.
+- [x] Route WMCYN-owned footstep cues through AFCore `SC_SFX` so Master/SFX can affect the current footsteps.
+- [ ] Headset-confirm Master and SFX mute/reduce footsteps; confirm Voice remains independently adjustable.
 - [x] Implement server-authoritative respawn by reusing the current indexed `SyncPresencePawn` path without reloading the level or replacing the pawn.
-- [ ] Headset-confirm Respawn returns the current possessed user to the assigned slot and preserves login, voice, tracking, and movement.
+- [x] Headset-confirm Respawn returns the current possessed user to the assigned slot and preserves login, voice, tracking, and movement.
 
 ## Voice Validation
 
@@ -80,7 +84,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [ ] Decide First Signal open mic plus mute versus push-to-talk.
 - [ ] Confirm Quest user A hears Quest user B.
 - [ ] Confirm Quest user B hears Quest user A.
-- [ ] Confirm PCVR recording user hears both Quest users.
+- [ ] Confirm Quest user C hears and is heard by Quest users A and B.
+- [ ] Confirm PCVR recording user hears all three Quest users.
 - [ ] Confirm OBS receives the intended voice mix.
 - [ ] Confirm packaged Quest microphone permission and capture.
 - [ ] Add minimal muted/speaking feedback.
@@ -96,17 +101,23 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Add the WMCYN Unreal HTTP authentication/profile subsystem source without storing or replicating the password/token.
 - [x] Install UE 5.8's preferred MSVC `14.50.35717`, rebuild `WMCYNRuntime`, and connect the active login Blueprint to the asynchronous subsystem.
 - [x] Keep locomotion locked until authentication and world entry succeed; retain an explicit local fallback for PIE development only.
-- [ ] Select the real persistent-world networking path beyond local `OnlineSubsystemNull` validation.
-- [ ] Run the first same-LAN proof with the PC as a hidden listen server if needed.
-- [ ] Define Unreal world-runtime registration, heartbeat, build compatibility, and short-lived join-ticket contracts.
+- [x] Select one authoritative internet-hosted Unreal runtime as the persistent-world networking model beyond local `OnlineSubsystemNull` validation.
+- [x] Define Unreal world-runtime registration, heartbeat lease, build compatibility, reconnect, Firebase bootstrap, and short-lived join-ticket contracts in `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md`.
+- [ ] Implement server-only runtime registration and 10-second heartbeat against the singleton `worldRuntimes/wmcyn-online` record.
+- [ ] Implement stale-runtime rejection, build/protocol compatibility, and signed join-ticket issue/validation.
+- [ ] Deploy the canonical `L_WMCYNOnline` runtime to an internet-reachable server.
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
-- [x] Confirm the three server-authoritative pawn transforms remain separated at the three indexed spawn markers.
-- [x] Confirm each client hides its own AFCore NameTag and renders both remote AFCore NameTags.
-- [ ] Run two standalone VR users in the same Crib runtime.
-- [ ] Confirm each user sees the other's head/controller/hand presence.
+- [x] Expand indexed assignment to StandaloneVR_A=`0`, StandaloneVR_B=`1`, StandaloneVR_C=`2`, and PCVR_Recording=`3`.
+- [x] Confirm all four server-authoritative marker transforms and metadata remain distinct in `L_WMCYNOnline`.
+- [ ] Run a four-client PIE regression for indexed spawn, identity, nameplates, tracking, roster, and voice ownership.
+- [x] Confirm the earlier three-client proof hides each local AFCore NameTag and renders both remote NameTags; repeat with three remotes in four-client PIE.
+- [ ] Run three standalone Quest users in the same Crib runtime over the internet.
+- [ ] Confirm each user sees the other three users' head/controller/hand presence and names.
 - [ ] Confirm locomotion replicates acceptably.
 - [ ] Join with the PCVR recording user.
-- [ ] Confirm PCVR sees both standalone users and their display names.
+- [ ] Confirm PCVR sees all three standalone users and their display names.
+- [ ] Prove disconnect/reconnect restores verified identity and slot without a session picker.
+- [ ] Prove server restart publishes a new runtime ID while clients return to the same logical Crib world.
 
 ## Player Body and Mirror
 
@@ -151,13 +162,13 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
 - [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
 - [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.
-- [x] Remove the false `BAD SIZE` editor badges from the three indexed First Signal markers without changing their transforms, capsules, or AFCore source asset.
+- [x] Remove the false `BAD SIZE` editor badges from the original three indexed First Signal markers without changing their transforms, capsules, or AFCore source asset; the new C marker uses the same logical-anchor pattern.
 - [ ] Reconfirm the 3D login, AFCore keyboard, Enter World unlock, and typed identity on the production native pawn in VR Preview.
 - [x] Confirm Mimic's existing AnimBP already drives procedural alternating foot targets from tracked world velocity.
 - [x] Confirm the native Mimic hierarchy, attached Manny head, seated calibration, controller reach, locomotion, footsteps, and floor contact pass together in headset.
 - [x] Retire further tuning of the AFCore-derived Mimic wrapper; keep it only as rollback evidence.
 - [ ] Preserve the production native pawn's explicit left-thumbstick calibration behavior while adding WMCYN adapters.
-- [ ] Measure Quest frame timing and decide whether the full Mimic solver is acceptable for two standalone users.
+- [ ] Measure Quest frame timing and decide whether the full Mimic solver is acceptable for three standalone users.
 - [ ] Capture one mirror screenshot or short OBS clip.
 - [ ] Confirm the local mirror shows body/hands and the direct first-person view shows chest/arms without head occlusion.
 - [x] Confirm native headset/controller motion drives the Mimic body correctly in the successful hardware pass.
@@ -165,7 +176,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 ## PCVR and OBS
 
 - [x] Use `BP_WMCYN_UserPawn_FirstSignal` as the shared default pawn for standalone VR and PCVR; inspect a camera-specific pawn only if OBS capture proves it necessary.
-- [x] Assign local PIE slot `2` the replicated `PCVR` mode and `Recording` plus `CanTriggerVerbatimMarker` capabilities.
+- [x] Assign slot `3` the replicated `PCVR` mode and `Recording` capability; slots `0..2` remain Quest.
 - [ ] Inspect `BP_Pawn_VR_Camera` only if the shared pawn cannot support clean capture.
 - [ ] Establish an OBS-friendly spectator/camera output.
 - [ ] Confirm framing, stable output, and usable audio/video capture.
@@ -186,21 +197,20 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [ ] Configure the UE 5.8 Android SDK/NDK/JDK toolchain and verify it with Turnkey.
 - [x] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during a full Windows cook/cache run.
 - [ ] Package the standalone Quest build.
-- [ ] Sideload to both headsets.
+- [ ] Sideload to all three Quest headsets.
 - [x] Package and archive the Windows PCVR Development build from `L_WMCYNOnline`.
 - [x] Smoke-test packaged Windows startup through map load, indexed pawn sync, login gate, and native voice initialization.
 - [ ] Run the packaged Windows build with the PCVR headset and OBS.
 - [ ] Review the nonfatal AFCore `Comp_Widget` custom-property-list ensure without editing AFCore by default.
-- [ ] Run the repeatable three-device First Signal test.
+- [ ] Run the repeatable four-device remote First Signal test.
 
 ## Current Next Steps
 
-1. Headset-confirm Settings respawn preserves login, voice, tracking, and movement while returning the current pawn to its assigned slot.
+1. Implement and deploy the always-on runtime registration, heartbeat, ticket, and reconnect contract.
 2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
-3. Prove Quest A, Quest B, and PCVR on the same LAN through a hidden technical listen-server path.
-4. Confirm cross-device body/head/hand tracking, display names, two-way voice, and OBS audio/video capture.
-5. Restore Firebase billing and run one real backend login/bootstrap proof.
-6. Measure Quest performance with two native Mimic users, then specify the handheld camera feature.
+3. Restore Firebase billing and run one real backend login/bootstrap proof.
+4. Prove Quest A, Quest B, Quest C, and PCVR Recording over the public internet with tracking, names, voice, and OBS capture.
+5. Measure Quest performance with three native Mimic users, then specify the handheld camera feature.
 
 ## Out of Scope
 

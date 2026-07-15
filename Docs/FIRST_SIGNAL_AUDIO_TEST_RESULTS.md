@@ -254,7 +254,7 @@ Still not proven:
 - Quest packaged mic permission.
 - Quest user A hearing Quest user B.
 - Quest user B hearing Quest user A.
-- PCVR recording user hearing both Quest users.
+- PCVR recording user hearing all three Quest users.
 - OBS capture of intended output.
 
 Notes:
@@ -423,5 +423,5 @@ Run a restored voice retest:
 1. Free or relocate enough disk/cache storage to stop Zen DDC `507` errors.
 2. Run Quest user A and Quest user B in the same networked world runtime.
 3. Confirm each user hears the other.
-4. Join from PCVR and confirm the recording user hears both Quest users.
+4. Join from PCVR and confirm the recording user hears all three Quest users.
 5. Verify the intended voice mix reaches OBS.
