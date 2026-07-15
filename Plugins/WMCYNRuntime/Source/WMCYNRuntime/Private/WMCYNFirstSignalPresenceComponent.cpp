@@ -309,11 +309,15 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
         {
             if (const APlayerCameraManager* CameraManager = LocalController->PlayerCameraManager)
             {
-                const FVector ToViewer = CameraManager->GetCameraLocation() - Nameplate->GetComponentLocation();
+                FVector ToViewer = CameraManager->GetCameraLocation() - Nameplate->GetComponentLocation();
+                ToViewer.Z = 0.0f;
+
+                float FacingYaw = OwnerCharacter->GetActorRotation().Yaw;
                 if (!ToViewer.IsNearlyZero())
                 {
-                    Nameplate->SetWorldRotation(ToViewer.Rotation());
+                    FacingYaw = ToViewer.Rotation().Yaw;
                 }
+                Nameplate->SetWorldRotation(FRotator(0.0f, FacingYaw, 0.0f));
             }
         }
     }
@@ -592,7 +596,7 @@ void UWMCYNFirstSignalPresenceComponent::CreateNameplate()
     Nameplate->RegisterComponent();
     Nameplate->SetHorizontalAlignment(EHTA_Center);
     Nameplate->SetVerticalAlignment(EVRTA_TextCenter);
-    Nameplate->SetWorldSize(18.0f);
+    Nameplate->SetWorldSize(25.0f);
     Nameplate->SetTextRenderColor(FColor::White);
     Nameplate->SetCastShadow(false);
     Nameplate->SetOwnerNoSee(true);

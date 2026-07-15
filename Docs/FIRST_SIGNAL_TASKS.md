@@ -10,7 +10,8 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Use `L_WMCYNOnline` and the Crib as the active First Signal world.
 - [x] Create WMCYN-owned Content folder scaffolding.
 - [x] Create deterministic markers for StandaloneVR_A, StandaloneVR_B, and PCVR_Recording.
-- [x] Align the default PlayerStart and StandaloneVR_A at yaw `180` so the login-locked user spawns facing the intended direction.
+- [x] Confirm yaw `0` on StandaloneVR_A as the correct runtime entry facing and reapply it through the delayed stabilizer.
+- [ ] Reconcile the default PlayerStart yaw with the approved StandaloneVR_A marker before packaging.
 - [x] Reapply the indexed marker rotation in the delayed VR stabilizer so native HMD/body initialization cannot reverse the approved entry facing.
 - [x] Create `BP_WMCYN_QuestUserPawn` as a child of AFCore `BP_Pawn_VR_Char`.
 - [x] Configure WMCYN Level Data, GameMode, PlayerController, and PlayerState wrappers.
@@ -121,6 +122,7 @@ Bring The WMCYN Crib online with two standalone VR users and one PCVR recording 
 - [x] Connect login submission to server-owned `Username` and `DisplayName` through the native pawn adapter.
 - [x] Add a WMCYN-owned VOIPTalker/registration adapter and a nameplate visible to remote users and the local avatar mirror after login.
 - [x] Anchor each nameplate above the replicated HMD position and drive its text from the entered username/replicated PlayerState identity.
+- [x] Headset-validate the upright yaw-only nameplate and settle its final First Signal text size at `25 cm`.
 - [x] Prove native HMD/controller pose replication and interpolation in three-client production PIE.
 - [x] Switch `L_WMCYNOnline` to `BP_WMCYN_UserPawn_FirstSignal` after the adapter gates pass.
 - [x] Restore native-pawn 3D menu interaction by normalizing both inherited widget rays to the UI `Visibility` trace channel in the WMCYN runtime adapter.
