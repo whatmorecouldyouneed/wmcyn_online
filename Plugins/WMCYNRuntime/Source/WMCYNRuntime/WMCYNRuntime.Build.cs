@@ -15,6 +15,7 @@ public class WMCYNRuntime : ModuleRules
             "HTTP",
             "InputCore",
             "Json",
+            "NetCore",
             "OnlineSubsystem",
             "OnlineSubsystemUtils",
             "UMG"

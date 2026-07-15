@@ -105,7 +105,7 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [x] Define Unreal world-runtime registration, heartbeat lease, build compatibility, reconnect, Firebase bootstrap, and short-lived join-ticket contracts in `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md`.
 - [x] Implement server-only runtime registration and 10-second heartbeat against the singleton `worldRuntimes/wmcyn-online` record.
 - [x] Implement stale-runtime rejection, build/protocol compatibility, and signed join-ticket issue/validation.
-- [ ] Rebuild the editor target and run the `WMCYN.FirstSignal.JoinTicket.*` automation tests after the editor closes (Live Coding blocked the editor-target link; the Game target compiles clean).
+- [x] Rebuild the editor target and run the `WMCYN.FirstSignal.JoinTicket.*` automation tests: both pass (RFC 4231 HMAC vector and Node-issued fixture ticket verification).
 - [ ] Deploy the updated Firebase Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` configured once billing is restored.
 - [ ] Deploy the canonical `L_WMCYNOnline` runtime to an internet-reachable server with `-WMCYNRegisterRuntime`, the shared secrets, and `-WMCYNPublicHost=`.
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
