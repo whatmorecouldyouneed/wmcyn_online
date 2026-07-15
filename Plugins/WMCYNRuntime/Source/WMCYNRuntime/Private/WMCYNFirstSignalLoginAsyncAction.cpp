@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "TimerManager.h"
 #include "WMCYNFirstSignalBlueprintLibrary.h"
 
 bool UWMCYNFirstSignalLoginAsyncAction::StartForLoginWidget(
@@ -212,14 +213,31 @@ void UWMCYNFirstSignalLoginAsyncAction::CompleteLoginWidget()
         return;
     }
 
-    if (UFunction* CloseFunction = LoginWidget->FindFunction(TEXT("CloseLoginGate")))
+    const TWeakObjectPtr<UUserWidget> WeakLoginWidget = LoginWidget;
+    if (UWorld* World = LoginWidget->GetWorld())
     {
-        LoginWidget->ProcessEvent(CloseFunction, nullptr);
+        World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda(
+            [WeakLoginWidget]()
+            {
+                UUserWidget* ResolvedLoginWidget = WeakLoginWidget.Get();
+                if (!ResolvedLoginWidget)
+                {
+                    return;
+                }
+
+                if (UFunction* CloseFunction = ResolvedLoginWidget->FindFunction(TEXT("CloseLoginGate")))
+                {
+                    ResolvedLoginWidget->ProcessEvent(CloseFunction, nullptr);
+                }
+                else
+                {
+                    ResolvedLoginWidget->RemoveFromParent();
+                }
+            }));
+        return;
     }
-    else
-    {
-        LoginWidget->RemoveFromParent();
-    }
+
+    LoginWidget->RemoveFromParent();
 }
 
 void UWMCYNFirstSignalLoginAsyncAction::Finish()

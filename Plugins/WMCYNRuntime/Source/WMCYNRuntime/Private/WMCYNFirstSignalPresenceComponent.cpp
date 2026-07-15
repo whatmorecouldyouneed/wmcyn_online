@@ -794,12 +794,10 @@ void UWMCYNFirstSignalPresenceComponent::UpdateRuntimeMenuInput()
 
     const bool bToggleRequested =
         PlayerController->WasInputKeyJustPressed(EKeys::M) ||
-        PlayerController->WasInputKeyJustPressed(FKey(TEXT("OculusTouch_Left_Y_Click"))) ||
-        PlayerController->WasInputKeyJustPressed(FKey(TEXT("ValveIndex_Left_B_Click")));
-    const bool bCloseRequested =
-        PlayerController->WasInputKeyJustPressed(EKeys::Escape) ||
         PlayerController->WasInputKeyJustPressed(FKey(TEXT("OculusTouch_Right_B_Click"))) ||
         PlayerController->WasInputKeyJustPressed(FKey(TEXT("ValveIndex_Right_B_Click")));
+    const bool bCloseRequested =
+        PlayerController->WasInputKeyJustPressed(EKeys::Escape);
 
     if (bToggleRequested)
     {
