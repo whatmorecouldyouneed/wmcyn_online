@@ -103,9 +103,11 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [x] Keep locomotion locked until authentication and world entry succeed; retain an explicit local fallback for PIE development only.
 - [x] Select one authoritative internet-hosted Unreal runtime as the persistent-world networking model beyond local `OnlineSubsystemNull` validation.
 - [x] Define Unreal world-runtime registration, heartbeat lease, build compatibility, reconnect, Firebase bootstrap, and short-lived join-ticket contracts in `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md`.
-- [ ] Implement server-only runtime registration and 10-second heartbeat against the singleton `worldRuntimes/wmcyn-online` record.
-- [ ] Implement stale-runtime rejection, build/protocol compatibility, and signed join-ticket issue/validation.
-- [ ] Deploy the canonical `L_WMCYNOnline` runtime to an internet-reachable server.
+- [x] Implement server-only runtime registration and 10-second heartbeat against the singleton `worldRuntimes/wmcyn-online` record.
+- [x] Implement stale-runtime rejection, build/protocol compatibility, and signed join-ticket issue/validation.
+- [ ] Rebuild the editor target and run the `WMCYN.FirstSignal.JoinTicket.*` automation tests after the editor closes (Live Coding blocked the editor-target link; the Game target compiles clean).
+- [ ] Deploy the updated Firebase Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` configured once billing is restored.
+- [ ] Deploy the canonical `L_WMCYNOnline` runtime to an internet-reachable server with `-WMCYNRegisterRuntime`, the shared secrets, and `-WMCYNPublicHost=`.
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
 - [x] Expand indexed assignment to StandaloneVR_A=`0`, StandaloneVR_B=`1`, StandaloneVR_C=`2`, and PCVR_Recording=`3`.
 - [x] Confirm all four server-authoritative marker transforms and metadata remain distinct in `L_WMCYNOnline`.

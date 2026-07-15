@@ -1,7 +1,16 @@
 # First Signal World Runtime Contract
 
-Status: deployment contract; implementation pending  
+Status: implemented in backend and WMCYNRuntime code; deployment pending  
 Last updated: 2026-07-15
+
+## Implementation Map
+
+- Backend register/heartbeat: `functions/src/routes/vrRuntime.ts` in `wmcyn-backend-infra`, mounted at `/v1/vr/runtime/*` behind the `x-wmcyn-server-key` deployment credential (`WMCYN_RUNTIME_SERVER_KEY`, timing-safe compare, min 32 chars). Client Firebase ID tokens are never accepted there.
+- Bootstrap, slot reservation, and ticket issuance: `functions/src/routes/vr.ts` plus `functions/src/services/worldRuntime.ts` and `functions/src/services/joinTicket.ts`. Tickets are HMAC-SHA256, format `v1.<base64url payload>.<base64url signature>`, signed with `WMCYN_JOIN_TICKET_SECRET` (min 32 chars), 60-second TTL, slot reservations expire after 90 seconds.
+- Unreal server: `UWMCYNWorldRuntimeSubsystem` in `Plugins/WMCYNRuntime` activates with `-WMCYNRegisterRuntime`, reads the server key and ticket secret from `WMCYN_RUNTIME_SERVER_KEY` / `WMCYN_JOIN_TICKET_SECRET` env vars (or `-WMCYNServerKey=` / `-WMCYNTicketSecret=`), requires `-WMCYNPublicHost=`, registers, reports `online` once `L_WMCYNOnline` has begun play, heartbeats every 10 seconds with connected users and validated slot occupancy, and best-effort reports `offline` on shutdown.
+- Ticket validation: the same subsystem hooks GameMode PostLogin, reads `WMCYNTicket` from the connection URL, verifies signature/expiry/runtime binding, rejects replayed ticket ids, and kicks invalid entrants. Listen-host local players (no NetConnection) are exempt; the deployed runtime is expected to run headless.
+- Unreal client: `UWMCYNBackendSubsystem` sends `buildId`, `protocolVersion`, and a platform mode hint (Android=Quest, otherwise PCVR; `-WMCYNPresenceMode=` overrides) to bootstrap, stores the presence reservation and opaque ticket, and `TravelToFirstSignalWorld()` client-travels to `host:port?WMCYNTicket=<ticket>`.
+- Cross-implementation parity tests: `node --test` covers the Node signer; Unreal automation tests `WMCYN.FirstSignal.JoinTicket.*` verify the RFC 4231 HMAC vector and a Node-issued fixture ticket.
 
 ## Product Rule
 

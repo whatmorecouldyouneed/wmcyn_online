@@ -286,12 +286,15 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Use Firebase for identity, access, runtime discovery, build compatibility, slot reservation, and short-lived join-ticket issuance. Firebase does not simulate or host the live Unreal world.
 - Adopt `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md` as the deployment contract: singleton runtime record, server-only registration, 10-second heartbeat, 30-second lease, stale-runtime rejection, per-process runtime ID, reconnect, and four-device remote acceptance.
 - Replace LAN acceptance language with remote internet validation from three Quest locations and one PCVR/OBS location.
+- Protect runtime registration/heartbeat with a static deployment credential in `WMCYN_RUNTIME_SERVER_KEY`, sent as the dedicated `x-wmcyn-server-key` header and compared timing-safe. It is structurally distinct from client Bearer tokens, mounts before the ID-token middleware, and never ships in Quest or PCVR client builds.
+- Sign join tickets with HMAC-SHA256 over a base64url JSON payload (`v1.<payload>.<signature>`) using `WMCYN_JOIN_TICKET_SECRET`, shared only between Firebase and the Unreal server. Sixty-second ticket TTL, transactional 90-second slot reservations at bootstrap, and per-process replay rejection by ticket id on the Unreal server.
+- Validate join tickets in WMCYN-owned C++ via the global GameMode PostLogin event and connection URL option `WMCYNTicket`, kicking unauthorized entrants. This avoids reparenting or editing the Blueprint GameMode chain. Listen-host local players are exempt because the deployed canonical runtime runs headless.
+- Carry a minimal FIPS 180-4 SHA-256/HMAC implementation inside WMCYNRuntime instead of adding an SSL module dependency; parity with Node is proven by an RFC 4231 vector plus a Node-issued fixture ticket in `WMCYN.FirstSignal.JoinTicket.*` automation tests.
+- Derive the client bootstrap mode hint from platform (Android=Quest, otherwise PCVR) with `-WMCYNPresenceMode=` as the explicit override. The backend, not the client, assigns slot and capabilities.
 
 ## Open Decisions
 
 - What cloud/colo machine and deployment process will host the first canonical Unreal world runtime?
-- Which server authentication mechanism will protect runtime registration and heartbeat in the deployment environment?
-- What signing and Unreal-side validation mechanism will be used for short-lived join tickets?
 - Should First Signal in-game voice use push-to-talk or open mic plus mute?
 - Which real online voice backend should replace the local `Null` validation path when persistent-world networking is ready?
 - If the hidden technical session causes multiplayer/world-entry side effects later, should WMCYN replace it with a small C++/Blueprint bridge that registers local talker `0` directly?

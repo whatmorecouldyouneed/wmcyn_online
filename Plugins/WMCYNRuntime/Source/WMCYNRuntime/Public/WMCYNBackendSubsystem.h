@@ -52,6 +52,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "WMCYN|Backend")
     bool IsReadyToEnterWorld() const;
 
+    /** Client-travels the local player to the canonical runtime with the join ticket. */
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
+    bool TravelToFirstSignalWorld();
+
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     void SetBackendBaseUrl(const FString& InBaseUrl);
 
@@ -88,6 +92,18 @@ public:
     UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
     FString WorldBuildId;
 
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    int32 WorldProtocolVersion = 0;
+
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    FString PresenceMode;
+
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    FString PresenceSlot;
+
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    TArray<FString> PresenceCapabilities;
+
 private:
     void RequestBootstrap();
     void SetState(EWMCYNBackendLoginState NewState, const FString& Message);
@@ -97,4 +113,7 @@ private:
     FString BackendBaseUrl = TEXT("https://us-central1-wmcyn-online-mobile.cloudfunctions.net/api");
     FString IdToken;
     FString RefreshToken;
+
+    /** Opaque short-lived signed ticket; never replicated, never logged. */
+    FString JoinTicket;
 };
