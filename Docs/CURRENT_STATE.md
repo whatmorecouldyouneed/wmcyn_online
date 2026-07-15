@@ -178,11 +178,12 @@
 
 ## Quest Build Readiness
 
-- A real Android Development `BuildCookRun` was attempted on 2026-07-13 using the production project and an isolated archive directory under `Saved/StagedBuilds/FirstSignalQuestSmoke`.
-- Unreal stopped before compilation or cooking with: `Missing files required to build Android targets. Enable Android as an optional download component in the Epic Games Launcher.`
-- The UE 5.8 installation is missing its Android target binaries and AutomationTool/UnrealBuildTool platform assemblies, so Turnkey currently discovers only Win64. The machine also has no discoverable Android SDK/ADB.
-- In Epic Games Launcher, open UE 5.8 **Options**, enable the **Android target platform**, and apply the installation change. Then install/configure the UE 5.8 toolchain (`platforms;android-34`, `build-tools;35.0.1`, `cmake;3.22.1`, and NDK `27.2.12479018` / r27c) through `SetupAndroid.bat` before retrying the Quest package smoke.
-- No project config was changed in response. Existing Android settings already target arm64, SDK 35, ES3.1/Vulkan, and Android voice.
+- The Quest package gate closed on 2026-07-15. An Android Development `BuildCookRun` (build, ASTC cook of `L_WMCYNOnline`, pak, package, archive) succeeded in 10m19s and archived `wmcyn_online-arm64.apk` (390 MB, `com.wmcyn.wmcyn_online`) plus adb install/uninstall scripts to `Saved/StagedBuilds/FirstSignalQuestSmoke/Android_ASTC`.
+- The UE 5.8 Android engine component is installed through Epic Games Launcher, and Turnkey reports `Status=Valid, Current_Sdk=r27c, Sdk_HasBestVersion`.
+- The machine toolchain lives at `%LOCALAPPDATA%\Android\Sdk` (NDK `27.2.12479018`/r27c, `platforms;android-34`, `build-tools;35.0.1`, `cmake;3.22.1`, platform-tools/adb) with Android Studio's bundled OpenJDK 21 as `JAVA_HOME`. `ANDROID_HOME`, `JAVA_HOME`, and `NDKROOT` are persisted user environment variables; shells opened before 2026-07-15 must re-read them.
+- The `SteamController` plugin reference in the `.uproject` is now scoped to Win64. Its unrestricted reference pulled `SteamShared` into the Android target, which has no arm64 Steam binaries and failed UBT rules resolution.
+- Existing Android project settings were otherwise untouched: arm64, SDK 35, ES3.1/Vulkan, and Android voice.
+- Remaining Quest steps are device-side: sideload the APK to the three headsets and confirm packaged startup, login, and microphone permission.
 
 ## Windows PCVR Build Readiness
 
@@ -195,8 +196,8 @@
 
 ## Next Gate
 
-1. Implement and deploy the singleton runtime registration, heartbeat lease, join-ticket, and reconnect contract in `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md`.
-2. Enable the UE 5.8 Android optional component, configure its Android SDK, and rerun the isolated Quest package smoke.
-3. Restore Firebase billing and run one real `-WMCYNForceBackendAuth` login/bootstrap proof against the hardened backend.
+1. Restore Firebase billing, deploy the Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET`, and run one real `-WMCYNForceBackendAuth` login/bootstrap proof against the hardened backend.
+2. Select the canonical runtime host and deploy `L_WMCYNOnline` with `-WMCYNRegisterRuntime`, the shared secrets, and `-WMCYNPublicHost=`.
+3. Sideload the packaged Quest build to all three headsets and confirm on-device startup, login gate, and microphone permission.
 4. Prove Quest A, Quest B, Quest C, and PCVR Recording enter the same runtime from separate internet locations with names, tracking, voice, and OBS capture.
 5. Measure Quest frame timing with three native Mimic users, then specify the handheld camera feature.

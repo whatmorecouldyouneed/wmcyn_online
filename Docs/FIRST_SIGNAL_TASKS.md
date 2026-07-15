@@ -195,11 +195,13 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 
 - [x] Recover substantial free disk space before cooking or packaging.
 - [x] Attempt an isolated Android Development package smoke and capture the engine-installation blocker.
-- [ ] Enable the Android optional download component for the installed UE 5.8 build in Epic Games Launcher.
-- [ ] Configure the UE 5.8 Android SDK/NDK/JDK toolchain and verify it with Turnkey.
+- [x] Enable the Android optional download component for the installed UE 5.8 build in Epic Games Launcher.
+- [x] Configure the UE 5.8 Android SDK/NDK/JDK toolchain and verify it with Turnkey (`Status=Valid`, `Current_Sdk=r27c`).
+- [x] Scope the `SteamController` plugin to Win64 in the `.uproject`; its unrestricted reference pulled `SteamShared` into the Android build, which has no arm64 Steam binaries.
 - [x] Confirm Zen DDC no longer returns HTTP `507 Insufficient Storage` during a full Windows cook/cache run.
-- [ ] Package the standalone Quest build.
+- [x] Package the standalone Quest build: the 2026-07-15 isolated smoke produced `wmcyn_online-arm64.apk` (390 MB, `com.wmcyn.wmcyn_online`) plus adb install scripts in `Saved/StagedBuilds/FirstSignalQuestSmoke/Android_ASTC` in a 10m19s BuildCookRun.
 - [ ] Sideload to all three Quest headsets.
+- [ ] Confirm packaged Quest startup, login gate, and headset input on-device.
 - [x] Package and archive the Windows PCVR Development build from `L_WMCYNOnline`.
 - [x] Smoke-test packaged Windows startup through map load, indexed pawn sync, login gate, and native voice initialization.
 - [ ] Run the packaged Windows build with the PCVR headset and OBS.
@@ -208,9 +210,9 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 
 ## Current Next Steps
 
-1. Implement and deploy the always-on runtime registration, heartbeat, ticket, and reconnect contract.
-2. Enable UE 5.8 Android support, configure its SDK, and rerun the isolated Quest package smoke.
-3. Restore Firebase billing and run one real backend login/bootstrap proof.
+1. Restore Firebase billing, deploy the Functions with the runtime/ticket secrets, and run one real backend login/bootstrap proof.
+2. Select the canonical runtime host and deploy `L_WMCYNOnline` with `-WMCYNRegisterRuntime`.
+3. Sideload the packaged Quest build to all three headsets and confirm on-device startup, login, and microphone permission.
 4. Prove Quest A, Quest B, Quest C, and PCVR Recording over the public internet with tracking, names, voice, and OBS capture.
 5. Measure Quest performance with three native Mimic users, then specify the handheld camera feature.
 

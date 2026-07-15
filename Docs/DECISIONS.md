@@ -291,6 +291,9 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Validate join tickets in WMCYN-owned C++ via the global GameMode PostLogin event and connection URL option `WMCYNTicket`, kicking unauthorized entrants. This avoids reparenting or editing the Blueprint GameMode chain. Listen-host local players are exempt because the deployed canonical runtime runs headless.
 - Carry a minimal FIPS 180-4 SHA-256/HMAC implementation inside WMCYNRuntime instead of adding an SSL module dependency; parity with Node is proven by an RFC 4231 vector plus a Node-issued fixture ticket in `WMCYN.FirstSignal.JoinTicket.*` automation tests.
 - Derive the client bootstrap mode hint from platform (Android=Quest, otherwise PCVR) with `-WMCYNPresenceMode=` as the explicit override. The backend, not the client, assigns slot and capabilities.
+- Scope the `SteamController` plugin reference to Win64 in the `.uproject`. Its unrestricted reference pulled `SteamShared` into the Android target, which has no arm64 Steam binaries; WMCYN VR input runs through OpenXR/AFCore, not Steam.
+- Standardize the Android toolchain on the SetupAndroid.bat pinned set: NDK r27c `27.2.12479018`, `platforms;android-34`, `build-tools;35.0.1`, `cmake;3.22.1`, with Android Studio's bundled OpenJDK 21 as `JAVA_HOME` and the SDK at `%LOCALAPPDATA%\Android\Sdk`.
+- Accept the 2026-07-15 Android Development BuildCookRun (390 MB `wmcyn_online-arm64.apk` archived under `Saved/StagedBuilds/FirstSignalQuestSmoke`) as the Quest package smoke. Sideload and on-device validation remain hardware gates.
 
 ## Open Decisions
 
