@@ -31,7 +31,7 @@
   - `SPAWN_FirstSignal_StandaloneVR_B`
   - `SPAWN_FirstSignal_PCVR_Recording`
 - `PLAYERSTART_FirstSignal_Default` provides deterministic local VR Preview entry at StandaloneVR_A. Both the default PlayerStart and `SPAWN_FirstSignal_StandaloneVR_A` retain location `(14.10, -700, 557)` and now use yaw `180` so the login-locked user begins facing the intended direction.
-- `/Game/WMCYN/Core/BP_WMCYN_VRPreviewStabilizer` sets LocalFloor tracking and resets local HMD orientation/position. Its spawn correction is authority-only so network clients do not overwrite the server-assigned slot before PlayerState replication arrives.
+- `/Game/WMCYN/Core/BP_WMCYN_VRPreviewStabilizer` sets LocalFloor tracking and resets local HMD orientation/position. After native pawn initialization, its authority-only correction reapplies both the indexed marker location and rotation so HMD/body startup cannot discard the intended entry facing. Network clients do not overwrite the server-assigned slot before PlayerState replication arrives.
 - Earlier AFCore-derived VR Preview confirmed the Crib floor path and framework controls. The authoritative player-body hardware result is now the native Mimic test below.
 - Imported Crib collision currently uses repaired complex-as-simple collision on the relevant floor components. `Plane_003` / `/Game/Environments/WMCYN_Crib/Scene_058` is the verified active walkable floor near spawn.
 - Jared MetaHuman assets are outside the active First Signal path. The proven native Mimic pawn is the accepted First Signal avatar and movement baseline for standalone VR and PCVR users.

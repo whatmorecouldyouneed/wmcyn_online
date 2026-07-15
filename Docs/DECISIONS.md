@@ -103,7 +103,7 @@ This is the running decision log. Add concise dated entries when scope, architec
 
 - If the Crib floor holds but the user visibly hovers, inspect WMCYN stabilizer spawn height before adding more collision. The old debug-floor path lifted the pawn root to `Z 649.15`, which is too high for the real Crib floor.
 - Remove the `WMCYN FloorGuard` height rescue from `BP_WMCYN_VRPreviewStabilizer`; keep only the HMD reset, spawn-marker snap, and temporary `MOVE_Walking` safety.
-- Snap the local test pawn directly to `SPAWN_FirstSignal_StandaloneVR_A` instead of adding the old 92 cm debug-floor offset.
+- Snap the local test pawn directly to the complete `SPAWN_FirstSignal_StandaloneVR_A` transform instead of adding the old 92 cm debug-floor offset. Reapply marker rotation as well as location after HMD reset so native pawn initialization cannot change the approved entry facing.
 - Do not use a coarse convex hull for the current Crib walking floor if it creates an invisible raised-floor feel. Prefer the imported floor mesh set to `Use Complex Collision As Simple` for this early validation lane.
 - Latest MCP PIE result: `BP_WMCYN_QuestUserPawn0` starts near `X 14.1, Y -700, Z 553.94`, reports `MOVE_Walking`, `walkable=true`, and stands on imported Crib component `Plane_003`.
 - Start a dedicated First Signal audio capability lane before identity/nameplates go too far. Voice is core to the Crib, not optional polish.
