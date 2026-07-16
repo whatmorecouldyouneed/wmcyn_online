@@ -3,9 +3,17 @@
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/Engine.h"
+#include "Engine/StaticMesh.h"
+#include "IXRTrackingSystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/CoreDelegates.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -24,6 +32,12 @@
 #include "OnlineSubsystemUtils.h"
 #include "Blueprint/UserWidget.h"
 #include "UObject/UnrealType.h"
+#include "WMCYNBackendSubsystem.h"
+
+#if PLATFORM_ANDROID
+#include "AndroidPermissionFunctionLibrary.h"
+#include "AndroidPermissionCallbackProxy.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNPresence, Log, All);
 
@@ -57,6 +71,69 @@ void UWMCYNFirstSignalPresenceComponent::BeginPlay()
     {
         World->GetTimerManager().SetTimerForNextTick(this, &UWMCYNFirstSignalPresenceComponent::RegisterVoice);
     }
+}
+
+void UWMCYNFirstSignalPresenceComponent::TryAutoEnterFromVerifiedLogin()
+{
+    if (!OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+    bAutoEntryAttempted = true;
+
+    // After client travel into the canonical runtime, the GameInstance-owned
+    // backend subsystem still holds the verified identity from the login that
+    // happened before the travel. Submit it and skip the second login gate;
+    // a pawn spawned with no verified login keeps the normal 3D gate.
+    const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UWMCYNBackendSubsystem* Backend = GameInstance ?
+        GameInstance->GetSubsystem<UWMCYNBackendSubsystem>() : nullptr;
+    if (!Backend || Backend->LoginState != EWMCYNBackendLoginState::Ready ||
+        Backend->VerifiedUserId.IsEmpty())
+    {
+        return;
+    }
+
+    UE_LOG(LogWMCYNPresence, Display,
+        TEXT("WMCYN Login: auto-entering with verified identity after world travel"));
+
+    SubmitIdentity(Backend->VerifiedUsername, Backend->VerifiedDisplayName);
+    CompleteLocalLoginGate();
+
+    if (AActor* EntryManager = ResolveLoginPanelActor())
+    {
+        EntryManager->Destroy();
+    }
+}
+
+AActor* UWMCYNFirstSignalPresenceComponent::ResolveLoginPanelActor()
+{
+    if (ResolvedLoginPanelActor.IsValid())
+    {
+        return ResolvedLoginPanelActor.Get();
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+
+    // The world-space login menu lives on the entry manager actor placed in
+    // L_WMCYNOnline. Match it by class name without a hard dependency.
+    if (UClass* EntryManagerClass = LoadClass<AActor>(
+            nullptr,
+            TEXT("/Game/WMCYN/Core/BP_WMCYN_FirstSignalEntryManager.BP_WMCYN_FirstSignalEntryManager_C")))
+    {
+        TArray<AActor*> Found;
+        UGameplayStatics::GetAllActorsOfClass(World, EntryManagerClass, Found);
+        if (Found.Num() > 0)
+        {
+            ResolvedLoginPanelActor = Found[0];
+            return Found[0];
+        }
+    }
+    return nullptr;
 }
 
 void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
@@ -199,7 +276,79 @@ void UWMCYNFirstSignalPresenceComponent::UpdateWidgetInteractionPresentation()
 
     const bool bShowContextRay = OwnerCharacter && OwnerCharacter->IsLocallyControlled() &&
         (!bLoginGateCompleted || bRuntimeMenuVisible);
-    PreferredWidgetInteraction->bShowDebug = bShowContextRay;
+    // Debug-draw lines never render on packaged Quest (mobile multi-view), so
+    // the pointer is presented with a real mesh beam on every platform.
+    PreferredWidgetInteraction->bShowDebug = false;
+    UpdatePointerBeam(bShowContextRay);
+}
+
+void UWMCYNFirstSignalPresenceComponent::UpdatePointerBeam(const bool bVisible)
+{
+    if (!bVisible)
+    {
+        if (PointerBeam)
+        {
+            PointerBeam->SetVisibility(false);
+        }
+        return;
+    }
+
+    if (!PointerBeam && OwnerCharacter && PreferredWidgetInteraction)
+    {
+        UStaticMesh* CylinderMesh = LoadObject<UStaticMesh>(
+            nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+        if (!CylinderMesh)
+        {
+            return;
+        }
+
+        PointerBeam = NewObject<UStaticMeshComponent>(OwnerCharacter, TEXT("WMCYN_PointerBeam"));
+        PointerBeam->SetStaticMesh(CylinderMesh);
+        PointerBeam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        PointerBeam->SetCastShadow(false);
+        PointerBeam->SetReceivesDecals(false);
+        PointerBeam->SetOnlyOwnerSee(true);
+        PointerBeam->AttachToComponent(
+            PreferredWidgetInteraction, FAttachmentTransformRules::KeepRelativeTransform);
+        PointerBeam->RegisterComponent();
+
+        if (UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(
+                nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+        {
+            PointerBeamMaterial = UMaterialInstanceDynamic::Create(BaseMaterial, PointerBeam);
+            if (PointerBeamMaterial)
+            {
+                PointerBeamMaterial->SetVectorParameterValue(
+                    TEXT("Color"), FLinearColor(0.0f, 0.85f, 1.0f));
+                PointerBeam->SetMaterial(0, PointerBeamMaterial);
+            }
+        }
+    }
+
+    if (!PointerBeam || !PreferredWidgetInteraction)
+    {
+        return;
+    }
+
+    PointerBeam->SetVisibility(true);
+
+    const FVector Start = PreferredWidgetInteraction->GetComponentLocation();
+    const FVector Direction = PreferredWidgetInteraction->GetForwardVector();
+    float Length = 250.0f;
+    if (PreferredWidgetInteraction->IsOverHitTestVisibleWidget())
+    {
+        const FHitResult HitResult = PreferredWidgetInteraction->GetLastHitResult();
+        if (HitResult.bBlockingHit)
+        {
+            Length = FMath::Max(static_cast<float>(FVector::Dist(Start, HitResult.ImpactPoint)), 10.0f);
+        }
+    }
+
+    // The engine cylinder is 100 uu tall along Z and centered on its origin.
+    PointerBeam->SetWorldLocationAndRotation(
+        Start + Direction * (Length * 0.5f),
+        FRotationMatrix::MakeFromZ(Direction).Rotator());
+    PointerBeam->SetWorldScale3D(FVector(0.004f, 0.004f, Length / 100.0f));
 }
 
 void UWMCYNFirstSignalPresenceComponent::ApplyLocalLoginGateLock()
@@ -215,8 +364,11 @@ void UWMCYNFirstSignalPresenceComponent::ApplyLocalLoginGateLock()
         return;
     }
 
+    // Locomotion stays locked until identity submission, but stick turning
+    // remains available so the user can orient toward the login panel
+    // regardless of their physical facing when the headset went on.
     PlayerController->SetIgnoreMoveInput(true);
-    PlayerController->SetIgnoreLookInput(true);
+    PlayerController->ResetIgnoreLookInput();
     if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
     {
         Movement->StopMovementImmediately();
@@ -351,6 +503,10 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (OwnerCharacter->IsLocallyControlled())
     {
+        if (!bLoginGateCompleted && !bAutoEntryAttempted)
+        {
+            TryAutoEnterFromVerifiedLogin();
+        }
         ApplyLocalLoginGateLock();
         UpdateWidgetInteractionPresentation();
         UpdateRuntimeMenuInput();
@@ -996,6 +1152,30 @@ void UWMCYNFirstSignalPresenceComponent::ActivateLocalVoice()
     {
         return;
     }
+
+#if PLATFORM_ANDROID
+    // Android denies RECORD_AUDIO until the user grants it at runtime; the
+    // voice capture device cannot be created before that. Ask once and retry
+    // activation from the grant callback.
+    if (!UAndroidPermissionFunctionLibrary::CheckPermission(TEXT("android.permission.RECORD_AUDIO")))
+    {
+        if (!bMicPermissionRequested)
+        {
+            bMicPermissionRequested = true;
+            const TArray<FString> Permissions = { TEXT("android.permission.RECORD_AUDIO") };
+            if (UAndroidPermissionCallbackProxy* Proxy =
+                    UAndroidPermissionFunctionLibrary::AcquirePermissions(Permissions))
+            {
+                Proxy->OnPermissionsGrantedDynamicDelegate.AddDynamic(
+                    this, &UWMCYNFirstSignalPresenceComponent::HandleMicPermissionResult);
+            }
+            UE_LOG(LogWMCYNPresence, Display,
+                TEXT("WMCYN Voice: requesting Android microphone permission"));
+        }
+        return;
+    }
+#endif
+
     bVoiceActivationRequested = true;
     UVOIPStatics::SetMicThreshold(0.0f);
 
@@ -1021,6 +1201,29 @@ void UWMCYNFirstSignalPresenceComponent::ActivateLocalVoice()
     {
         SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionDelegateHandle);
         HandleVoiceSessionCreated(NAME_GameSession, false);
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::HandleMicPermissionResult(
+    const TArray<FString>& Permissions, const TArray<bool>& GrantResults)
+{
+    for (int32 Index = 0; Index < Permissions.Num() && Index < GrantResults.Num(); ++Index)
+    {
+        if (Permissions[Index].Contains(TEXT("RECORD_AUDIO")))
+        {
+            if (GrantResults[Index])
+            {
+                UE_LOG(LogWMCYNPresence, Display,
+                    TEXT("WMCYN Voice: microphone permission granted; activating local voice"));
+                ActivateLocalVoice();
+            }
+            else
+            {
+                UE_LOG(LogWMCYNPresence, Warning,
+                    TEXT("WMCYN Voice: microphone permission denied; local voice capture stays disabled"));
+            }
+            return;
+        }
     }
 }
 

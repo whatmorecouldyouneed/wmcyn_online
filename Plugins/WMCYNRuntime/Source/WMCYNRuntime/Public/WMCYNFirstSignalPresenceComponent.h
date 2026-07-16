@@ -7,9 +7,11 @@
 class ACharacter;
 class APlayerState;
 class UCameraComponent;
+class UMaterialInstanceDynamic;
 class UMotionControllerComponent;
 class USceneComponent;
 class USkeletalMeshComponent;
+class UStaticMeshComponent;
 class UVOIPTalker;
 class UUserWidget;
 class UInputComponent;
@@ -55,10 +57,17 @@ protected:
     UFUNCTION(Server, Reliable)
     void ServerRequestRespawnToPresenceSlot();
 
+    /** AndroidPermission proxy callback for the microphone request. */
+    UFUNCTION()
+    void HandleMicPermissionResult(const TArray<FString>& Permissions, const TArray<bool>& GrantResults);
+
 private:
     void CacheNativeComponents();
     void ConfigureWidgetInteraction();
     void UpdateWidgetInteractionPresentation();
+    void UpdatePointerBeam(bool bVisible);
+    void TryAutoEnterFromVerifiedLogin();
+    AActor* ResolveLoginPanelActor();
     void ApplyLocalLoginGateLock();
     void ConfigureRemoteTracking();
     void CaptureAndSendPose();
@@ -149,6 +158,13 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UWidgetInteractionComponent> KeyboardInputInteraction;
 
+    /** Rendered pointer beam; debug-draw lines do not render on packaged Quest. */
+    UPROPERTY(Transient)
+    TObjectPtr<UStaticMeshComponent> PointerBeam;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInstanceDynamic> PointerBeamMaterial;
+
     float NextPoseSendTime = 0.0f;
     float NextNameplateRefreshTime = 0.0f;
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
@@ -160,10 +176,13 @@ private:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     bool bVoiceRegistered = false;
     bool bVoiceActivationRequested = false;
+    bool bMicPermissionRequested = false;
     bool bLoginGateLockApplied = false;
     bool bLoginGateCompleted = false;
     bool bRuntimeMenuVisible = false;
+    bool bAutoEntryAttempted = false;
     int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
     TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;
+    TWeakObjectPtr<AActor> ResolvedLoginPanelActor;
     FDelegateHandle CreateSessionDelegateHandle;
 };

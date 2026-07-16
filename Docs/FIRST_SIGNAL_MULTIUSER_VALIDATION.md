@@ -50,6 +50,24 @@ Use four distinct test identities from separate physical locations:
 - Reconnect returns the verified user to the canonical world: `[ ]`
 - No user-facing host/session/access-code flow appears: `[ ]`
 
+## LAN Validation Phase (Interim Listen Host)
+
+Before the remote run, prove the complete chain on one LAN with the PCVR recording PC as the registered listen host. The product model (one canonical runtime discovered through Firebase) is exercised end to end; only the host's network location is temporary.
+
+1. Ensure the deployed backend has `WMCYN_ALLOW_PRIVATE_HOST=true` (LAN phase only).
+2. On the PCVR PC, set `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` (values from the Functions deploy env), then launch the packaged Win64 build:
+
+```
+wmcyn_online.exe /Game/Levels/L_WMCYNOnline?listen -WMCYNRegisterRuntime -WMCYNPublicHost=<PC LAN IP> -WMCYNPublicPort=7777
+```
+
+3. Confirm the log shows runtime registration and `runtime reported online`, and that `worldRuntimes/wmcyn-online` carries the LAN host with a current lease.
+4. The host user logs in normally at the 3D gate (they are the PCVR_Recording participant); the registered host does not travel.
+5. Each Quest launches the sideloaded APK, logs in, and should automatically travel into the host's world with a join ticket; the traveled pawn auto-enters with the verified identity and no second login gate.
+6. Verify names, replicated body/head/hand presence, and two-way voice across all four users.
+7. Known interim limitation: slots are assigned by join order, not by the ticket reservation; marker placement may not match slot names until ticket-slot assignment is enforced.
+8. After the LAN pass: set `WMCYN_ALLOW_PRIVATE_HOST=false`, redeploy, forward UDP 7777 on the host's router, and relaunch with `-WMCYNPublicHost=<public IP or DNS>` for the remote run.
+
 ## Current Blocker
 
-Local PIE proves the game-side replication model, but packaged devices still need the runtime registration, heartbeat, ticket validation, and public deployment defined in `Docs/FIRST_SIGNAL_WORLD_RUNTIME_CONTRACT.md`. Do not mark the remote gate complete until all four devices enter the canonical runtime from separate locations and the evidence above is recorded.
+Local PIE proves the game-side replication model. The backend contract (registration, heartbeat, tickets) is deployed live; the interim PCVR listen host stands in for the future dedicated runtime. Do not mark the remote gate complete until all four devices enter the canonical runtime from separate locations and the evidence above is recorded with `WMCYN_ALLOW_PRIVATE_HOST` disabled.

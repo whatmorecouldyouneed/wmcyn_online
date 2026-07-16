@@ -9,6 +9,7 @@
 #include "Misc/Parse.h"
 #include "TimerManager.h"
 #include "WMCYNFirstSignalBlueprintLibrary.h"
+#include "WMCYNWorldRuntimeSubsystem.h"
 
 bool UWMCYNFirstSignalLoginAsyncAction::StartForLoginWidget(
     const UObject* WorldContextObject,
@@ -155,6 +156,29 @@ void UWMCYNFirstSignalLoginAsyncAction::HandleLoginReady(
     }
 
     const FString ResolvedDisplayName = DisplayName.IsEmpty() ? Username : DisplayName;
+
+    // When this process is the registered canonical runtime (the PCVR listen
+    // host), it is already inside the world it would travel to: submit
+    // identity locally and close the gate. Every other verified client
+    // travels to the bootstrap endpoint; its next pawn auto-enters from the
+    // persisted verified identity instead of showing a second login gate.
+    const UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(WorldContext.Get());
+    const UWMCYNWorldRuntimeSubsystem* RuntimeSubsystem = GameInstance ?
+        GameInstance->GetSubsystem<UWMCYNWorldRuntimeSubsystem>() : nullptr;
+    const bool bIsRuntimeHost = RuntimeSubsystem && RuntimeSubsystem->IsRuntimeRegistrationActive();
+
+    if (!bIsRuntimeHost && BackendSubsystem && BackendSubsystem->IsReadyToEnterWorld())
+    {
+        OnReady.Broadcast(Username, ResolvedDisplayName);
+        SetLoginStatus(FString::Printf(TEXT("Entering WMCYN as %s..."), *ResolvedDisplayName));
+        if (BackendSubsystem->TravelToFirstSignalWorld())
+        {
+            Finish();
+            return;
+        }
+        // Travel could not start; fall through to the local-entry path.
+    }
+
     if (!UWMCYNFirstSignalBlueprintLibrary::SubmitLocalFirstSignalIdentity(
             WorldContext.Get(),
             Username,

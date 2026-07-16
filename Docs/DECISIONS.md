@@ -294,6 +294,21 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Scope the `SteamController` plugin reference to Win64 in the `.uproject`. Its unrestricted reference pulled `SteamShared` into the Android target, which has no arm64 Steam binaries; WMCYN VR input runs through OpenXR/AFCore, not Steam.
 - Standardize the Android toolchain on the SetupAndroid.bat pinned set: NDK r27c `27.2.12479018`, `platforms;android-34`, `build-tools;35.0.1`, `cmake;3.22.1`, with Android Studio's bundled OpenJDK 21 as `JAVA_HOME` and the SDK at `%LOCALAPPDATA%\Android\Sdk`.
 - Accept the 2026-07-15 Android Development BuildCookRun (390 MB `wmcyn_online-arm64.apk` archived under `Saved/StagedBuilds/FirstSignalQuestSmoke`) as the Quest package smoke. Sideload and on-device validation remain hardware gates.
+- Set `bPackageForMetaQuest=True` and remove the dead `PackageForOculusMobile=Quest2` legacy key. Without the current flag the APK manifest carried no VR intent category and Quest launched the app as a 2D panel.
+- Adopt the canonical Quest renderer config: `r.MobileHDR=False`, `vr.MobileMultiView=True`, MSAA 4x. The prior HDR-plus-no-multi-view combination cooked no texture-array MSAA resolve shaders and crashed the device at startup (`FHdrCustomResolveArray8xPS` missing).
+- Request `RECORD_AUDIO` in-app at voice activation on Android through the AndroidPermission plugin; retry activation from the grant callback. Manifest declaration alone leaves the permission denied and voice capture dead on fresh headsets.
+- Render the login/menu pointer as a real owner-only mesh beam. Debug-draw lines never render on packaged Quest, so `bShowDebug` is retired; `/Engine/BasicShapes` is pinned into the cook for the beam mesh.
+- Enable right-stick turning during the login gate while keeping locomotion locked. Two auto-facing attempts (HMD recenter on put-on; pawn yaw-to-panel) failed on device because Meta's runtime owns recenter under Stage/LocalFloor tracking; the user simply turns to the panel themselves. Both experiments are removed.
+
+### First Signal Interim World Topology (2026-07-15)
+
+- The product model is unchanged: exactly one canonical always-on internet-reachable Crib runtime discovered through Firebase. Everything below is an explicitly temporary First Signal implementation of that model.
+- The Launcher-distributed UE 5.8 cannot build dedicated-server targets ("Server targets are not currently supported from this engine distribution"). A source-built engine unlocks the true headless dedicated server later; that detour is deferred until after the First Signal proof.
+- For First Signal, the PCVR recording PC hosts the world as a listen server launched with `?listen`, `-WMCYNRegisterRuntime`, the two shared secrets, and `-WMCYNPublicHost=`. It registers into `worldRuntimes/wmcyn-online` and heartbeats exactly like the future dedicated runtime, so no client-side or backend contract changes are throwaway. The host user is the legitimate PCVR_Recording participant, not a phantom operator.
+- Validate LAN-first: the backend accepts a private host only while `WMCYN_ALLOW_PRIVATE_HOST=true` is deployed, and logs loudly when used. Flip it to false and redeploy before the remote internet acceptance run, which requires a public route (port forward) to the host.
+- Verified clients now client-travel to the bootstrap endpoint with the join ticket; after travel the new pawn auto-submits the persisted verified identity, closes the gate, and destroys the entry manager so there is no second login. The registered host itself does not travel.
+- Known interim limitation: the GameMode still assigns presence slots by connection order, so ticket-reserved slots (Quest A/B/C, PCVR_Recording) are not yet enforced in pawn placement. Honor the ticket slot in assignment before the remote acceptance run.
+- The backend is deployed live on `wmcyn-online-mobile` with the runtime/ticket secrets in a gitignored deploy env; the Functions `.env` reserved-prefix rule forced the login API key var to `WMCYN_WEB_API_KEY`.
 
 ## Open Decisions
 

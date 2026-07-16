@@ -106,8 +106,12 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [x] Implement server-only runtime registration and 10-second heartbeat against the singleton `worldRuntimes/wmcyn-online` record.
 - [x] Implement stale-runtime rejection, build/protocol compatibility, and signed join-ticket issue/validation.
 - [x] Rebuild the editor target and run the `WMCYN.FirstSignal.JoinTicket.*` automation tests: both pass (RFC 4231 HMAC vector and Node-issued fixture ticket verification).
-- [ ] Deploy the updated Firebase Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` configured once billing is restored.
-- [ ] Deploy the canonical `L_WMCYNOnline` runtime to an internet-reachable server with `-WMCYNRegisterRuntime`, the shared secrets, and `-WMCYNPublicHost=`.
+- [x] Deploy the updated Firebase Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` configured; live curl proofs cover key auth, private-host rejection, and bootstrap auth.
+- [x] Adopt the interim First Signal topology: the PCVR recording PC hosts as a registered listen server (`?listen -WMCYNRegisterRuntime`); Launcher UE 5.8 cannot build dedicated servers.
+- [ ] Run the LAN validation phase with the listen host registered under `WMCYN_ALLOW_PRIVATE_HOST=true`.
+- [ ] Enforce ticket-reserved slots in GameMode assignment before remote acceptance.
+- [ ] Disable `WMCYN_ALLOW_PRIVATE_HOST` and deploy the host on a public route for the remote run.
+- [ ] Later: source-build UE 5.8 and move the canonical runtime to a headless dedicated server on a cloud host.
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
 - [x] Expand indexed assignment to StandaloneVR_A=`0`, StandaloneVR_B=`1`, StandaloneVR_C=`2`, and PCVR_Recording=`3`.
 - [x] Confirm all four server-authoritative marker transforms and metadata remain distinct in `L_WMCYNOnline`.
@@ -210,11 +214,12 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 
 ## Current Next Steps
 
-1. Restore Firebase billing, deploy the Functions with the runtime/ticket secrets, and run one real backend login/bootstrap proof.
-2. Select the canonical runtime host and deploy `L_WMCYNOnline` with `-WMCYNRegisterRuntime`.
-3. Sideload the packaged Quest build to all three headsets and confirm on-device startup, login, and microphone permission.
-4. Prove Quest A, Quest B, Quest C, and PCVR Recording over the public internet with tracking, names, voice, and OBS capture.
+1. Provision the three Quest test users in Firebase per `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`.
+2. Run the LAN validation phase: PCVR PC as registered listen host, Quests log in and auto-travel in, verify presence/names/voice.
+3. Enforce ticket-reserved slots in GameMode assignment (replace join-order indexing).
+4. Disable `WMCYN_ALLOW_PRIVATE_HOST`, port-forward the host, and run the remote four-device acceptance with OBS capture.
 5. Measure Quest performance with three native Mimic users, then specify the handheld camera feature.
+6. Later: source-build UE 5.8 for the dedicated-server target and move the canonical runtime to a cloud host.
 
 ## Out of Scope
 

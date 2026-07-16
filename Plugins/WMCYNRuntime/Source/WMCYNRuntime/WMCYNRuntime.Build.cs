@@ -20,5 +20,10 @@ public class WMCYNRuntime : ModuleRules
             "OnlineSubsystemUtils",
             "UMG"
         });
+
+        if (Target.Platform == UnrealTargetPlatform.Android)
+        {
+            PrivateDependencyModuleNames.Add("AndroidPermission");
+        }
     }
 }
