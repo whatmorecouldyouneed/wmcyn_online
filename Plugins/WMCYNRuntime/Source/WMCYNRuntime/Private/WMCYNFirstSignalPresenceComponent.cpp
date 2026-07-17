@@ -934,7 +934,8 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
 
 void UWMCYNFirstSignalPresenceComponent::CreateRuntimeMenu()
 {
-    if (RuntimeMenu || !bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled() ||
+    if (RuntimeMenu || bRuntimeMenuCreateFailed || !bLoginGateCompleted || !OwnerCharacter ||
+        !OwnerCharacter->IsLocallyControlled() ||
         RuntimeMenuWidgetClass.IsNull() || NameplateHostClass.IsNull())
     {
         return;
@@ -944,7 +945,11 @@ void UWMCYNFirstSignalPresenceComponent::CreateRuntimeMenu()
     UClass* ResolvedHostClass = NameplateHostClass.LoadSynchronous();
     if (!ResolvedMenuClass || !ResolvedHostClass)
     {
-        UE_LOG(LogWMCYNPresence, Error, TEXT("WMCYN Menu: runtime widget or AFCore Comp_Widget host could not be loaded"));
+        // Fail once, permanently. This is called from per-tick paths; the
+        // 2026-07-16 host crash came from retrying a cook-missing widget load
+        // every tick for fourteen hours.
+        bRuntimeMenuCreateFailed = true;
+        UE_LOG(LogWMCYNPresence, Error, TEXT("WMCYN Menu: runtime widget or AFCore Comp_Widget host could not be loaded; menu disabled for this session"));
         return;
     }
 

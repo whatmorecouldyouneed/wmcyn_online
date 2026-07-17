@@ -181,6 +181,7 @@ private:
     bool bLoginGateCompleted = false;
     bool bRuntimeMenuVisible = false;
     bool bAutoEntryAttempted = false;
+    bool bRuntimeMenuCreateFailed = false;
     int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
     TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;
     TWeakObjectPtr<AActor> ResolvedLoginPanelActor;
