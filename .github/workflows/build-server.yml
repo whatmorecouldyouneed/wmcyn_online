@@ -26,7 +26,7 @@ jobs:
     runs-on: [self-hosted, wmcyn]
     steps:
       - name: Build and cook Linux server
-        shell: pwsh
+        shell: powershell
         run: |
           $env:LINUX_MULTIARCH_ROOT = [Environment]::GetEnvironmentVariable('LINUX_MULTIARCH_ROOT','Machine')
           & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Linux -server -serverconfig=Development -noclient `
@@ -36,7 +36,7 @@ jobs:
 
       - name: Deploy to VM
         if: inputs.deploy
-        shell: pwsh
+        shell: powershell
         run: |
           gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b 2>$null
           Start-Sleep -Seconds 30

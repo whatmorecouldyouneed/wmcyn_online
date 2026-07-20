@@ -25,14 +25,14 @@ jobs:
     steps:
       - name: Start world
         if: inputs.action == 'up'
-        shell: pwsh
+        shell: powershell
         run: |
           gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b
           Write-Host "World starting; systemd brings the runtime online in ~60s. It self-registers at 35.185.72.104:7777."
 
       - name: Stop world
         if: inputs.action == 'down'
-        shell: pwsh
+        shell: powershell
         run: |
           gcloud compute instances stop wmcyn-crib-runtime --zone=us-east1-b
           Write-Host "World stopped. Idle cost is disk + reserved IP only."

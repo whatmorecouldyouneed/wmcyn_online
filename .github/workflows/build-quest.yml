@@ -18,7 +18,7 @@ jobs:
     runs-on: [self-hosted, wmcyn]
     steps:
       - name: Build and cook Quest APK
-        shell: pwsh
+        shell: powershell
         run: |
           foreach ($v in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
             [Environment]::SetEnvironmentVariable($v, [Environment]::GetEnvironmentVariable($v,'User'), 'Process')
