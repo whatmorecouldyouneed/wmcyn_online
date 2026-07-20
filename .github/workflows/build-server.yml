@@ -38,9 +38,15 @@ jobs:
         if: inputs.deploy
         shell: powershell
         run: |
-          gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b 2>$null
+          # gcloud is a PS script that writes progress to stderr; PS 5.1 turns
+          # redirected native stderr into terminating errors. Never redirect it.
+          $ErrorActionPreference = 'Continue'
+          gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b
           Start-Sleep -Seconds 30
           Set-Location (Split-Path $env:ARCHIVE)
           tar -czf LinuxServer.tgz LinuxServer
           gcloud compute scp LinuxServer.tgz wmcyn-crib-runtime:LinuxServer.tgz --zone=us-east1-b --quiet
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           gcloud compute ssh wmcyn-crib-runtime --zone=us-east1-b --quiet --command='sudo systemctl stop wmcyn-crib; sudo tar -xzf ~/LinuxServer.tgz -C /opt/wmcyn; sudo chown -R wmcyn:wmcyn /opt/wmcyn/LinuxServer; sudo chmod +x /opt/wmcyn/LinuxServer/wmcyn_onlineServer.sh; sudo systemctl start wmcyn-crib; sleep 30; sudo grep -hE "WMCYNWorldRuntime" /opt/wmcyn/LinuxServer/wmcyn_online/Saved/Logs/wmcyn_online.log | tail -3'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          exit 0
