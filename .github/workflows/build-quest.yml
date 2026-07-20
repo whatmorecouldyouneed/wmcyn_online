@@ -1,0 +1,38 @@
+name: Build Quest APK
+
+# Packages the Quest client APK on the WMCYN self-hosted runner and uploads
+# it as a workflow artifact for distribution. Manual trigger only.
+
+on:
+  workflow_dispatch:
+
+concurrency: unreal-build
+
+env:
+  PROJECT: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\wmcyn_online.uproject
+  ARCHIVE: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke
+  UAT: C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat
+
+jobs:
+  build:
+    runs-on: [self-hosted, wmcyn]
+    steps:
+      - name: Build and cook Quest APK
+        shell: pwsh
+        run: |
+          foreach ($v in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
+            [Environment]::SetEnvironmentVariable($v, [Environment]::GetEnvironmentVariable($v,'User'), 'Process')
+          }
+          & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Android -cookflavor=ASTC -clientconfig=Development `
+            -build -cook -stage -pak -package -archive -archivedirectory="$env:ARCHIVE" -nocompileeditor -unattended -noP4 -utf8output `
+            -AdditionalCookerOptions="-ini:Engine:[Core.Log]:LogHttpListener=NoLogging"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmcyn-quest-apk
+          path: |
+            C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke\Android_ASTC\wmcyn_online-arm64.apk
+            C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke\Android_ASTC\Install_wmcyn_online-arm64.bat
+          retention-days: 14

@@ -1,0 +1,38 @@
+name: World Control
+
+# Spin the canonical Crib runtime VM up or down on demand.
+# The VM's systemd service auto-starts the world on boot; stopping the VM
+# lets the heartbeat lease lapse so bootstrap correctly reports the world
+# unavailable. Runs on the WMCYN self-hosted runner, which carries local
+# gcloud credentials — no GitHub secrets involved.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "up = start the world, down = stop it"
+        required: true
+        type: choice
+        options:
+          - up
+          - down
+
+concurrency: world-control
+
+jobs:
+  control:
+    runs-on: [self-hosted, wmcyn]
+    steps:
+      - name: Start world
+        if: inputs.action == 'up'
+        shell: pwsh
+        run: |
+          gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b
+          Write-Host "World starting; systemd brings the runtime online in ~60s. It self-registers at 35.185.72.104:7777."
+
+      - name: Stop world
+        if: inputs.action == 'down'
+        shell: pwsh
+        run: |
+          gcloud compute instances stop wmcyn-crib-runtime --zone=us-east1-b
+          Write-Host "World stopped. Idle cost is disk + reserved IP only."

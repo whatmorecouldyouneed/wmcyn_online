@@ -1,0 +1,46 @@
+name: Build Linux Server
+
+# Builds the Linux dedicated server from the source engine on the WMCYN
+# self-hosted runner, and optionally deploys it to the GCP VM (starting the
+# VM if needed). Manual trigger only — no pull_request triggers on a
+# self-hosted runner, ever.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to the VM after building"
+        required: true
+        type: boolean
+        default: false
+
+concurrency: unreal-build
+
+env:
+  PROJECT: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\wmcyn_online.uproject
+  ARCHIVE: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Builds\LinuxServer
+  UAT: C:\UE58\Engine\Build\BatchFiles\RunUAT.bat
+
+jobs:
+  build:
+    runs-on: [self-hosted, wmcyn]
+    steps:
+      - name: Build and cook Linux server
+        shell: pwsh
+        run: |
+          $env:LINUX_MULTIARCH_ROOT = [Environment]::GetEnvironmentVariable('LINUX_MULTIARCH_ROOT','Machine')
+          & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Linux -server -serverconfig=Development -noclient `
+            -build -cook -stage -pak -archive -archivedirectory="$env:ARCHIVE" -unattended -noP4 -utf8output `
+            -AdditionalCookerOptions="-ini:Engine:[Core.Log]:LogHttpListener=NoLogging"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Deploy to VM
+        if: inputs.deploy
+        shell: pwsh
+        run: |
+          gcloud compute instances start wmcyn-crib-runtime --zone=us-east1-b 2>$null
+          Start-Sleep -Seconds 30
+          Set-Location (Split-Path $env:ARCHIVE)
+          tar -czf LinuxServer.tgz LinuxServer
+          gcloud compute scp LinuxServer.tgz wmcyn-crib-runtime:LinuxServer.tgz --zone=us-east1-b --quiet
+          gcloud compute ssh wmcyn-crib-runtime --zone=us-east1-b --quiet --command='sudo systemctl stop wmcyn-crib; sudo tar -xzf ~/LinuxServer.tgz -C /opt/wmcyn; sudo chown -R wmcyn:wmcyn /opt/wmcyn/LinuxServer; sudo chmod +x /opt/wmcyn/LinuxServer/wmcyn_onlineServer.sh; sudo systemctl start wmcyn-crib; sleep 30; sudo grep -hE "WMCYNWorldRuntime" /opt/wmcyn/LinuxServer/wmcyn_online/Saved/Logs/wmcyn_online.log | tail -3'
