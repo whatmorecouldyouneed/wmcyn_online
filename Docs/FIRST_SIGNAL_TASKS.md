@@ -108,10 +108,12 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [x] Rebuild the editor target and run the `WMCYN.FirstSignal.JoinTicket.*` automation tests: both pass (RFC 4231 HMAC vector and Node-issued fixture ticket verification).
 - [x] Deploy the updated Firebase Functions with `WMCYN_RUNTIME_SERVER_KEY` and `WMCYN_JOIN_TICKET_SECRET` configured; live curl proofs cover key auth, private-host rejection, and bootstrap auth.
 - [x] Adopt the interim First Signal topology: the PCVR recording PC hosts as a registered listen server (`?listen -WMCYNRegisterRuntime`); Launcher UE 5.8 cannot build dedicated servers.
-- [ ] Run the LAN validation phase with the listen host registered under `WMCYN_ALLOW_PRIVATE_HOST=true`.
+- [x] Supersede the LAN listen-host phase: the canonical runtime is now a Linux dedicated server on GCP (`35.185.72.104:7777`), deployed and proven online through CI with `WMCYN_ALLOW_PRIVATE_HOST=false`.
+- [x] Source-build UE 5.8, build the Linux dedicated server, and deploy it to the cloud VM with registration/heartbeat/systemd auto-restart.
+- [x] Stand up button-driven CI on a self-hosted runner: world up/down, build+deploy server, build Quest APK.
 - [ ] Enforce ticket-reserved slots in GameMode assignment before remote acceptance.
-- [ ] Disable `WMCYN_ALLOW_PRIVATE_HOST` and deploy the host on a public route for the remote run.
-- [ ] Later: source-build UE 5.8 and move the canonical runtime to a headless dedicated server on a cloud host.
+- [ ] Spin the world up and run the four-user remote acceptance when testers are ready.
+- [ ] Decide GitHub repo visibility (currently public with paid marketplace content; private recommended).
 - [x] Prove a three-client listen-server PIE topology with indexed StandaloneVR_A, StandaloneVR_B, and PCVR_Recording PlayerStates/pawns.
 - [x] Expand indexed assignment to StandaloneVR_A=`0`, StandaloneVR_B=`1`, StandaloneVR_C=`2`, and PCVR_Recording=`3`.
 - [x] Confirm all four server-authoritative marker transforms and metadata remain distinct in `L_WMCYNOnline`.
