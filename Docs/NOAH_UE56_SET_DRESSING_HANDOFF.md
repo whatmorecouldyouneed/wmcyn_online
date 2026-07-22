@@ -1,12 +1,12 @@
-# Noah UE 5.6 Set-Dressing Handoff
+# Noah Crib Set-Dressing Handoff
 
 Branch: `codex/noah-ue56-crib-set-dressing`
 
 ## Purpose
 
-Noah decorates The WMCYN Crib in Unreal Engine 5.6 without opening or modifying the UE 5.8 gameplay project. This branch contains a small UE 5.6 artist workspace and the original Crib source FBX.
+The primary workflow uses Unreal Engine 5.8 and the full repository so Noah sees the exact production `L_WMCYNOnline` scene, including its meshes, materials, textures, lighting, and dependencies. A small UE 5.6 geometry-reference workspace remains available only as an offline fallback.
 
-The FBX is reference geometry. Noah owns lights, furniture, props, decals, signage, and supporting materials created under the Noah namespace. Jared performs the final UE 5.8 integration into `/Game/Levels/L_WMCYNOnline`.
+Noah owns lights, furniture, props, decals, signage, and supporting materials created under the Noah namespace. Jared performs final review and integration into `/Game/Levels/L_WMCYNOnline`.
 
 ## First Setup
 
@@ -18,13 +18,25 @@ git lfs install
 git lfs pull
 ```
 
-Open this project with Unreal Engine 5.6:
+Verify all Unreal assets are present:
+
+```powershell
+git lfs fsck
+```
+
+For the exact production scene, open the root `wmcyn_online.uproject` with Unreal Engine 5.8, then open `/Game/Levels/L_WMCYNOnline`.
+
+The branch contains the same tracked map and Crib asset files as `main`. `git lfs pull` is mandatory because the `.umap`, meshes, materials, and textures are stored through Git LFS.
+
+## UE 5.6 Fallback
+
+Use this only if Unreal Engine 5.8 cannot be installed. Open this isolated project with Unreal Engine 5.6:
 
 `Handoffs/Noah/UE56/WMCYN_Crib_SetDress_UE56/WMCYN_Crib_SetDress_UE56.uproject`
 
-Do not open the root `wmcyn_online.uproject` in UE 5.6. It is the production UE 5.8 project.
+Never open the root `wmcyn_online.uproject` in UE 5.6. It is the production UE 5.8 project and cannot be converted backward.
 
-## Import The Crib Reference
+### Import The Crib Reference
 
 Source file:
 
@@ -60,6 +72,8 @@ Use these folders:
 Create the working level as:
 
 `/Game/WMCYN/Environment/Crib/Noah/Maps/L_WMCYN_Crib_SetDress_Noah`
+
+Use `L_WMCYNOnline` as the visual reference, but keep Noah-authored deliverables isolated in the Noah level or a Noah-owned Level Instance. Do not save exploratory changes directly into the production map.
 
 Suggested Outliner folders:
 
