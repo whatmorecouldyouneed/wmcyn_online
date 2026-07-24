@@ -31,6 +31,7 @@ jobs:
           $env:LINUX_MULTIARCH_ROOT = [Environment]::GetEnvironmentVariable('LINUX_MULTIARCH_ROOT','Machine')
           & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Linux -server -serverconfig=Development -noclient `
             -build -cook -stage -pak -archive -archivedirectory="$env:ARCHIVE" -unattended -noP4 -utf8output `
+            -ubtargs="-2026" `
             -AdditionalCookerOptions="-ini:Engine:[Core.Log]:LogHttpListener=NoLogging"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
