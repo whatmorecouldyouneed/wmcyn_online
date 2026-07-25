@@ -2,6 +2,16 @@
 Binaries/
 Build/
 Builds/
+
+# Exception: ship the prebuilt WMCYNRuntime editor module so level/Blueprint
+# collaborators can open the project without a C++ toolchain. The BuildId in
+# UnrealEditor.modules must match the collaborator's engine, so this pair must
+# be rebuilt with the LAUNCHER engine (not C:\UE58) and re-committed whenever
+# the plugin source changes or the engine is patched.
+!Plugins/WMCYNRuntime/Binaries/
+!Plugins/WMCYNRuntime/Binaries/Win64/
+!Plugins/WMCYNRuntime/Binaries/Win64/UnrealEditor-WMCYNRuntime.dll
+!Plugins/WMCYNRuntime/Binaries/Win64/UnrealEditor.modules
 DerivedDataCache/
 Intermediate/
 Saved/
