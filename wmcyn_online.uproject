@@ -21,10 +21,7 @@
 		},
 		{
 			"Name": "SteamController",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
+			"Enabled": true
 		},
 		{
 			"Name": "HDRIBackdrop",
