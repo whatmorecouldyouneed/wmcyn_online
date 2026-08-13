@@ -31,6 +31,14 @@ public:
         const FString& Password,
         bool bAllowPIEDevelopmentFallback = true);
 
+    UFUNCTION(
+        BlueprintCallable,
+        Category = "WMCYN|Backend",
+        meta = (WorldContext = "WorldContextObject", DisplayName = "Begin First Signal Pairing"))
+    static bool BeginFirstSignalPairing(
+        const UObject* WorldContextObject,
+        UUserWidget* LoginWidget);
+
     UFUNCTION(BlueprintCallable, Category = "WMCYN|UI", meta = (WorldContext = "WorldContextObject"))
     static bool PrepareLocalFirstSignalWidgetInteraction(
         const UObject* WorldContextObject,

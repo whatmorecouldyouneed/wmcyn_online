@@ -235,3 +235,23 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - custom locomotion, grabbing, or base menu systems
 - MetaHuman/avatar-fidelity work
 - Verbatim marker before the primary First Signal gates pass
+
+## Next Lane: Avatar Pipeline Prep
+
+- [x] Capture the UE-side avatar handoff as project docs.
+- [x] Define the preferred manifest direction: `GET /v1/avatar/manifest?platform=quest|pcvr`.
+- [x] Decide that "no custom avatar yet" should resolve to a default-avatar manifest, not a `404`.
+- [x] Decide that avatar delivery must support both `runtime_mesh` and `pak`.
+- [x] Implement runtime pairing-code auth support in WMCYN-owned C++ (`code.create` -> poll `code.exchange` -> Firebase custom-token sign-in -> existing bootstrap/world entry).
+- [x] Add a WMCYN-owned avatar manifest fetch path in `WMCYNRuntime`.
+- [x] Add an initial runtime avatar apply path for `skeletalMeshPath` + `animClassPath` manifests on the active First Signal pawn.
+- [x] Add backend support for default avatar, placeholder published avatar, and platform-resolved `runtime_mesh` manifest responses.
+- [x] Add WMCYN-owned workstation wrappers for take ingest, MetaHuman identity/character build, and runtime-mesh manifest publication.
+- [ ] Bind the current login widget to the new pairing-code path and present the generated code clearly in-headset.
+- [ ] Implement default-avatar manifest handling and client-side cache invalidation by `cacheKey`.
+- [ ] Choose the first runtime avatar prototype representation.
+- [x] Identify the GPU workstation that will run the first internal MetaHuman editor automation job.
+- [ ] Run the real tester capture through the workstation identity phase and confirm the MetaHuman service step reaches a DNA-ready identity.
+- [ ] Build the first WMCYN MetaHuman character asset from that identity.
+- [ ] Pick the first Quest and PCVR runtime asset paths that can be published back through `/v1/avatar/manifest`.
+- [ ] Log in with the published tester account and confirm the in-world avatar apply log appears against a non-default manifest.

@@ -9,6 +9,10 @@
   "CanContainContent": false,
   "Plugins": [
     {
+      "Name": "IKRig",
+      "Enabled": true
+    },
+    {
       "Name": "OnlineSubsystem",
       "Enabled": true
     },
@@ -27,6 +31,11 @@
         "Android",
         "Linux"
       ]
+    },
+    {
+      "Name": "WMCYNRuntimeEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
     }
   ]
 }

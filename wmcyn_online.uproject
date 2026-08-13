@@ -21,10 +21,7 @@
 		},
 		{
 			"Name": "SteamController",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
+			"Enabled": true
 		},
 		{
 			"Name": "HDRIBackdrop",
@@ -57,6 +54,22 @@
 		},
 		{
 			"Name": "LiveLinkControlRig",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHuman",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanCharacter",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanSDK",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanLiveLink",
 			"Enabled": true
 		},
 		{

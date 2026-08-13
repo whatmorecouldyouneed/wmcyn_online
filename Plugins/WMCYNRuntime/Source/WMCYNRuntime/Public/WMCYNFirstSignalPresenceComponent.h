@@ -6,6 +6,7 @@
 
 class ACharacter;
 class APlayerState;
+class UAnimInstance;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class UMotionControllerComponent;
@@ -17,6 +18,8 @@ class UUserWidget;
 class UInputComponent;
 class UWidgetInteractionComponent;
 class UWidgetComponent;
+class FTextProperty;
+class FStrProperty;
 
 UCLASS(ClassGroup = (WMCYN), meta = (BlueprintSpawnableComponent))
 class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorComponent
@@ -57,15 +60,31 @@ protected:
     UFUNCTION(Server, Reliable)
     void ServerRequestRespawnToPresenceSlot();
 
+    UFUNCTION(Server, Reliable)
+    void ServerSubmitAvatarPresentation(
+        const FString& SkeletalMeshPath,
+        const FString& HeadSkeletalMeshPath,
+        const FString& AnimClassPath,
+        const FString& CacheKey,
+        bool bIsDefaultAvatar);
+
     /** AndroidPermission proxy callback for the microphone request. */
     UFUNCTION()
     void HandleMicPermissionResult(const TArray<FString>& Permissions, const TArray<bool>& GrantResults);
 
+    UFUNCTION()
+    void OnRep_AvatarPresentation();
+
 private:
+    void ApplyIdentityToPlayerState(APlayerState* PlayerState, const FString& Username, const FString& DisplayName, bool bForceReplication);
+    bool TryApplyPlayerInfoDisplayName(UActorComponent* Component, const FString& DisplayName) const;
+    FString ResolvePreferredDisplayName(const APlayerState* PlayerState) const;
+    bool LooksLikeUuid(const FString& Value) const;
     void CacheNativeComponents();
     void ConfigureWidgetInteraction();
     void UpdateWidgetInteractionPresentation();
     void UpdatePointerBeam(bool bVisible);
+    void PrimeLoginWidgetPairingPanel();
     void TryAutoEnterFromVerifiedLogin();
     AActor* ResolveLoginPanelActor();
     void ApplyLocalLoginGateLock();
@@ -73,6 +92,13 @@ private:
     void CaptureAndSendPose();
     void ApplyReplicatedPose(float DeltaTime);
     void ApplyIdentity(const FString& Username, const FString& DisplayName);
+    void RequestAvatarManifestIfNeeded();
+    void ApplyAvatarPresentation(
+        const FString& SkeletalMeshPath,
+        const FString& HeadSkeletalMeshPath,
+        const FString& AnimClassPath,
+        const FString& CacheKey,
+        bool bIsDefaultAvatar);
     void RespawnToPresenceSlot();
     void CreateNameplate();
     void RefreshNameplate();
@@ -85,6 +111,7 @@ private:
     void RegisterVoice();
     void ActivateLocalVoice();
     void HandleVoiceSessionCreated(FName SessionName, bool bWasSuccessful);
+    void EnsureAvatarPresentationComponents();
 
     UPROPERTY(Replicated)
     FVector_NetQuantize10 ReplicatedHeadLocation;
@@ -104,8 +131,29 @@ private:
     UPROPERTY(Replicated)
     FRotator ReplicatedRightHandRotation;
 
+    UPROPERTY(Replicated)
+    FVector_NetQuantize10 ReplicatedMeshRelativeLocation;
+
+    UPROPERTY(Replicated)
+    FRotator ReplicatedMeshRelativeRotation;
+
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     bool bHasReplicatedPose = false;
+
+    UPROPERTY(ReplicatedUsing = OnRep_AvatarPresentation)
+    FString ReplicatedAvatarSkeletalMeshPath;
+
+    UPROPERTY(Replicated)
+    FString ReplicatedAvatarHeadSkeletalMeshPath;
+
+    UPROPERTY(Replicated)
+    FString ReplicatedAvatarAnimClassPath;
+
+    UPROPERTY(Replicated)
+    FString ReplicatedAvatarCacheKey;
+
+    UPROPERTY(Replicated)
+    bool bReplicatedAvatarIsDefault = true;
 
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     int32 ReplicatedPoseSequence = 0;
@@ -132,6 +180,19 @@ private:
     TObjectPtr<USceneComponent> HeadAnchor;
 
     UPROPERTY(Transient)
+    TObjectPtr<USkeletalMeshComponent> BodyMesh;
+
+    /** WMCYN-owned presentation components; native Mimic components remain authoritative for tracking. */
+    UPROPERTY(Transient)
+    TObjectPtr<USceneComponent> AvatarPresentationRoot;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USkeletalMeshComponent> AvatarBodyVisual;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USkeletalMeshComponent> AvatarHeadVisual;
+
+    UPROPERTY(Transient)
     TObjectPtr<UWidgetComponent> Nameplate;
 
     UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Identity")
@@ -148,6 +209,16 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "WMCYN|UI")
     TSoftClassPtr<UUserWidget> RuntimeMenuWidgetClass;
+
+    /** Soft references keep the verified first avatar in packaged cooks without loading it during construction. */
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Avatar")
+    TSoftObjectPtr<USkeletalMesh> RuntimeAvatarBodyCookReference;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Avatar")
+    TSoftObjectPtr<USkeletalMesh> RuntimeAvatarHeadCookReference;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Avatar")
+    TSoftClassPtr<UAnimInstance> RuntimeAvatarAnimCookReference;
 
     UPROPERTY(Transient)
     TObjectPtr<UVOIPTalker> VoiceTalker;
@@ -179,11 +250,14 @@ private:
     bool bMicPermissionRequested = false;
     bool bLoginGateLockApplied = false;
     bool bLoginGateCompleted = false;
+    bool bAvatarManifestRequested = false;
     bool bRuntimeMenuVisible = false;
     bool bAutoEntryAttempted = false;
+    bool bLoginWidgetPairingPrimed = false;
     bool bRuntimeMenuCreateFailed = false;
     int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
     TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;
     TWeakObjectPtr<AActor> ResolvedLoginPanelActor;
     FDelegateHandle CreateSessionDelegateHandle;
+    FString AppliedAvatarCacheKey;
 };

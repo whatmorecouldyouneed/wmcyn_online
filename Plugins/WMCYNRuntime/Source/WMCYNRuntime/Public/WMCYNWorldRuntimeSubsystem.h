@@ -60,7 +60,7 @@ private:
     bool bReportedOnline = false;
 
     FString RuntimeId;
-    FString BackendBaseUrl = TEXT("https://us-central1-wmcyn-online-mobile.cloudfunctions.net/api");
+    FString BackendBaseUrl = TEXT("https://api-rrm3u3yaba-uc.a.run.app");
     FString ServerKey;
     FString TicketSecret;
     FString PublicHost;

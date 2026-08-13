@@ -4,10 +4,12 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
+#include "HAL/PlatformMisc.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -29,6 +31,14 @@ FString ReadString(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field)
     FString Value;
     return Object.IsValid() && Object->TryGetStringField(Field, Value) ? Value : FString();
 }
+
+int32 ReadInt32(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, const int32 DefaultValue = 0)
+{
+    double Value = 0.0;
+    return Object.IsValid() && Object->TryGetNumberField(Field, Value)
+        ? FMath::RoundToInt(Value)
+        : DefaultValue;
+}
 }
 
 void UWMCYNBackendSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -39,6 +49,20 @@ void UWMCYNBackendSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     if (FParse::Value(FCommandLine::Get(), TEXT("WMCYNBackendUrl="), CommandLineUrl))
     {
         SetBackendBaseUrl(CommandLineUrl);
+    }
+
+    FString CommandLineWebApiKey;
+    if (FParse::Value(FCommandLine::Get(), TEXT("WMCYNWebApiKey="), CommandLineWebApiKey))
+    {
+        SetFirebaseWebApiKey(CommandLineWebApiKey);
+    }
+    else
+    {
+        FString ConfiguredWebApiKey;
+        if (GConfig && GConfig->GetString(TEXT("WMCYN"), TEXT("FirebaseWebApiKey"), ConfiguredWebApiKey, GGameIni))
+        {
+            SetFirebaseWebApiKey(ConfiguredWebApiKey);
+        }
     }
 }
 
@@ -111,6 +135,87 @@ void UWMCYNBackendSubsystem::LoginAndLoadBootstrap(const FString& Identifier, co
             if (IdToken.IsEmpty() || VerifiedUserId.IsEmpty())
             {
                 Fail(TEXT("invalid_login_response"));
+                return;
+            }
+
+            RequestBootstrap();
+        });
+
+    if (!Request->ProcessRequest())
+    {
+        Fail(TEXT("request_start_failed"));
+    }
+}
+
+void UWMCYNBackendSubsystem::SignInWithCustomTokenAndLoadBootstrap(const FString& CustomToken)
+{
+    if (LoginState == EWMCYNBackendLoginState::Authenticating ||
+        LoginState == EWMCYNBackendLoginState::LoadingBootstrap)
+    {
+        return;
+    }
+
+    const FString CleanCustomToken = CustomToken.TrimStartAndEnd();
+    if (CleanCustomToken.IsEmpty())
+    {
+        Fail(TEXT("invalid_pairing_token"));
+        return;
+    }
+
+    const FString WebApiKey = ResolveFirebaseWebApiKey();
+    if (WebApiKey.IsEmpty())
+    {
+        Fail(TEXT("firebase_web_api_key_missing"));
+        return;
+    }
+
+    SignOut();
+    SetState(EWMCYNBackendLoginState::Authenticating, TEXT("exchanging_pairing_code"));
+
+    TSharedRef<FJsonObject> Payload = MakeShared<FJsonObject>();
+    Payload->SetStringField(TEXT("token"), CleanCustomToken);
+    Payload->SetBoolField(TEXT("returnSecureToken"), true);
+
+    FString Body;
+    const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Body);
+    FJsonSerializer::Serialize(Payload, Writer);
+
+    const FString Url = FString::Printf(
+        TEXT("https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=%s"),
+        *FGenericPlatformHttp::UrlEncode(WebApiKey));
+
+    const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(Url);
+    Request->SetVerb(TEXT("POST"));
+    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+    Request->SetContentAsString(Body);
+    Request->OnProcessRequestComplete().BindWeakLambda(
+        this,
+        [this](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        {
+            if (!bSucceeded || !Response.IsValid())
+            {
+                Fail(TEXT("backend_unreachable"));
+                return;
+            }
+
+            TSharedPtr<FJsonObject> Root;
+            if (Response->GetResponseCode() < 200 || Response->GetResponseCode() >= 300 ||
+                !ParseJsonObject(Response->GetContentAsString(), Root))
+            {
+                TSharedPtr<FJsonObject> ErrorRoot;
+                ParseJsonObject(Response->GetContentAsString(), ErrorRoot);
+                const FString Error = ReadString(ErrorRoot, TEXT("error"));
+                Fail(Error.IsEmpty() ? TEXT("pairing_sign_in_failed") : Error);
+                return;
+            }
+
+            IdToken = ReadString(Root, TEXT("idToken"));
+            RefreshToken = ReadString(Root, TEXT("refreshToken"));
+            VerifiedUserId = ReadString(Root, TEXT("localId"));
+            if (IdToken.IsEmpty() || VerifiedUserId.IsEmpty())
+            {
+                Fail(TEXT("invalid_pairing_response"));
                 return;
             }
 
@@ -246,6 +351,11 @@ void UWMCYNBackendSubsystem::SignOut()
     SetState(EWMCYNBackendLoginState::SignedOut, TEXT("signed_out"));
 }
 
+FString UWMCYNBackendSubsystem::GetBackendBaseUrl() const
+{
+    return BackendBaseUrl;
+}
+
 FString UWMCYNBackendSubsystem::GetWorldTravelURL() const
 {
     if (!IsReadyToEnterWorld())
@@ -289,6 +399,74 @@ bool UWMCYNBackendSubsystem::TravelToFirstSignalWorld()
     return true;
 }
 
+void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&& Callback)
+{
+    FWMCYNAvatarManifest EmptyManifest;
+    if (IdToken.IsEmpty())
+    {
+        Callback.ExecuteIfBound(false, EmptyManifest, TEXT("missing_auth_token"));
+        return;
+    }
+
+    TSharedRef<FWMCYNAvatarManifestCallback> Completion = MakeShared<FWMCYNAvatarManifestCallback>(MoveTemp(Callback));
+
+    const FString Platform = ResolveAvatarManifestPlatform();
+    const FString Query = FString::Printf(
+        TEXT("/v1/avatar/manifest?platform=%s"),
+        *FGenericPlatformHttp::UrlEncode(Platform));
+
+    const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(MakeUrl(Query));
+    Request->SetVerb(TEXT("GET"));
+    Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *IdToken));
+    Request->OnProcessRequestComplete().BindWeakLambda(
+        this,
+        [Completion](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        {
+            FWMCYNAvatarManifest Manifest;
+            if (!bSucceeded || !Response.IsValid())
+            {
+                Completion->ExecuteIfBound(false, Manifest, TEXT("backend_unreachable"));
+                return;
+            }
+
+            TSharedPtr<FJsonObject> Root;
+            if (Response->GetResponseCode() < 200 || Response->GetResponseCode() >= 300 ||
+                !ParseJsonObject(Response->GetContentAsString(), Root))
+            {
+                TSharedPtr<FJsonObject> ErrorRoot;
+                ParseJsonObject(Response->GetContentAsString(), ErrorRoot);
+                Completion->ExecuteIfBound(false, Manifest, ReadString(ErrorRoot, TEXT("error")));
+                return;
+            }
+
+            Manifest.AvatarId = ReadString(Root, TEXT("avatarId"));
+            Manifest.AvatarVersion = ReadInt32(Root, TEXT("avatarVersion"), 1);
+            Manifest.Platform = ReadString(Root, TEXT("platform"));
+            Manifest.bIsDefaultAvatar = Root->GetBoolField(TEXT("isDefaultAvatar"));
+            Manifest.DisplayName = ReadString(Root, TEXT("displayName"));
+            Manifest.CacheKey = ReadString(Root, TEXT("cacheKey"));
+
+            const TSharedPtr<FJsonObject>* Delivery = nullptr;
+            if (Root->TryGetObjectField(TEXT("delivery"), Delivery) && Delivery)
+            {
+                Manifest.DeliveryType = ReadString(*Delivery, TEXT("type"));
+                Manifest.DeliveryUrl = ReadString(*Delivery, TEXT("url"));
+                Manifest.DeliveryAssetRoot = ReadString(*Delivery, TEXT("assetRoot"));
+                Manifest.DeliverySkeletalMeshPath = ReadString(*Delivery, TEXT("skeletalMeshPath"));
+                Manifest.DeliveryHeadSkeletalMeshPath = ReadString(*Delivery, TEXT("headSkeletalMeshPath"));
+                Manifest.DeliveryAnimClassPath = ReadString(*Delivery, TEXT("animClassPath"));
+            }
+
+            Completion->ExecuteIfBound(true, Manifest, FString());
+        });
+
+    if (!Request->ProcessRequest())
+    {
+        Completion->ExecuteIfBound(false, EmptyManifest, TEXT("request_start_failed"));
+    }
+}
+
 void UWMCYNBackendSubsystem::SetBackendBaseUrl(const FString& InBaseUrl)
 {
     BackendBaseUrl = InBaseUrl.TrimStartAndEnd();
@@ -296,6 +474,11 @@ void UWMCYNBackendSubsystem::SetBackendBaseUrl(const FString& InBaseUrl)
     {
         BackendBaseUrl.LeftChopInline(1);
     }
+}
+
+void UWMCYNBackendSubsystem::SetFirebaseWebApiKey(const FString& InFirebaseWebApiKey)
+{
+    FirebaseWebApiKey = InFirebaseWebApiKey.TrimStartAndEnd();
 }
 
 void UWMCYNBackendSubsystem::SetState(EWMCYNBackendLoginState NewState, const FString& Message)
@@ -315,4 +498,39 @@ void UWMCYNBackendSubsystem::Fail(const FString& ErrorCode)
 FString UWMCYNBackendSubsystem::MakeUrl(const FString& Path) const
 {
     return BackendBaseUrl + Path;
+}
+
+FString UWMCYNBackendSubsystem::ResolveFirebaseWebApiKey() const
+{
+    if (!FirebaseWebApiKey.IsEmpty())
+    {
+        return FirebaseWebApiKey;
+    }
+
+    const FString EnvironmentValue = FPlatformMisc::GetEnvironmentVariable(TEXT("WMCYN_WEB_API_KEY"));
+    if (!EnvironmentValue.IsEmpty())
+    {
+        return EnvironmentValue;
+    }
+
+    return FString();
+}
+
+FString UWMCYNBackendSubsystem::ResolveAvatarManifestPlatform() const
+{
+    if (PresenceMode.Equals(TEXT("Quest"), ESearchCase::IgnoreCase))
+    {
+        return TEXT("quest");
+    }
+
+    if (PresenceMode.Equals(TEXT("PCVR"), ESearchCase::IgnoreCase))
+    {
+        return TEXT("pcvr");
+    }
+
+#if PLATFORM_ANDROID
+    return TEXT("quest");
+#else
+    return TEXT("pcvr");
+#endif
 }

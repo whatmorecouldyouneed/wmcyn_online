@@ -7,6 +7,7 @@
 #include "Sound/SoundBase.h"
 #include "UObject/UnrealType.h"
 #include "WMCYNFirstSignalLoginAsyncAction.h"
+#include "WMCYNFirstSignalPairingAsyncAction.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNFirstSignalUI, Log, All);
@@ -41,12 +42,34 @@ bool UWMCYNFirstSignalBlueprintLibrary::SubmitFirstSignalLogin(
     const FString& Password,
     const bool bAllowPIEDevelopmentFallback)
 {
+    const FString CleanIdentifier = Identifier.TrimStartAndEnd();
+    const FString CleanPassword = Password.TrimStartAndEnd();
+
+    // Pairing is the preferred in-headset path. Leaving both fields empty lets
+    // the existing Enter World button drive pairing without breaking the
+    // credential fallback for desktop or manual testing.
+    if (CleanIdentifier.IsEmpty() && CleanPassword.IsEmpty())
+    {
+        return UWMCYNFirstSignalPairingAsyncAction::StartForLoginWidget(
+            WorldContextObject,
+            LoginWidget);
+    }
+
     return UWMCYNFirstSignalLoginAsyncAction::StartForLoginWidget(
         WorldContextObject,
         LoginWidget,
-        Identifier,
-        Password,
+        CleanIdentifier,
+        CleanPassword,
         bAllowPIEDevelopmentFallback);
+}
+
+bool UWMCYNFirstSignalBlueprintLibrary::BeginFirstSignalPairing(
+    const UObject* WorldContextObject,
+    UUserWidget* LoginWidget)
+{
+    return UWMCYNFirstSignalPairingAsyncAction::StartForLoginWidget(
+        WorldContextObject,
+        LoginWidget);
 }
 
 bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction(
@@ -58,11 +81,22 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
         return false;
     }
 
+#if PLATFORM_ANDROID
+    WidgetHost->SetVisibility(false);
+    WidgetHost->SetHiddenInGame(true);
+    WidgetHost->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    UE_LOG(
+        LogWMCYNFirstSignalUI,
+        Display,
+        TEXT("WMCYN UI: Quest/Android is using the platform keyboard; AFCore keyboard host suppressed"));
+    return false;
+#else
     APawn* Pawn = UGameplayStatics::GetPlayerPawn(WorldContextObject, 0);
     UWMCYNFirstSignalPresenceComponent* Presence =
         Pawn ? Pawn->FindComponentByClass<UWMCYNFirstSignalPresenceComponent>() : nullptr;
     UWidgetInteractionComponent* WidgetInteraction =
         Presence ? Presence->GetKeyboardInputInteraction() : nullptr;
+
     if (!WidgetInteraction)
     {
         return false;
@@ -83,6 +117,7 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
         TEXT("WMCYN UI: registered %s as the AFCore keyboard source interaction"),
         *WidgetInteraction->GetName());
     return true;
+#endif
 }
 
 bool UWMCYNFirstSignalBlueprintLibrary::RequestLocalFirstSignalRespawn(const UObject* WorldContextObject)

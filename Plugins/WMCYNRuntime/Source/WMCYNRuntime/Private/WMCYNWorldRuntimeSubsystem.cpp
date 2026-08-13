@@ -319,8 +319,14 @@ void UWMCYNWorldRuntimeSubsystem::HandlePostLogin(AGameModeBase* GameMode, APlay
         return;
     }
 
-    const FString Ticket = UGameplayStatics::ParseOption(
-        Connection->RequestURL, WMCYNFirstSignalWorldContract::JoinTicketOption);
+    const FString& RequestUrl = Connection->RequestURL;
+    FString Ticket;
+    if (const int32 OptionsIndex = RequestUrl.Find(TEXT("?")); OptionsIndex != INDEX_NONE)
+    {
+        Ticket = UGameplayStatics::ParseOption(
+            RequestUrl.Mid(OptionsIndex), WMCYNFirstSignalWorldContract::JoinTicketOption);
+    }
+
     if (Ticket.IsEmpty())
     {
         KickInvalidLogin(GameMode, NewPlayer, TEXT("missing join ticket"));

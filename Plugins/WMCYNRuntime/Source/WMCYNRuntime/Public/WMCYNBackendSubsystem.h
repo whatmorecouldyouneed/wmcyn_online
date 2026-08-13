@@ -14,6 +14,31 @@ enum class EWMCYNBackendLoginState : uint8
     Failed
 };
 
+USTRUCT()
+struct FWMCYNAvatarManifest
+{
+    GENERATED_BODY()
+
+    FString AvatarId;
+    int32 AvatarVersion = 0;
+    FString Platform;
+    bool bIsDefaultAvatar = true;
+    FString DisplayName;
+    FString DeliveryType;
+    FString DeliveryUrl;
+    FString DeliveryAssetRoot;
+    FString DeliverySkeletalMeshPath;
+    FString DeliveryHeadSkeletalMeshPath;
+    FString DeliveryAnimClassPath;
+    FString CacheKey;
+};
+
+DECLARE_DELEGATE_ThreeParams(
+    FWMCYNAvatarManifestCallback,
+    bool,
+    const FWMCYNAvatarManifest&,
+    const FString&);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     FWMCYNBackendLoginStateChanged,
     EWMCYNBackendLoginState,
@@ -44,7 +69,13 @@ public:
     void LoginAndLoadBootstrap(const FString& Identifier, const FString& Password);
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
+    void SignInWithCustomTokenAndLoadBootstrap(const FString& CustomToken);
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     void SignOut();
+
+    UFUNCTION(BlueprintPure, Category = "WMCYN|Backend")
+    FString GetBackendBaseUrl() const;
 
     UFUNCTION(BlueprintPure, Category = "WMCYN|Backend")
     FString GetWorldTravelURL() const;
@@ -56,8 +87,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     bool TravelToFirstSignalWorld();
 
+    void RequestAvatarManifest(FWMCYNAvatarManifestCallback&& Callback);
+
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     void SetBackendBaseUrl(const FString& InBaseUrl);
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
+    void SetFirebaseWebApiKey(const FString& InFirebaseWebApiKey);
 
     UPROPERTY(BlueprintAssignable, Category = "WMCYN|Backend")
     FWMCYNBackendLoginStateChanged OnLoginStateChanged;
@@ -109,8 +145,11 @@ private:
     void SetState(EWMCYNBackendLoginState NewState, const FString& Message);
     void Fail(const FString& ErrorCode);
     FString MakeUrl(const FString& Path) const;
+    FString ResolveFirebaseWebApiKey() const;
+    FString ResolveAvatarManifestPlatform() const;
 
-    FString BackendBaseUrl = TEXT("https://us-central1-wmcyn-online-mobile.cloudfunctions.net/api");
+    FString BackendBaseUrl = TEXT("https://api-rrm3u3yaba-uc.a.run.app");
+    FString FirebaseWebApiKey;
     FString IdToken;
     FString RefreshToken;
 

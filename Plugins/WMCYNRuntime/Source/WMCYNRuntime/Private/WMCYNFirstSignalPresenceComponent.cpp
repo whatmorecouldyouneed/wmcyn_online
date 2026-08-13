@@ -1,19 +1,23 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
 
 #include "Camera/CameraComponent.h"
+#include "Animation/AnimInstance.h"
 #include "Components/InputComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "IXRTrackingSystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Char.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -33,6 +37,7 @@
 #include "Blueprint/UserWidget.h"
 #include "UObject/UnrealType.h"
 #include "WMCYNBackendSubsystem.h"
+#include "WMCYNFirstSignalPairingAsyncAction.h"
 
 #if PLATFORM_ANDROID
 #include "AndroidPermissionFunctionLibrary.h"
@@ -41,10 +46,28 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNPresence, Log, All);
 
+namespace
+{
+    bool IsWMCYNRuntimeAvatarPath(const FString& Path)
+    {
+        return Path.StartsWith(TEXT("/Game/WMCYN/AvatarPipeline/Runtime/"), ESearchCase::IgnoreCase);
+    }
+
+    FString DeriveHeadMeshPath(const FString& BodyPath)
+    {
+        FString DerivedPath = BodyPath;
+        if (DerivedPath.ReplaceInline(TEXT("_Body."), TEXT("_Head."), ESearchCase::IgnoreCase) > 0)
+        {
+            return DerivedPath;
+        }
+        return FString();
+    }
+}
+
 UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.TickInterval = 0.05f;
+    PrimaryComponentTick.TickInterval = 0.033f;
     SetIsReplicatedByDefault(true);
 
     NameplateWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(
@@ -55,6 +78,15 @@ UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
         TEXT("/Game/AFCore/DataAsset/Theme/DA_Theme_Default.DA_Theme_Default")));
     RuntimeMenuWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(
         TEXT("/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu.WBP_WMCYN_RuntimeMenu_C")));
+    RuntimeAvatarBodyCookReference = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(
+        TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
+             "WMCYNAvatar_52b64e54_Body.WMCYNAvatar_52b64e54_Body")));
+    RuntimeAvatarHeadCookReference = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(
+        TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
+             "WMCYNAvatar_52b64e54_Head.WMCYNAvatar_52b64e54_Head")));
+    RuntimeAvatarAnimCookReference = TSoftClassPtr<UAnimInstance>(FSoftObjectPath(
+        TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
+             "ABP_WMCYN_MetaHuman_Presentation.ABP_WMCYN_MetaHuman_Presentation_C")));
 }
 
 void UWMCYNFirstSignalPresenceComponent::BeginPlay()
@@ -103,6 +135,54 @@ void UWMCYNFirstSignalPresenceComponent::TryAutoEnterFromVerifiedLogin()
     if (AActor* EntryManager = ResolveLoginPanelActor())
     {
         EntryManager->Destroy();
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::PrimeLoginWidgetPairingPanel()
+{
+    if (bLoginWidgetPairingPrimed || bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    AActor* EntryManager = ResolveLoginPanelActor();
+    if (!EntryManager)
+    {
+        return;
+    }
+
+    TArray<UWidgetComponent*> WidgetComponents;
+    EntryManager->GetComponents(WidgetComponents);
+    for (UWidgetComponent* WidgetComponent : WidgetComponents)
+    {
+        if (!WidgetComponent)
+        {
+            continue;
+        }
+
+        const FString WidgetClassPath = WidgetComponent->GetWidgetClass()
+            ? WidgetComponent->GetWidgetClass()->GetPathName()
+            : FString();
+        UUserWidget* LoginWidget = WidgetComponent->GetUserWidgetObject();
+        const FString WidgetObjectClassPath = LoginWidget
+            ? LoginWidget->GetClass()->GetPathName()
+            : FString();
+
+        if (!WidgetClassPath.Contains(TEXT("WBP_WMCYN_LoginJoin")) &&
+            !WidgetObjectClassPath.Contains(TEXT("WBP_WMCYN_LoginJoin")))
+        {
+            continue;
+        }
+
+        if (!LoginWidget)
+        {
+            continue;
+        }
+
+        UWMCYNFirstSignalPairingAsyncAction::PrimeLoginWidget(LoginWidget);
+        bLoginWidgetPairingPrimed = true;
+        UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: pairing strip primed under the existing login form"));
+        return;
     }
 }
 
@@ -222,11 +302,11 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
         }
         else
         {
-            USkeletalMeshComponent* BodyMesh = OwnerCharacter->GetMesh();
-            if (BodyMesh && BodyMesh->GetBoneIndex(TEXT("index_03_r")) != INDEX_NONE)
+            USkeletalMeshComponent* CharacterMesh = OwnerCharacter->GetMesh();
+            if (CharacterMesh && CharacterMesh->GetBoneIndex(TEXT("index_03_r")) != INDEX_NONE)
             {
                 PreferredWidgetInteraction->AttachToComponent(
-                    BodyMesh,
+                    CharacterMesh,
                     FAttachmentTransformRules::SnapToTargetNotIncludingScale,
                     TEXT("index_03_r"));
                 PreferredWidgetInteraction->SetRelativeLocation(FVector(2.0f, 0.0f, 0.0f));
@@ -503,11 +583,13 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (OwnerCharacter->IsLocallyControlled())
     {
+        PrimeLoginWidgetPairingPanel();
         if (!bLoginGateCompleted && !bAutoEntryAttempted)
         {
             TryAutoEnterFromVerifiedLogin();
         }
         ApplyLocalLoginGateLock();
+        RequestAvatarManifestIfNeeded();
         UpdateWidgetInteractionPresentation();
         UpdateRuntimeMenuInput();
         CaptureAndSendPose();
@@ -516,6 +598,15 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
     {
         ConfigureRemoteTracking();
         ApplyReplicatedPose(DeltaTime);
+        if (!ReplicatedAvatarCacheKey.IsEmpty() && ReplicatedAvatarCacheKey != AppliedAvatarCacheKey)
+        {
+            ApplyAvatarPresentation(
+                ReplicatedAvatarSkeletalMeshPath,
+                ReplicatedAvatarHeadSkeletalMeshPath,
+                ReplicatedAvatarAnimClassPath,
+                ReplicatedAvatarCacheKey,
+                bReplicatedAvatarIsDefault);
+        }
     }
 
     const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -576,8 +667,15 @@ void UWMCYNFirstSignalPresenceComponent::GetLifetimeReplicatedProps(TArray<FLife
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedLeftHandRotation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedRightHandLocation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedRightHandRotation, COND_SkipOwner);
+    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedMeshRelativeLocation, COND_SkipOwner);
+    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedMeshRelativeRotation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, bHasReplicatedPose, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedPoseSequence, COND_SkipOwner);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ReplicatedAvatarSkeletalMeshPath);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ReplicatedAvatarHeadSkeletalMeshPath);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ReplicatedAvatarAnimClassPath);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ReplicatedAvatarCacheKey);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, bReplicatedAvatarIsDefault);
 }
 
 void UWMCYNFirstSignalPresenceComponent::SubmitIdentity(const FString& Username, const FString& DisplayName)
@@ -590,6 +688,11 @@ void UWMCYNFirstSignalPresenceComponent::SubmitIdentity(const FString& Username,
     if (!OwnerCharacter)
     {
         return;
+    }
+
+    if (APlayerState* LocalPlayerState = OwnerCharacter->GetPlayerState())
+    {
+        ApplyIdentityToPlayerState(LocalPlayerState, Username, DisplayName, false);
     }
 
     if (OwnerCharacter->HasAuthority())
@@ -633,45 +736,276 @@ void UWMCYNFirstSignalPresenceComponent::ApplyIdentity(const FString& Username, 
         CleanDisplayName = CleanUsername;
     }
 
-    if (FStrProperty* UsernameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("username")))
-    {
-        UsernameProperty->SetPropertyValue_InContainer(PlayerState, CleanUsername);
-    }
-    if (FStrProperty* DisplayNameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("displayName")))
-    {
-        DisplayNameProperty->SetPropertyValue_InContainer(PlayerState, CleanDisplayName);
-    }
-
-    PlayerState->SetPlayerName(CleanDisplayName);
-
-    bool bUpdatedAFCorePlayerInfo = false;
-    TArray<UActorComponent*> PlayerStateComponents;
-    PlayerState->GetComponents(PlayerStateComponents);
-    for (UActorComponent* Component : PlayerStateComponents)
-    {
-        if (!Component || !Component->GetClass()->GetName().Contains(TEXT("Comp_PlayerInfo_Basic")))
-        {
-            continue;
-        }
-
-        if (FTextProperty* PlayerNameProperty = FindFProperty<FTextProperty>(Component->GetClass(), TEXT("PlayerName")))
-        {
-            PlayerNameProperty->SetPropertyValue_InContainer(Component, FText::FromString(CleanDisplayName));
-            if (UFunction* OnRepPlayerName = Component->FindFunction(TEXT("OnRep_PlayerName")))
-            {
-                Component->ProcessEvent(OnRepPlayerName, nullptr);
-            }
-            bUpdatedAFCorePlayerInfo = true;
-        }
-        break;
-    }
-
-    PlayerState->ForceNetUpdate();
-    if (!bUpdatedAFCorePlayerInfo)
-    {
-        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN Identity: AFCore Comp_PlayerInfo_Basic was not available"));
-    }
+    ApplyIdentityToPlayerState(PlayerState, CleanUsername, CleanDisplayName, true);
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Identity: server accepted %s"), *CleanDisplayName);
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestAvatarManifestIfNeeded()
+{
+    if (bAvatarManifestRequested || !bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UWMCYNBackendSubsystem* Backend = GameInstance
+        ? GameInstance->GetSubsystem<UWMCYNBackendSubsystem>()
+        : nullptr;
+    if (!Backend || Backend->LoginState != EWMCYNBackendLoginState::Ready || Backend->VerifiedUserId.IsEmpty())
+    {
+        return;
+    }
+
+    bAvatarManifestRequested = true;
+    Backend->RequestAvatarManifest(
+        FWMCYNAvatarManifestCallback::CreateWeakLambda(
+            this,
+            [this](bool bSuccess, const FWMCYNAvatarManifest& Manifest, const FString& Error)
+            {
+                if (!bSuccess)
+                {
+                    UE_LOG(LogWMCYNPresence, Warning,
+                        TEXT("WMCYN Avatar: manifest request failed (%s)"), *Error);
+                    return;
+                }
+
+            ApplyAvatarPresentation(
+                Manifest.DeliverySkeletalMeshPath,
+                Manifest.DeliveryHeadSkeletalMeshPath,
+                Manifest.DeliveryAnimClassPath,
+                    Manifest.CacheKey,
+                    Manifest.bIsDefaultAvatar);
+
+                if (OwnerCharacter && OwnerCharacter->HasAuthority())
+                {
+                    ReplicatedAvatarSkeletalMeshPath = Manifest.DeliverySkeletalMeshPath;
+                    ReplicatedAvatarHeadSkeletalMeshPath = Manifest.DeliveryHeadSkeletalMeshPath;
+                    ReplicatedAvatarAnimClassPath = Manifest.DeliveryAnimClassPath;
+                    ReplicatedAvatarCacheKey = Manifest.CacheKey;
+                    bReplicatedAvatarIsDefault = Manifest.bIsDefaultAvatar;
+                    OwnerCharacter->ForceNetUpdate();
+                }
+                else
+                {
+                    ServerSubmitAvatarPresentation(
+                        Manifest.DeliverySkeletalMeshPath,
+                        Manifest.DeliveryHeadSkeletalMeshPath,
+                        Manifest.DeliveryAnimClassPath,
+                        Manifest.CacheKey,
+                        Manifest.bIsDefaultAvatar);
+                }
+            }));
+}
+
+void UWMCYNFirstSignalPresenceComponent::EnsureAvatarPresentationComponents()
+{
+    if (!OwnerCharacter || AvatarPresentationRoot)
+    {
+        return;
+    }
+
+    USceneComponent* AttachParent = OwnerCharacter->GetRootComponent();
+    if (!AttachParent)
+    {
+        return;
+    }
+
+    AvatarPresentationRoot = NewObject<USceneComponent>(OwnerCharacter, TEXT("WMCYNAvatarPresentationRoot"));
+    OwnerCharacter->AddInstanceComponent(AvatarPresentationRoot);
+    AvatarPresentationRoot->RegisterComponent();
+    AvatarPresentationRoot->AttachToComponent(AttachParent, FAttachmentTransformRules::KeepRelativeTransform);
+
+    if (BodyMesh)
+    {
+        AvatarPresentationRoot->SetRelativeLocationAndRotation(
+            BodyMesh->GetRelativeLocation(), BodyMesh->GetRelativeRotation());
+        AvatarPresentationRoot->SetRelativeScale3D(BodyMesh->GetRelativeScale3D());
+    }
+
+    AvatarBodyVisual = NewObject<USkeletalMeshComponent>(OwnerCharacter, TEXT("WMCYNAvatarBodyVisual"));
+    OwnerCharacter->AddInstanceComponent(AvatarBodyVisual);
+    AvatarBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    AvatarBodyVisual->SetGenerateOverlapEvents(false);
+    AvatarBodyVisual->SetCastShadow(true);
+    AvatarBodyVisual->RegisterComponent();
+    // Parent the visual directly to Mimic's native skeletal mesh. The saved
+    // Retarget Pose From Mesh node discovers this component in Parent mode.
+    // Mimic remains hidden but continues ticking as the authoritative tracker.
+    if (BodyMesh)
+    {
+        AvatarBodyVisual->AttachToComponent(
+            BodyMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        AvatarBodyVisual->SetRelativeTransform(FTransform::Identity);
+    }
+    else
+    {
+        AvatarBodyVisual->AttachToComponent(
+            AvatarPresentationRoot, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    }
+
+    AvatarHeadVisual = NewObject<USkeletalMeshComponent>(OwnerCharacter, TEXT("WMCYNAvatarHeadVisual"));
+    OwnerCharacter->AddInstanceComponent(AvatarHeadVisual);
+    AvatarHeadVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    AvatarHeadVisual->SetGenerateOverlapEvents(false);
+    AvatarHeadVisual->SetCastShadow(true);
+    AvatarHeadVisual->RegisterComponent();
+}
+
+void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
+    const FString& SkeletalMeshPath,
+    const FString& HeadSkeletalMeshPath,
+    const FString& AnimClassPath,
+    const FString& CacheKey,
+    const bool bIsDefaultAvatar)
+{
+    if (!BodyMesh)
+    {
+        CacheNativeComponents();
+    }
+
+    if (!BodyMesh || SkeletalMeshPath.IsEmpty())
+    {
+        return;
+    }
+
+    if (!IsWMCYNRuntimeAvatarPath(SkeletalMeshPath))
+    {
+        UE_LOG(LogWMCYNPresence, Verbose,
+            TEXT("WMCYN Avatar: retaining native Mimic presentation for non-WMCYN asset %s"),
+            *SkeletalMeshPath);
+        AppliedAvatarCacheKey = CacheKey.IsEmpty() ? SkeletalMeshPath : CacheKey;
+        return;
+    }
+
+    const FString EffectiveCacheKey = FString::Printf(
+        TEXT("%s|%s|%s|%s"),
+        *CacheKey,
+        *SkeletalMeshPath,
+        *HeadSkeletalMeshPath,
+        *AnimClassPath);
+    if (EffectiveCacheKey == AppliedAvatarCacheKey)
+    {
+        return;
+    }
+
+    USkeletalMesh* ResolvedMesh = LoadObject<USkeletalMesh>(nullptr, *SkeletalMeshPath);
+    if (!ResolvedMesh)
+    {
+        UE_LOG(LogWMCYNPresence, Warning,
+            TEXT("WMCYN Avatar: could not load skeletal mesh %s"), *SkeletalMeshPath);
+        return;
+    }
+
+    EnsureAvatarPresentationComponents();
+    if (!AvatarBodyVisual || !AvatarHeadVisual)
+    {
+        UE_LOG(LogWMCYNPresence, Warning,
+            TEXT("WMCYN Avatar: presentation components could not be created for %s"),
+            *SkeletalMeshPath);
+        return;
+    }
+
+    if (AvatarBodyVisual->GetSkeletalMeshAsset() != ResolvedMesh)
+    {
+        AvatarBodyVisual->SetSkeletalMesh(ResolvedMesh);
+    }
+
+    // Clear the previous head presentation until this manifest's head is verified.
+    AvatarHeadVisual->SetVisibility(false, true);
+
+    FString EffectiveHeadPath = HeadSkeletalMeshPath;
+    if (EffectiveHeadPath.IsEmpty())
+    {
+        EffectiveHeadPath = DeriveHeadMeshPath(SkeletalMeshPath);
+    }
+
+    if (!EffectiveHeadPath.IsEmpty())
+    {
+        if (USkeletalMesh* ResolvedHeadMesh = LoadObject<USkeletalMesh>(nullptr, *EffectiveHeadPath))
+        {
+            if (AvatarHeadVisual->GetSkeletalMeshAsset() != ResolvedHeadMesh)
+            {
+                AvatarHeadVisual->SetSkeletalMesh(ResolvedHeadMesh);
+            }
+
+            const FName HeadAttachmentBone = AvatarBodyVisual->DoesSocketExist(TEXT("head"))
+                ? FName(TEXT("head"))
+                : FName(TEXT("neck_01"));
+            AvatarHeadVisual->AttachToComponent(
+                AvatarBodyVisual,
+                FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+                HeadAttachmentBone);
+            AvatarHeadVisual->SetVisibility(true, true);
+        }
+        else
+        {
+            AvatarHeadVisual->SetVisibility(false, true);
+            UE_LOG(LogWMCYNPresence, Warning,
+                TEXT("WMCYN Avatar: body loaded, head mesh unavailable at %s"),
+                *EffectiveHeadPath);
+        }
+    }
+
+    if (!AnimClassPath.IsEmpty())
+    {
+        if (UClass* ResolvedAnimClass = LoadClass<UAnimInstance>(nullptr, *AnimClassPath))
+        {
+            AvatarBodyVisual->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+            AvatarBodyVisual->SetAnimInstanceClass(ResolvedAnimClass);
+        }
+        else
+        {
+            UE_LOG(LogWMCYNPresence, Warning,
+                TEXT("WMCYN Avatar: could not load anim class %s"), *AnimClassPath);
+        }
+    }
+
+    // Keep Mimic instantiated for tracking; only the WMCYN wrapper is visible.
+    BodyMesh->SetVisibility(false, true);
+    AvatarBodyVisual->SetVisibility(true, true);
+    AppliedAvatarCacheKey = EffectiveCacheKey;
+    UE_LOG(LogWMCYNPresence, Display,
+        TEXT("WMCYN Avatar: applied %s presentation wrapper body=%s head=%s anim=%s"),
+        bIsDefaultAvatar ? TEXT("default") : TEXT("published-placeholder"),
+        *SkeletalMeshPath,
+        *EffectiveHeadPath,
+        AnimClassPath.IsEmpty() ? TEXT("reference-pose") : *AnimClassPath);
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerSubmitAvatarPresentation_Implementation(
+    const FString& SkeletalMeshPath,
+    const FString& HeadSkeletalMeshPath,
+    const FString& AnimClassPath,
+    const FString& CacheKey,
+    const bool bIsDefaultAvatar)
+{
+    ReplicatedAvatarSkeletalMeshPath = SkeletalMeshPath.TrimStartAndEnd();
+    ReplicatedAvatarHeadSkeletalMeshPath = HeadSkeletalMeshPath.TrimStartAndEnd();
+    ReplicatedAvatarAnimClassPath = AnimClassPath.TrimStartAndEnd();
+    ReplicatedAvatarCacheKey = CacheKey.TrimStartAndEnd();
+    bReplicatedAvatarIsDefault = bIsDefaultAvatar;
+
+    ApplyAvatarPresentation(
+        ReplicatedAvatarSkeletalMeshPath,
+        ReplicatedAvatarHeadSkeletalMeshPath,
+        ReplicatedAvatarAnimClassPath,
+        ReplicatedAvatarCacheKey,
+        bReplicatedAvatarIsDefault);
+
+    if (OwnerCharacter)
+    {
+        OwnerCharacter->ForceNetUpdate();
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::OnRep_AvatarPresentation()
+{
+    ApplyAvatarPresentation(
+        ReplicatedAvatarSkeletalMeshPath,
+        ReplicatedAvatarHeadSkeletalMeshPath,
+        ReplicatedAvatarAnimClassPath,
+        ReplicatedAvatarCacheKey,
+        bReplicatedAvatarIsDefault);
 }
 
 void UWMCYNFirstSignalPresenceComponent::ServerUpdateTrackedPose_Implementation(
@@ -696,6 +1030,11 @@ void UWMCYNFirstSignalPresenceComponent::ServerUpdateTrackedPose_Implementation(
     {
         UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Tracking: server received native head/hand pose for %s"), *GetNameSafe(GetOwner()));
     }
+
+    if (OwnerCharacter)
+    {
+        OwnerCharacter->ForceNetUpdate();
+    }
 }
 
 void UWMCYNFirstSignalPresenceComponent::CacheNativeComponents()
@@ -707,6 +1046,7 @@ void UWMCYNFirstSignalPresenceComponent::CacheNativeComponents()
     }
 
     TrackedCamera = Owner->FindComponentByClass<UCameraComponent>();
+    BodyMesh = OwnerCharacter ? OwnerCharacter->GetMesh() : nullptr;
 
     TArray<UMotionControllerComponent*> MotionControllers;
     Owner->GetComponents(MotionControllers);
@@ -776,7 +1116,7 @@ void UWMCYNFirstSignalPresenceComponent::CaptureAndSendPose()
     {
         return;
     }
-    NextPoseSendTime = Now + 0.05f;
+    NextPoseSendTime = Now + 0.033f;
 
     const FVector_NetQuantize10 HeadLocation = TrackedCamera->GetRelativeLocation();
     const FRotator HeadRotation = TrackedCamera->GetRelativeRotation();
@@ -793,8 +1133,14 @@ void UWMCYNFirstSignalPresenceComponent::CaptureAndSendPose()
         ReplicatedLeftHandRotation = LeftRotation;
         ReplicatedRightHandLocation = RightLocation;
         ReplicatedRightHandRotation = RightRotation;
+        if (BodyMesh)
+        {
+            ReplicatedMeshRelativeLocation = BodyMesh->GetRelativeLocation();
+            ReplicatedMeshRelativeRotation = BodyMesh->GetRelativeRotation();
+        }
         bHasReplicatedPose = true;
         ++ReplicatedPoseSequence;
+        OwnerCharacter->ForceNetUpdate();
     }
     else
     {
@@ -836,6 +1182,12 @@ void UWMCYNFirstSignalPresenceComponent::ApplyReplicatedPose(const float DeltaTi
         RightController->SetRelativeLocationAndRotation(
             InterpolateLocation(RightController->GetRelativeLocation(), ReplicatedRightHandLocation),
             InterpolateRotation(RightController->GetRelativeRotation(), ReplicatedRightHandRotation));
+    }
+    if (BodyMesh)
+    {
+        BodyMesh->SetRelativeLocationAndRotation(
+            InterpolateLocation(BodyMesh->GetRelativeLocation(), ReplicatedMeshRelativeLocation),
+            InterpolateRotation(BodyMesh->GetRelativeRotation(), ReplicatedMeshRelativeRotation));
     }
 
     ++RemotePoseApplyCount;
@@ -930,6 +1282,35 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
     }
 
     Nameplate->SetVisibility(bLoginGateCompleted || !OwnerCharacter->IsLocallyControlled());
+
+    if (UUserWidget* NameplateWidget = Nameplate->GetUserWidgetObject())
+    {
+        if (const APlayerState* PlayerState = OwnerCharacter->GetPlayerState())
+        {
+            const FString PreferredDisplayName = ResolvePreferredDisplayName(PlayerState);
+            if (!PreferredDisplayName.IsEmpty())
+            {
+                if (UFunction* UpdatedPlayerName = NameplateWidget->FindFunction(TEXT("Updated_PlayerName_Event")))
+                {
+                    if (FProperty* FirstProperty = UpdatedPlayerName->PropertyLink)
+                    {
+                        TArray<uint8> Params;
+                        Params.SetNumZeroed(UpdatedPlayerName->ParmsSize);
+                        if (FTextProperty* TextProperty = CastField<FTextProperty>(FirstProperty))
+                        {
+                            TextProperty->SetPropertyValue_InContainer(Params.GetData(), FText::FromString(PreferredDisplayName));
+                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetData());
+                        }
+                        else if (FStrProperty* StringProperty = CastField<FStrProperty>(FirstProperty))
+                        {
+                            StringProperty->SetPropertyValue_InContainer(Params.GetData(), PreferredDisplayName);
+                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetData());
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void UWMCYNFirstSignalPresenceComponent::CreateRuntimeMenu()
@@ -1022,7 +1403,17 @@ void UWMCYNFirstSignalPresenceComponent::UpdateRuntimeMenuInput()
 
     EnsureRuntimeMenuInputBinding();
 
-    const bool bToggleRequested = PlayerController->WasInputKeyJustPressed(EKeys::M);
+    const bool bToggleRequested =
+        PlayerController->WasInputKeyJustPressed(EKeys::M) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::P) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::Tab) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::Gamepad_Special_Right) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::Gamepad_Special_Left) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::Gamepad_FaceButton_Top) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::OculusTouch_Right_B_Click) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::OculusTouch_Left_Menu_Click) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::ValveIndex_Right_B_Click) ||
+        PlayerController->WasInputKeyJustPressed(EKeys::Vive_Right_Trackpad_Right);
     const bool bCloseRequested =
         PlayerController->WasInputKeyJustPressed(EKeys::Escape);
 
@@ -1248,4 +1639,176 @@ void UWMCYNFirstSignalPresenceComponent::HandleVoiceSessionCreated(const FName S
     }
 
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Voice: native local capture requested (%s)"), bWasSuccessful ? TEXT("session ready") : TEXT("fallback"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::ApplyIdentityToPlayerState(
+    APlayerState* PlayerState,
+    const FString& Username,
+    const FString& DisplayName,
+    const bool bForceReplication)
+{
+    if (!PlayerState)
+    {
+        return;
+    }
+
+    FString CleanUsername = Username.TrimStartAndEnd().Left(32);
+    FString CleanDisplayName = DisplayName.TrimStartAndEnd().Left(32);
+    if (CleanUsername.IsEmpty())
+    {
+        return;
+    }
+    if (CleanDisplayName.IsEmpty())
+    {
+        CleanDisplayName = CleanUsername;
+    }
+
+    if (FStrProperty* UsernameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("username")))
+    {
+        UsernameProperty->SetPropertyValue_InContainer(PlayerState, CleanUsername);
+    }
+    if (FStrProperty* DisplayNameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("displayName")))
+    {
+        DisplayNameProperty->SetPropertyValue_InContainer(PlayerState, CleanDisplayName);
+    }
+
+    PlayerState->SetPlayerName(CleanDisplayName);
+
+    bool bUpdatedAFCorePlayerInfo = false;
+    TArray<UActorComponent*> PlayerStateComponents;
+    PlayerState->GetComponents(PlayerStateComponents);
+    for (UActorComponent* Component : PlayerStateComponents)
+    {
+        if (!Component || !Component->GetClass()->GetName().Contains(TEXT("Comp_PlayerInfo_Basic")))
+        {
+            continue;
+        }
+
+        bUpdatedAFCorePlayerInfo = TryApplyPlayerInfoDisplayName(Component, CleanDisplayName);
+        break;
+    }
+
+    if (bForceReplication)
+    {
+        PlayerState->ForceNetUpdate();
+    }
+
+    if (!bUpdatedAFCorePlayerInfo)
+    {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN Identity: AFCore Comp_PlayerInfo_Basic was not available"));
+    }
+}
+
+bool UWMCYNFirstSignalPresenceComponent::TryApplyPlayerInfoDisplayName(
+    UActorComponent* Component,
+    const FString& DisplayName) const
+{
+    if (!Component)
+    {
+        return false;
+    }
+
+    if (FTextProperty* PlayerNameProperty = FindFProperty<FTextProperty>(Component->GetClass(), TEXT("PlayerName")))
+    {
+        PlayerNameProperty->SetPropertyValue_InContainer(Component, FText::FromString(DisplayName));
+    }
+
+    const auto InvokeNameFunction = [Component, &DisplayName](const TCHAR* FunctionName) -> bool
+    {
+        UFunction* Function = Component->FindFunction(FunctionName);
+        if (!Function)
+        {
+            return false;
+        }
+
+        FProperty* InputProperty = nullptr;
+        for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+        {
+            if (!It->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm))
+            {
+                InputProperty = *It;
+                break;
+            }
+        }
+
+        TArray<uint8> Params;
+        Params.SetNumZeroed(Function->ParmsSize);
+        if (FTextProperty* TextProperty = CastField<FTextProperty>(InputProperty))
+        {
+            TextProperty->SetPropertyValue_InContainer(Params.GetData(), FText::FromString(DisplayName));
+        }
+        else if (FStrProperty* StringProperty = CastField<FStrProperty>(InputProperty))
+        {
+            StringProperty->SetPropertyValue_InContainer(Params.GetData(), DisplayName);
+        }
+
+        Component->ProcessEvent(Function, Function->ParmsSize > 0 ? Params.GetData() : nullptr);
+        return true;
+    };
+
+    bool bInvoked = false;
+    bInvoked |= InvokeNameFunction(TEXT("SetPlayerName"));
+    bInvoked |= InvokeNameFunction(TEXT("Updated_PlayerName"));
+    bInvoked |= InvokeNameFunction(TEXT("OnRep_PlayerName"));
+    return bInvoked || FindFProperty<FTextProperty>(Component->GetClass(), TEXT("PlayerName")) != nullptr;
+}
+
+FString UWMCYNFirstSignalPresenceComponent::ResolvePreferredDisplayName(const APlayerState* PlayerState) const
+{
+    if (!PlayerState)
+    {
+        return FString();
+    }
+
+    auto ReadOptionalStringProperty = [PlayerState](const TCHAR* PropertyName) -> FString
+    {
+        if (const FStrProperty* StringProperty =
+                FindFProperty<FStrProperty>(PlayerState->GetClass(), PropertyName))
+        {
+            return StringProperty->GetPropertyValue_InContainer(PlayerState).TrimStartAndEnd();
+        }
+        return FString();
+    };
+
+    FString DisplayName = ReadOptionalStringProperty(TEXT("displayName"));
+    FString Username = ReadOptionalStringProperty(TEXT("username"));
+    FString PlayerName = PlayerState->GetPlayerName().TrimStartAndEnd();
+
+    if (!DisplayName.IsEmpty() && !LooksLikeUuid(DisplayName))
+    {
+        return DisplayName;
+    }
+    if (!PlayerName.IsEmpty() && !LooksLikeUuid(PlayerName))
+    {
+        return PlayerName;
+    }
+    if (!Username.IsEmpty())
+    {
+        return Username;
+    }
+    return PlayerName;
+}
+
+bool UWMCYNFirstSignalPresenceComponent::LooksLikeUuid(const FString& Value) const
+{
+    FString Trimmed = Value.TrimStartAndEnd();
+    if (Trimmed.Len() != 32 && Trimmed.Len() != 36)
+    {
+        return false;
+    }
+
+    int32 HexCount = 0;
+    for (const TCHAR Character : Trimmed)
+    {
+        if (Character == TCHAR('-'))
+        {
+            continue;
+        }
+        if (!FChar::IsHexDigit(Character))
+        {
+            return false;
+        }
+        ++HexCount;
+    }
+    return HexCount == 32;
 }

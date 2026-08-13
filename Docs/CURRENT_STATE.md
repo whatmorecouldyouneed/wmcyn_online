@@ -213,6 +213,64 @@
 - A packaged `-nohmd` startup smoke stayed responsive, loaded `L_WMCYNOnline`, created `BP_WMCYN_GameMode_FirstSignal`, assigned/synced slot `0`, locked movement behind login, and initialized the native voice path.
 - Packaged startup reports a handled `Comp_Widget` custom-property-list ensure, then continues into the world. Treat this as an AFCore UE 5.8 compatibility follow-up; it is not the current startup-crash path and was not "fixed" by editing AFCore.
 
+## Avatar Pipeline Prep
+
+- The phone-side avatar capture/upload/preview/publish flow and backend avatar job endpoints exist outside this repo and are reported as verified in production.
+- A real uploaded avatar capture was inspected on 2026-07-29. The payload is a Live Link Face style archive, not a ready-made Unreal mesh: `.mov`, `depth_data.bin`, `depth_metadata.mhaical`, `frame_log.csv`, `take.json`, and `thumbnail.jpg`.
+- The Unreal avatar lane now has its first WMCYN-owned presentation boundary, but is not closed end to end:
+  - `UWMCYNBackendSubsystem` can request `GET /v1/avatar/manifest?platform=quest|pcvr`
+  - `UWMCYNFirstSignalPresenceComponent` reads `skeletalMeshPath`, optional `headSkeletalMeshPath`, and `animClassPath` from a runtime-mesh manifest
+  - WMCYN runtime paths render through transient WMCYN-owned body/head skeletal components; the native Mimic mesh remains instantiated as the tracking source of truth
+  - the presence component carries soft cook references for the verified WMCYN body, head, and presentation AnimBlueprint so the first published avatar is retained in packaged builds
+  - non-WMCYN/default placeholder paths are ignored by the wrapper and leave the proven native Mimic presentation intact
+  - backend manifest responses now support default avatar, placeholder published avatar, `runtime_mesh`, and `pak`
+  - the workstation generation/output-selection lane now produces WMCYN-owned mesh/material assets and a compatible presentation AnimBlueprint; remaining product steps are verified manifest publication, locomotion behavior, and device validation
+- Avatar docs now live in:
+  - `Docs/METAHUMAN_AVATAR_SPEC.md`
+  - `Docs/BACKEND_HANDOFF_AVATAR.md`
+  - `Docs/AVATAR_IMPLEMENTATION_PLAN.md`
+  - `Docs/AVATAR_WORKSTATION_RUNBOOK.md`
+- The agreed Unreal direction is:
+  - pairing code becomes the preferred in-headset sign-in path for avatar-era UX
+  - `GET /v1/avatar/manifest?platform=quest|pcvr` should return one resolved platform-specific manifest
+  - the endpoint should return `200` with a default avatar manifest when the user has no published avatar yet
+  - runtime avatar delivery should support both `runtime_mesh` and `pak`, with runtime mesh acceptable as the first proof and cooked bundles as the ship-quality target
+- `Plugins/WMCYNRuntime` now includes the first Unreal-side pairing runtime support:
+  - `UWMCYNBackendSubsystem::SignInWithCustomTokenAndLoadBootstrap`
+  - `UWMCYNFirstSignalPairingAsyncAction` for `code.create` + polling `code.exchange`
+  - `UWMCYNFirstSignalBlueprintLibrary::BeginFirstSignalPairing`
+- The pairing path now compiles in the editor and can drive the same verified identity/bootstrap/world-entry path as credential login once a login widget binds to it.
+- The existing `WBP_WMCYN_LoginJoin` asset has not yet been updated in-editor to expose the pairing-code UX. The runtime plumbing exists; the widget hookup is still pending.
+- WMCYN-owned workstation wrappers now exist in-repo:
+  - `Tools/AvatarPipeline/wmcyn_metahuman_pipeline.py`
+  - `Tools/AvatarPipeline/Run-WMCYNAvatarPipeline.ps1`
+  - `Tools/AvatarPipeline/Publish-WMCYNAvatarRuntimeMesh.ps1`
+- The first successful runtime extraction pass completed on 2026-07-31 for `WMCYNAvatar_52b64e54`:
+  - body mesh: `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/WMCYNAvatar_52b64e54_Body.WMCYNAvatar_52b64e54_Body`
+  - head mesh: `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/WMCYNAvatar_52b64e54_Head.WMCYNAvatar_52b64e54_Head`
+  - generated face/body materials and textures are persisted under the same WMCYN runtime root
+  - Quest and PCVR currently share these verified paths pending a real Quest optimization pass
+  - the exported body uses the MetaHuman base skeleton and now has a WMCYN-owned compatible AnimBlueprint:
+    `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/ABP_WMCYN_MetaHuman_Presentation.ABP_WMCYN_MetaHuman_Presentation_C`
+- Do not publish the old Quinn/`ABP_VRBody` animation class against the MetaHuman mesh. The new WMCYN class is a
+  reference-pose compatibility wrapper for this gate; its locomotion graph still needs to be authored and tested.
+- Offline packaging review on 2026-07-31 confirmed the cooked output contains the published body mesh, head mesh, and
+  `ABP_WMCYN_MetaHuman_Presentation`. Explicit WMCYN Asset Manager entries now retain those three manifest targets
+  without cooking the discarded one-gigabyte export folder. A full isolated Windows stage was attempted but stopped
+  when the workstation ran out of disk space copying debug symbols; no source or content assets were changed by that
+  failure.
+- Those wrappers intentionally lean on Epic's official MetaHuman Python helpers for take ingest, identity creation, conform-from-identity, auto-rig, texture download, and optimized assembly rather than rebuilding the MetaHuman editor flow from scratch.
+- This avatar lane is a planned next phase after the current First Signal shared-world gates pass; it is not the active blocker today.
+
+### Mimic to MetaHuman pose bridge (2026-07-31)
+
+- The first WMCYN-owned Mimic-to-MetaHuman pose/IK bridge is now saved and compiled.
+- The native Mimic `BP_WMCYN_UserPawn_FirstSignal` body remains authoritative for tracking, locomotion, calibration, footsteps, collision, and floor behavior.
+- The WMCYN MetaHuman presentation AnimBlueprint now contains `Retarget Pose From Mesh -> AnimGraph Root` and uses the native Mimic BodyMesh as its parent source.
+- WMCYN-owned source/target IK Rigs and `RTG_WMCYN_Mimic_To_MetaHuman` are saved under the avatar runtime folder. AFCore assets remain untouched.
+- The Windows stage-only archive is available at `D:\WMCYN_Packages\WMCYN_MimicMetaHumanBridge_20260731_StageOnly` and its pak contains the bridge assets.
+- Headset validation is still required. The full fresh cook exceeded the local 20-minute window while processing MetaHuman shader/texture dependencies; the stage-only archive used the existing cooked output that already contained the bridge assets.
+
 ## Next Gate
 
 1. Provision the three Quest test users in Firebase per `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`.

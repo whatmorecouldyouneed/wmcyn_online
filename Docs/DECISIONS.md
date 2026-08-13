@@ -310,9 +310,45 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Known interim limitation: the GameMode still assigns presence slots by connection order, so ticket-reserved slots (Quest A/B/C, PCVR_Recording) are not yet enforced in pawn placement. Honor the ticket slot in assignment before the remote acceptance run.
 - The backend is deployed live on `wmcyn-online-mobile` with the runtime/ticket secrets in a gitignored deploy env; the Functions `.env` reserved-prefix rule forced the login API key var to `WMCYN_WEB_API_KEY`.
 
+## 2026-07-28
+
+- Keep the current First Signal gate focused on persistent-world presence, voice, PCVR capture, and four-user validation. The avatar lane is planned next work, not the current release blocker.
+- For the future avatar lane, pairing code is the preferred in-headset sign-in experience; email/password remains the fallback.
+- `GET /v1/avatar/manifest` should be platform-specific: `?platform=quest` or `?platform=pcvr`.
+- The avatar manifest should support both `runtime_mesh` and `pak` delivery types so the client can prototype cheaply and later move to ship-quality cooked bundles without redesigning the contract.
+- When a user has no published avatar, the backend should return `200` with a default-avatar manifest rather than `404`.
+- The first avatar proof should be a WMCYN-owned runtime path layered around the existing `BP_WMCYN_UserPawn_FirstSignal`, not an AFCore rewrite and not a replacement of the proven native Mimic locomotion/body baseline.
+- The internal build step for avatar generation should begin on one real GPU workstation running the Unreal project and editor automation, not on a distributed worker fleet.
+- The first Unreal pairing implementation lives in WMCYN-owned runtime code, not AFCore assets: one async action requests `code.create`, polls `code.exchange`, exchanges the returned Firebase custom token through Identity Toolkit, and then reuses the existing verified bootstrap/world-entry path.
+- The Firebase web API key is configured in project config for this client path because it is a public client identifier, not a shared secret.
+- Do not remove the existing credential login path yet. Keep pairing as the preferred path and credentials as fallback until the headset widget flow is proven.
+
+## 2026-07-29
+
+- Treat the current mobile avatar upload as a Live Link Face style capture archive, not as a finished Unreal avatar package. The workstation lane must ingest footage and depth data before any Quest/PCVR runtime avatar can exist.
+- Keep the Unreal-side avatar lane WMCYN-owned, but reuse Epic's official MetaHuman Python helpers for capture ingest, identity creation from footage, conform-from-identity, auto-rig, texture download, and optimized character assembly.
+- Preserve the current runtime avatar consumer shape for the first proof: backend manifest resolves one platform variant, WMCYN runtime fetches it, and the active First Signal pawn applies the chosen runtime presentation. Do not rewrite AFCore or replace the proven native Mimic pawn just to introduce avatar loading.
+- Separate "consumer ready" from "generator ready": manifest fetch/apply and manifest publication can be advanced independently while the workstation generation step is still being proven.
+
+## 2026-07-31
+
+- The UE 5.8 workstation runtime extraction pass successfully exported the generated MetaHuman body and head meshes into `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54` and remapped their material slots to WMCYN-owned persisted material instances.
+- Quest and PCVR use the same verified exported mesh paths for now; no separate Quest optimization is claimed yet.
+- Do not publish these paths with the old Quinn/`ABP_VRBody` animation class. The exported body uses the MetaHuman base skeleton, so a WMCYN-owned animation/presentation wrapper must be verified before the backend manifest is updated.
+- Created `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/ABP_WMCYN_MetaHuman_Presentation` as the first WMCYN-owned AnimBlueprint. Its target skeleton is the exported MetaHuman base skeleton, and its generated class is the first manifest-safe animation class. It is intentionally reference-pose only for this checkpoint.
+- Keep the verified first avatar body, head, and presentation class as soft WMCYN cook references in the presence adapter. Dynamic manifests can expand later, but this prevents the first published avatar from being stripped from Quest/PCVR packages.
+- Add explicit WMCYN Asset Manager cook entries for the first published body, head, and presentation AnimBlueprint. Soft references alone did not retain dynamically named manifest assets in the pak; cooking the entire 1 GB workstation export folder would be wasteful for Quest.
+- The 2026-07-31 offline cook found the three published avatar assets in cooked output. A follow-up full Windows stage was blocked by local disk space while copying debug symbols, so package-size and launch validation remain hardware/build-machine checks.
+- The Mimic-to-MetaHuman bridge is WMCYN-owned: source and target IK Rigs plus `RTG_WMCYN_Mimic_To_MetaHuman` feed a saved `Retarget Pose From Mesh` node in `ABP_WMCYN_MetaHuman_Presentation`. The native Mimic BodyMesh remains the parent pose source; do not transplant IK into AFCore or replace the proven pawn.
+- The 2026-07-31 stage-only Windows archive at `D:\WMCYN_Packages\WMCYN_MimicMetaHumanBridge_20260731_StageOnly` successfully contains the bridge assets. A new full cook is still a build-machine task because the local MetaHuman shader/texture cook exceeded the 20-minute automation window.
+
 ## Open Decisions
 
 - What cloud/colo machine and deployment process will host the first canonical Unreal world runtime?
 - Should First Signal in-game voice use push-to-talk or open mic plus mute?
 - Which real online voice backend should replace the local `Null` validation path when persistent-world networking is ready?
 - If the hidden technical session causes multiplayer/world-entry side effects later, should WMCYN replace it with a small C++/Blueprint bridge that registers local talker `0` directly?
+- Which exact Unreal runtime representation should be used for the avatar prototype: a simplified runtime mesh import, or an earlier jump straight to mounted cooked bundles?
+- Which generated Quest and PCVR asset paths should be treated as the first publishable runtime avatar outputs for the active First Signal pawn?
+- Which machine will own the first internal MetaHuman editor automation build step?
+- What is the physical width of the HQ office banner in meters for the separate AR marker scale fix?
