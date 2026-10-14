@@ -10,7 +10,9 @@ Builds/
 # the plugin source changes or the engine is patched.
 !Plugins/WMCYNRuntime/Binaries/
 !Plugins/WMCYNRuntime/Binaries/Win64/
+Plugins/WMCYNRuntime/Binaries/Win64/*
 !Plugins/WMCYNRuntime/Binaries/Win64/UnrealEditor-WMCYNRuntime.dll
+!Plugins/WMCYNRuntime/Binaries/Win64/UnrealEditor-WMCYNRuntimeEditor.dll
 !Plugins/WMCYNRuntime/Binaries/Win64/UnrealEditor.modules
 DerivedDataCache/
 Intermediate/
@@ -22,6 +24,9 @@ Saved/
 .gemini/
 .mcp.json
 tmp/
+temp/backup/
+__pycache__/
+*.pyc
 *.VC.db
 *.VC.opendb
 
