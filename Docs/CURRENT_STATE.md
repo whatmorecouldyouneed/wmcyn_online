@@ -14,6 +14,14 @@
 - This is not yet the full First Signal acceptance gate. Simultaneous three-Quest plus PCVR presence, remote voice, packaged-device validation, OBS capture, and reconnect behavior remain open.
 - The next production lane is now the Crib interview set: establish room/couch anchors, add intentional furniture and lighting, validate the iPhone VCam path, then add video players and other presentation features.
 
+## Crib Lighting (2026-10-14)
+
+- Basic fixture lighting is now implemented in `L_WMCYNOnline`: 73 recessed and ten pendant Static lights, a Lightmass Importance Volume, and three reflection captures. Production-quality bake and editor save/reload validation pass.
+- Six WMCYN mesh duplicates repair demonstrated black-floor lightmap problems without changing source geometry, texture UV0, or collision. AFCore, Mimic, pawn/spawn transforms, and renderer configuration are unchanged.
+- Repeatable batch: `Tools/Lighting/run_crib_lighting.py`. Results and screenshots: `Docs/CRIB_BASIC_LIGHTING_PLAN.md`.
+- Eighteen other imported mesh UV warnings remain. Packaged Quest/PCVR readability, moving-avatar lighting, and performance are pending; no new clients or server were deployed for this pass.
+- Next: inspect the now-lit driveway-side entrance/right-hand area for the measured interview set. Basic lighting review comes before more decoration.
+
 ## AFCore Baseline
 
 - HumanCodeable AFCore / Advanced VR Framework is present under `/Game/AFCore` and has already been tested.

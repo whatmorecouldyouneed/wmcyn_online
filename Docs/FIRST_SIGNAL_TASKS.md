@@ -224,14 +224,23 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 
 ## Current Next Steps
 
-1. Run the small living-room scan/object-extraction pilot and lock couch, seat, wall, and camera calibration anchors.
+1. Review the new basic Crib lighting in headset and confirm the interview-set spot to the right of the driveway-side entrance; then lock measured couch, seat, wall, and camera anchors with the small scan/object-extraction pilot.
 2. Bring Noah's furniture and set dressing into the Crib around those anchors; preserve the current collision and multiplayer layout.
 3. Validate the disposable iPhone VCam smoke map before building a polished production-camera workflow.
-4. Add intentional Crib lighting and verify the couch interview composition from the PCVR/VCam view.
+4. Refine interview lighting and verify couch composition from PCVR/VCam; the basic fixture pass is implemented, not final art lighting.
 5. Add video players and other presentation features only after the room composition and capture framing are stable.
 6. Enforce ticket-reserved slots and run the four-client PIE/remote regression for identity, nameplates, roster, tracking, voice, and OBS.
 7. Confirm packaged Quest microphone permission, performance, and remote four-device behavior.
 8. Publish one real avatar manifest and prove the non-default avatar applies on PCVR before attempting Quest optimization.
+
+## Basic Crib Lighting
+
+- [x] Script fixture discovery and placement; 73 recessed lights plus ten pendants.
+- [x] Bake Static lighting at Production quality with an occupied-house Lightmass volume and reflection captures.
+- [x] Repair six demonstrated overlapping floor/interior lightmaps in WMCYN duplicates, preserving original assets, geometry, UV0 and collision.
+- [x] Validate saved/reloaded light counts, direction, mobility and mesh overrides; inspect upper/main/lower editor views.
+- [ ] Review remaining imported-mesh UV artifacts; see `Docs/CRIB_BASIC_LIGHTING_PLAN.md` for the exact list.
+- [ ] Validate mobile preview and newly packaged Quest/PCVR lighting, avatar illumination and frame time. No lighting client redistribution has happened yet.
 
 ## Out of Scope
 
