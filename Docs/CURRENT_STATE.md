@@ -8,6 +8,12 @@
 - Active map: `/Game/Levels/L_WMCYNOnline` using the WMCYN Crib environment.
 - Product flow: username or email + password -> persistent WMCYN world -> verified user identity appears in-world. There is no user-facing host/guest flow, session picker, or access code.
 
+## Milestones
+
+- **Rough First Signal: complete (2026-10-14).** Two distinct Quest users have each entered the WMCYN runtime on separate headset runs, exercised the login/world-entry path, and confirmed the working native VR presence and locomotion lane. This earns a smoke-level milestone checkmark.
+- This is not yet the full First Signal acceptance gate. Simultaneous three-Quest plus PCVR presence, remote voice, packaged-device validation, OBS capture, and reconnect behavior remain open.
+- The next production lane is now the Crib interview set: establish room/couch anchors, add intentional furniture and lighting, validate the iPhone VCam path, then add video players and other presentation features.
+
 ## AFCore Baseline
 
 - HumanCodeable AFCore / Advanced VR Framework is present under `/Game/AFCore` and has already been tested.
@@ -204,6 +210,16 @@
 - Existing Android project settings were otherwise untouched: arm64, SDK 35, ES3.1/Vulkan, and Android voice.
 - Remaining Quest steps are device-side: sideload the APK to the three headsets and confirm packaged startup, login, and microphone permission.
 
+## Mobile Companion Alignment (2026-10-14)
+
+- The companion app lives at `C:/Users/jvred/Documents/WMCYN/wmcyn-mobile-app/wmcyn-mobile-app` and uses the same Firebase project and production API base as WMCYN Online.
+- The local mobile checkout is detached at handoff commit `e0be1ee` with modified lockfiles. It is not a clean branch checkout and must not be reset blindly.
+- Mobile `origin/main` has intentionally moved to the native Swift/SwiftUI client. Commit `5fd5f14` removed the Expo/React Native app after native feature parity; `0b271d9` is the current native TestFlight build-number follow-up. Native iOS is now the mobile source of truth.
+- The shared pairing backend contract is live: `POST /v1/auth/code.create`, authenticated `POST /v1/auth/code.attach`, and polling `POST /v1/auth/code.exchange`. The authenticated device attaches a short-lived code, the VR client exchanges it for a Firebase custom token, and the existing ID-token/bootstrap path continues from there.
+- The native iOS client owns the current pairing and avatar flows. The old Expo pairing wording is historical; verify final display/attach semantics against `native-ios/Sources/Pairing/` before changing the Unreal widget.
+- The native iOS avatar client models upload URL -> scan create -> status polling -> preview -> publish -> delete, and sends a Firebase ID token for avatar requests. The backend `origin/main` now has the corresponding avatar routes plus a platform-aware manifest with a default-avatar response, but the Unreal runtime still needs a real published non-default manifest/apply proof.
+- Alignment decision: the mobile app is an account/avatar companion and never hosts or selects the persistent Crib world. Unreal remains responsible for world entry, presence, locomotion, and runtime avatar application after Firebase identity/bootstrap.
+
 ## Windows PCVR Build Readiness
 
 - A production-map-only Win64 Development `BuildCookRun` now succeeds and archives to `Builds/PCVR/FirstSignal-Development/Windows`.
@@ -273,9 +289,10 @@
 
 ## Next Gate
 
-1. Provision the three Quest test users in Firebase per `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`.
-2. Run the LAN validation phase in `Docs/FIRST_SIGNAL_MULTIUSER_VALIDATION.md`: PCVR PC as registered listen host, Quests log in and auto-travel in, verify presence/names/voice.
-3. Enforce ticket-reserved slots in GameMode assignment (replace join-order indexing).
-4. Disable `WMCYN_ALLOW_PRIVATE_HOST`, port-forward the host, and run the remote four-device acceptance with OBS capture.
-5. Measure Quest frame timing with three native Mimic users, then specify the handheld camera feature.
-6. Later: source-build UE 5.8 to unlock the dedicated-server target and move the canonical runtime to a cloud host.
+1. Reconcile the default PlayerStart yaw with the approved `StandaloneVR_A` marker before packaging.
+2. Enforce ticket-reserved slots in GameMode assignment instead of connection-order indexing.
+3. Run the four-client PIE regression for indexed spawn, identity, nameplates, roster, tracking, and voice ownership.
+4. Start the GCP runtime through the existing workflow and run the remote acceptance with three Quest users plus one PCVR/OBS user.
+5. Confirm packaged Quest microphone permission, voice, menu, and performance on all three headsets.
+6. Resolve the mobile/Unreal pairing direction, then bind the in-headset pairing UI.
+7. Publish one real avatar manifest and prove the non-default avatar applies on PCVR before attempting Quest optimization.

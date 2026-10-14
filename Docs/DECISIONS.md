@@ -352,3 +352,16 @@ This is the running decision log. Add concise dated entries when scope, architec
 - Which generated Quest and PCVR asset paths should be treated as the first publishable runtime avatar outputs for the active First Signal pawn?
 - Which machine will own the first internal MetaHuman editor automation build step?
 - What is the physical width of the HQ office banner in meters for the separate AR marker scale fix?
+
+## 2026-10-14
+
+- The mobile companion is an account/avatar companion, not a world host. It shares Firebase identity with Unreal but does not create sessions or host the persistent Crib.
+- The mobile organization's `origin/main` is now intentionally native Swift/SwiftUI. Commit `5fd5f14` retired the Expo/React Native client after native feature parity; the detached local Expo-era checkout is historical and must not be treated as the source of truth.
+- The native iOS client remains on the shared `code.create` -> authenticated `code.attach` -> `code.exchange` -> Firebase custom-token sign-in contract. Unreal's native pairing runtime should integrate against the native client's current pairing screens and preserve the backend contract.
+- The final pairing display/attach direction must be verified against `native-ios/Sources/Pairing/` before changing the Unreal widget. Do not carry forward Expo-era wording by assumption.
+- Backend avatar manifest/default-avatar support is live, but the first real non-default avatar still requires publish-manifest verification and an Unreal runtime apply proof.
+- The canonical next First Signal gate is remote four-user validation against the existing GCP runtime. Obsolete LAN/listen-host validation and "build the dedicated server later" tasks are no longer the current path.
+- The iPhone interview-camera idea is a separate production lane: first use Epic's Live Link VCAM workflow to drive an Unreal camera while OBS records the rendered Crib. Do not turn the native mobile companion into a custom AR-compositing camera until the VCam proof is stable.
+- Spatial room scans can support the interview lane: use scan data for metric room anchors and use Astra for object identification/segmentation, then clean selected objects before importing them as WMCYN-owned Unreal assets. Do not replace the Crib with a raw scan or treat Astra output as Quest-ready without scale, materials, collision, and LOD review.
+- Rough First Signal is considered complete at smoke level: two distinct Quest users have each exercised the login/world-entry, native VR presence, and locomotion path across separate headset runs. This does not close the simultaneous three-Quest plus PCVR, remote voice, OBS, reconnect, or packaged four-device acceptance gate.
+- Build order for the Crib interview lane is: scan/measure anchors, proxy composition, VCam smoke test, furniture/set dressing and lighting, then video players and presentation polish. The scan is a calibration aid, not a reason to replace the current Crib wholesale.

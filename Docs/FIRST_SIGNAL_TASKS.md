@@ -4,6 +4,14 @@
 
 Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user in the same always-on world, with basic presence, username/display name, two-way voice, and OBS-friendly capture.
 
+## Rough First Signal Milestone
+
+- [x] Exercise the WMCYN login/world-entry path with two distinct Quest users across separate headset runs.
+- [x] Confirm the native First Signal pawn, headset/controller tracking, locomotion, Crib-floor behavior, and basic in-world presence path are usable enough to move beyond the initial hardware smoke phase.
+- [x] Record this as a rough smoke-level First Signal success rather than a full shared-world acceptance.
+- [ ] Run three Quest users and one PCVR recording user simultaneously in the persistent runtime.
+- [ ] Confirm remote voice, OBS capture, reconnect, and packaged four-device behavior.
+
 ## Completed Baseline
 
 - [x] Preserve HumanCodeable AFCore / Advanced VR Framework as the runtime baseline.
@@ -216,12 +224,14 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 
 ## Current Next Steps
 
-1. Provision the three Quest test users in Firebase per `Docs/FIRST_SIGNAL_USER_PROVISIONING.md`.
-2. Run the LAN validation phase: PCVR PC as registered listen host, Quests log in and auto-travel in, verify presence/names/voice.
-3. Enforce ticket-reserved slots in GameMode assignment (replace join-order indexing).
-4. Disable `WMCYN_ALLOW_PRIVATE_HOST`, port-forward the host, and run the remote four-device acceptance with OBS capture.
-5. Measure Quest performance with three native Mimic users, then specify the handheld camera feature.
-6. Later: source-build UE 5.8 for the dedicated-server target and move the canonical runtime to a cloud host.
+1. Run the small living-room scan/object-extraction pilot and lock couch, seat, wall, and camera calibration anchors.
+2. Bring Noah's furniture and set dressing into the Crib around those anchors; preserve the current collision and multiplayer layout.
+3. Validate the disposable iPhone VCam smoke map before building a polished production-camera workflow.
+4. Add intentional Crib lighting and verify the couch interview composition from the PCVR/VCam view.
+5. Add video players and other presentation features only after the room composition and capture framing are stable.
+6. Enforce ticket-reserved slots and run the four-client PIE/remote regression for identity, nameplates, roster, tracking, voice, and OBS.
+7. Confirm packaged Quest microphone permission, performance, and remote four-device behavior.
+8. Publish one real avatar manifest and prove the non-default avatar applies on PCVR before attempting Quest optimization.
 
 ## Out of Scope
 
@@ -247,7 +257,7 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [x] Add an initial runtime avatar apply path for `skeletalMeshPath` + `animClassPath` manifests on the active First Signal pawn.
 - [x] Add backend support for default avatar, placeholder published avatar, and platform-resolved `runtime_mesh` manifest responses.
 - [x] Add WMCYN-owned workstation wrappers for take ingest, MetaHuman identity/character build, and runtime-mesh manifest publication.
-- [ ] Bind the current login widget to the new pairing-code path and present the generated code clearly in-headset.
+- [ ] Bind the current login widget to the new pairing-code path and present the generated code clearly in-headset. The mobile companion pairing contract is live; display-versus-attach direction remains to be decided.
 - [ ] Implement default-avatar manifest handling and client-side cache invalidation by `cacheKey`.
 - [ ] Choose the first runtime avatar prototype representation.
 - [x] Identify the GPU workstation that will run the first internal MetaHuman editor automation job.
