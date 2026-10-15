@@ -258,7 +258,7 @@
   - WMCYN runtime paths render through transient WMCYN-owned body/head skeletal components; the native Mimic mesh remains instantiated as the tracking source of truth
   - the presence component carries soft cook references for the verified WMCYN body, head, and presentation AnimBlueprint so the first published avatar is retained in packaged builds
   - non-WMCYN/default placeholder paths are ignored by the wrapper and leave the proven native Mimic presentation intact
-  - backend manifest responses now support default avatar, placeholder published avatar, `runtime_mesh`, and `pak`
+  - backend manifest support (default avatar, placeholder published avatar, `runtime_mesh`, `pak`) is not in `wmcyn-backend-infra` `main` or in production: as of 2026-09-30 `GET /v1/avatar/manifest` returns 404, and no backend branch, commit, or PR has contained the route or `functions/tools/publish-avatar-runtime-mesh.mjs`. Workstation deploys on 2026-07-27 to 07-31 had no pushed commits, so the route may exist only in the workstation's local backend checkout (see wmcyn-backend-infra PR #1)
   - the workstation generation/output-selection lane now produces WMCYN-owned mesh/material assets and a compatible presentation AnimBlueprint; remaining product steps are verified manifest publication, locomotion behavior, and device validation
 - Avatar docs now live in:
   - `Docs/METAHUMAN_AVATAR_SPEC.md`
