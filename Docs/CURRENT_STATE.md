@@ -21,6 +21,7 @@
 - Repeatable batch: `Tools/Lighting/run_crib_lighting.py`. Results and screenshots: `Docs/CRIB_BASIC_LIGHTING_PLAN.md`.
 - Eighteen other imported mesh UV warnings remain. Packaged Quest/PCVR readability, moving-avatar lighting, and performance are pending; no new clients or server were deployed for this pass.
 - Next: inspect the now-lit driveway-side entrance/right-hand area for the measured interview set. Basic lighting review comes before more decoration.
+- Source/reference inspection is complete: `Docs/CRIB_SOURCE_RESTORATION_AUDIT.md`. All 12 distinct Booth gallery images were reviewed; the original Unity package and material GUIDs confirm recoverable missing finishes. The live import has 40 Crib materials, 25 with flat base-color inputs and none with roughness connected. Restore verified atlas/wood/stone/pool materials before further light-intensity tuning; door deformation still requires a targeted geometry/normals diagnosis. No restoration assets have been applied yet.
 
 ## AFCore Baseline
 
