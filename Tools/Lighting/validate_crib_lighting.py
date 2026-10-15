@@ -17,7 +17,10 @@ for actor in lights:
     light = actor.get_component_by_class(unreal.SpotLightComponent)
     assert light and light.get_editor_property("mobility") == unreal.ComponentMobility.STATIC
     assert light.get_forward_vector().z < -0.999
-    assert light.get_editor_property("intensity") > 0
+    pendant = actor.get_actor_label().startswith("LGT_Crib_Pendant_")
+    assert light.get_editor_property("intensity_units") == unreal.LightUnits.LUMENS
+    assert abs(light.get_editor_property("intensity") - (25 if pendant else 55)) < 0.1, actor.get_actor_label()
+    assert abs(light.get_editor_property("attenuation_radius") - (450 if pendant else 850)) < 0.1, actor.get_actor_label()
 
 def geometry_signature(mesh):
     """Compare oriented triangles + material UV0, independent of vertex reindexing."""

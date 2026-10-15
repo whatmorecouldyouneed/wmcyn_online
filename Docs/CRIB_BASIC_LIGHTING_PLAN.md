@@ -14,8 +14,8 @@ placement and decoration; this is not final art lighting.
   is necessary, and reruns reuse stable actor labels.
 - 73 recessed fixtures were identified from their actual disconnected mesh
   islands across five imported components. Each now has a downward Static
-  spotlight six centimeters below its lower face: 2,200 lm, 4,000 K, 850 cm
-  attenuation, 35/75-degree inner/outer cone. Ten pendant faces use 650 lm,
+  spotlight six centimeters below its lower face: 55 lm, 4,000 K, 850 cm
+  attenuation, 35/75-degree inner/outer cone. Ten pendant faces use 25 lm,
   3,500 K, 450 cm attenuation, and 30/65-degree cones.
 - All 83 lights live in `WMCYN_02_Crib_Lighting/Ceiling`. Labels are
   `LGT_Crib_<Upper|Main|Lower>_Ceiling_NN` and `LGT_Crib_Pendant_NN`.
@@ -23,6 +23,15 @@ placement and decoration; this is not final art lighting.
   (`RC_Crib_Upper`, `RC_Crib_Main`, `RC_Crib_Lower`) in `BakeSupport`.
   No extra movable lights, SkyLight, Lumen, or renderer-config changes.
   Existing imported and standalone point lights remain unchanged.
+- Exposure correction (2026-10-14): Static light intensity/radius/cones now use
+  editor properties rather than runtime setters. The initial corrected 220/100 lm
+  pass was still washed out; reduced to 55/25 lm, rebaked at Production quality,
+  and visually compared entrance and pool-side interior screenshots. Floor joints
+  and ceiling shading are retained. The user identifies the dark entrance area
+  as a missing chandelier location; do not compensate with global fixture brightness.
+  Screenshots: `Saved/Diagnostics/Lighting/Exposure_Before.png`,
+  `Exposure_After_Interior.png`, and `Exposure_After_Entrance.png` in that directory.
+  Validation passes for 83 fixtures and six geometry/UV0/collision-preserving meshes.
 - The pilot exposed black floor layers caused by overlapping lightmap UVs.
   Increased resolution alone did not fix them. WMCYN-owned duplicates of
   `Scene_059`, `060`, `085`, `090`, `091`, and `097` now use box-projected source

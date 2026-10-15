@@ -16,6 +16,16 @@
 
 ## Crib Lighting (2026-10-14)
 
+- Door rollout: 15 identified wooden leaves across six imported mesh groups now use WMCYN grip-door Blueprints, preserving frames and atlas materials. A WMCYN collision-shell duplicate opens 12 previously blocked doorways; all 811 floor/ceiling trace samples match the original. All 15 synthetic hinge tests pass. This is standalone VR Preview interaction, not validated online replication. See `Docs/CRIB_DOOR_BATCH_ROLLOUT.md`; headset batch acceptance remains open.
+
+- User confirmed the orange door grip/push/pull pilot in headset. The real open left door is now separated into `DOOR_Crib_01_Grip`, with retained frame/UVs and standalone grip control. Adjacent closed-door warped reflections were caused by a visible glass collision shell; its rendering is disabled while collision is preserved. Synthetic real-door swing passes; real-door hardware, blocking safety and multiplayer remain open. See `Docs/CRIB_DOOR_01_CONVERSION.md`.
+
+- Door interaction pilot: one freestanding orange `DEV_CribDoor_GripPilot_RightHand` is saved near spawn, using AFCore Comp_Drag and a WMCYN standalone right-grip adapter. Compile, synthetic swing, and editor startup smoke checks pass; headset grip acceptance and multiplayer routing remain open. Pilot ignores Pawn collision; no imported doorway is replaced. See `Docs/CRIB_INTERACTIVE_DOORS_SPIKE.md`.
+
+- Water overlap repair: `Plane_099` slot 1 is now suppressed with a reversible WMCYN masked material, leaving `Plane_037` as the upper water surface. Lower pool, waterfall, and collision are preserved. Terrace/overhead visual checks show the large jagged patches resolved; packaged/mobile testing remains open. See `Docs/CRIB_WATER_OVERLAP_FIX.md`.
+
+- Restoration follow-up: architectural material overrides have been applied in WMCYN-owned assets. Entrance inspection found Static fixture values did not match the setup script (14.1 lumens / 1000 cm observed). The script now writes intensity/radius/cones through editor properties. The 220/100-lumen pass remained overbright; ceiling lights are now 55 lumens and pendants 25 lumens, production-rebaked and screenshot-checked at the entrance and pool-side interior. Validation checks exact intensity and radius. The user identifies the dark entrance area as the missing chandelier location, not a reason to raise all fixture intensities. Water artifacts remain open; this is not final art-lighting acceptance.
+
 - Basic fixture lighting is now implemented in `L_WMCYNOnline`: 73 recessed and ten pendant Static lights, a Lightmass Importance Volume, and three reflection captures. Production-quality bake and editor save/reload validation pass.
 - Six WMCYN mesh duplicates repair demonstrated black-floor lightmap problems without changing source geometry, texture UV0, or collision. AFCore, Mimic, pawn/spawn transforms, and renderer configuration are unchanged.
 - Repeatable batch: `Tools/Lighting/run_crib_lighting.py`. Results and screenshots: `Docs/CRIB_BASIC_LIGHTING_PLAN.md`.
