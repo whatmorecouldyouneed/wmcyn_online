@@ -1,32 +1,115 @@
 name: Build Quest APK
 
-# Packages the Quest client APK on the WMCYN self-hosted runner and uploads
-# it as a workflow artifact for distribution. Manual trigger only.
+# Packages the Quest client APK on the WMCYN self-hosted runner, uploads it as
+# a workflow artifact, and optionally publishes it to a Meta release channel so
+# the dev team installs from their headset Library instead of being sent files.
+#
+# SIGNING
+# -------
+# Meta rejects APKs signed with the Android debug certificate, and it locks the
+# app to the FIRST certificate it accepts - that choice can never be changed.
+# Signing therefore comes from Config/Android/AndroidEngine.ini, which is NOT
+# committed (it holds the keystore passwords) and lives only on the runner.
+# The "Verify signing certificate" step below refuses to upload a debug-signed
+# build, because doing so once would permanently bind the app to a certificate
+# whose private key ships with every copy of Unreal.
+#
+# VERSION CODE
+# ------------
+# Meta refuses a second upload at a versionCode it has already seen. StoreVersion
+# is rewritten from github.run_number each run, which is monotonic and never
+# reused.
 
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "Meta release channel to publish to"
+        required: true
+        default: ALPHA
+        type: choice
+        options: [ALPHA, BETA, RC]
+      clientconfig:
+        description: "Development keeps the console and logging; Shipping is what a real release uses"
+        required: true
+        default: Development
+        type: choice
+        options: [Development, Shipping]
+      upload:
+        description: "Publish to the Meta release channel (off = build artifact only)"
+        required: true
+        default: false
+        type: boolean
 
 concurrency: unreal-build
 
 env:
   PROJECT: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\wmcyn_online.uproject
+  PROJECT_DIR: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online
   ARCHIVE: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke
   UAT: C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat
+  APK: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke\Android_ASTC\wmcyn_online-arm64.apk
+  SIGNING_INI: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Config\Android\AndroidEngine.ini
+  OVR_UTIL: C:\Tools\ovr-platform-util.exe
+  APKSIGNER: C:\Users\jvred\AppData\Local\Android\Sdk\build-tools\36.0.0\apksigner.bat
 
 jobs:
   build:
     runs-on: [self-hosted, wmcyn]
     steps:
+      - name: Check signing config is present
+        shell: powershell
+        run: |
+          if (-not (Test-Path $env:SIGNING_INI)) {
+            Write-Host "Missing $env:SIGNING_INI"
+            Write-Host "This file is deliberately not committed - it holds the keystore passwords."
+            Write-Host "Restore it from the password manager before building."
+            exit 1
+          }
+          if (-not (Test-Path "$env:PROJECT_DIR\Build\Android\wmcyn-release.keystore")) {
+            Write-Host "Missing Build/Android/wmcyn-release.keystore - restore it from the password manager."
+            Write-Host "Without it the build falls back to the Android debug key, which Meta rejects."
+            exit 1
+          }
+
+      - name: Set versionCode from run number
+        shell: powershell
+        run: |
+          $v = ${{ github.run_number }}
+          (Get-Content $env:SIGNING_INI) -replace '^StoreVersion=.*', "StoreVersion=$v" |
+            Set-Content $env:SIGNING_INI -Encoding utf8
+          Write-Host "StoreVersion (Android versionCode) = $v"
+
       - name: Build and cook Quest APK
         shell: powershell
         run: |
           foreach ($v in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
             [Environment]::SetEnvironmentVariable($v, [Environment]::GetEnvironmentVariable($v,'User'), 'Process')
           }
-          & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Android -cookflavor=ASTC -clientconfig=Development `
+          & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Android -cookflavor=ASTC `
+            -clientconfig=${{ inputs.clientconfig }} `
             -build -cook -stage -pak -package -archive -archivedirectory="$env:ARCHIVE" -nocompileeditor -unattended -noP4 -utf8output `
             -AdditionalCookerOptions="-ini:Engine:[Core.Log]:LogHttpListener=NoLogging"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # A debug-signed upload would permanently bind the Meta app to a
+      # certificate whose private key is public. There is no undo, so this is a
+      # hard gate rather than a warning.
+      - name: Verify signing certificate
+        shell: powershell
+        run: |
+          $out = & $env:APKSIGNER verify --print-certs $env:APK 2>&1 | Out-String
+          Write-Host $out
+          if ($out -match 'CN=Android Debug') {
+            Write-Host "REFUSING: APK is signed with the Android debug certificate."
+            Write-Host "Config/Android/AndroidEngine.ini is missing, unreadable, or its keystore path is wrong."
+            exit 1
+          }
+          if ($out -notmatch 'v2 scheme \(APK Signature Scheme v2\): true') {
+            Write-Host "REFUSING: APK is not signed with v2, which Meta's packaging criteria require."
+            exit 1
+          }
+          Write-Host "Signature OK."
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -36,3 +119,26 @@ jobs:
             C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke\Android_ASTC\wmcyn_online-arm64.apk
             C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Saved\StagedBuilds\FirstSignalQuestSmoke\Android_ASTC\Install_wmcyn_online-arm64.bat
           retention-days: 14
+
+      - name: Publish to Meta release channel
+        if: inputs.upload
+        shell: powershell
+        env:
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+        run: |
+          if (-not (Test-Path $env:OVR_UTIL)) {
+            Write-Host "Missing $env:OVR_UTIL"
+            Write-Host "Download from https://developers.meta.com/downloads/package/platform-utils-cli-pc/"
+            exit 1
+          }
+          $notes = "run ${{ github.run_number }} / commit ${{ github.sha }} / ${{ inputs.clientconfig }}"
+          & $env:OVR_UTIL upload-quest-build `
+            --app-id $env:META_APP_ID `
+            --app-secret $env:META_APP_SECRET `
+            --apk $env:APK `
+            --channel ${{ inputs.channel }} `
+            --age-group TEENS_AND_ADULTS `
+            --notes $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Host "Published to ${{ inputs.channel }}. Channel members see it under My Preview Apps."

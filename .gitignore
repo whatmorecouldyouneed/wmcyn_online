@@ -41,3 +41,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Android release signing. Holds keystore passwords and the CI-managed
+# StoreVersion; the keystore itself is covered by the Build/ rule above.
+# Both the .keystore and these passwords must exist in the password manager:
+# Meta locks the app to the first certificate uploaded and it can never change.
+Config/Android/AndroidEngine.ini
