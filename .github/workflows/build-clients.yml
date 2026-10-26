@@ -43,6 +43,11 @@ jobs:
       run:
         shell: powershell
     steps:
+      - name: Check editor is closed
+        run: |
+          if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) {
+            throw 'Save and close Unreal before building on this shared runner. Live Coding blocks native linking; the workflow will not close your editor.'
+          }
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}

@@ -14,17 +14,35 @@ on:
         type: boolean
         default: false
 
-concurrency: unreal-build
+permissions:
+  contents: read
+
+concurrency:
+  group: unreal-build
+  cancel-in-progress: false
 
 env:
-  PROJECT: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\wmcyn_online.uproject
-  ARCHIVE: C:\Users\jvred\OneDrive\Documents\Unreal Projects\wmcyn_online\Builds\LinuxServer
+  PROJECT: ${{ github.workspace }}\server-release\wmcyn_online.uproject
+  ARCHIVE: ${{ github.workspace }}\server-release\Saved\ServerRelease\LinuxServer
   UAT: C:\UE58\Engine\Build\BatchFiles\RunUAT.bat
 
 jobs:
   build:
     runs-on: [self-hosted, wmcyn]
+    timeout-minutes: 720
     steps:
+      - name: Check editor is closed
+        shell: powershell
+        run: |
+          if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) {
+            throw 'Save and close Unreal before building on this shared runner.'
+          }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: server-release
+          lfs: true
+          persist-credentials: false
       - name: Build and cook Linux server
         shell: powershell
         run: |
@@ -35,6 +53,23 @@ jobs:
             -AdditionalBuildOptions="-NoUBA" `
             -AdditionalCookerOptions="-ini:Engine:[Core.Log]:LogHttpListener=NoLogging"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Record server revision
+        shell: powershell
+        run: |
+          @{ commit = '${{ github.sha }}'; configuration = 'Development'; platform = 'Linux'; remoteAcceptance = 'pending' } |
+            ConvertTo-Json | Set-Content "$env:ARCHIVE/build-manifest.json"
+
+      - name: Preserve server package and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmcyn-linux-server-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            server-release/Saved/ServerRelease/**
+            server-release/Saved/Logs/**
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Deploy to VM
         if: inputs.deploy
