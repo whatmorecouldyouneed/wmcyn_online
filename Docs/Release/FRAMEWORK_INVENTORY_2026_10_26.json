@@ -1,0 +1,245 @@
+{
+  "inspection": "Read-only graph inventory; not a graph-diff or compile/remote acceptance",
+  "assets": [
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:CanBeGrabbed",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:CurrentlyGrabbedBy",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:getResponsibleGrabComp",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:IsAutoPickup",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:ShouldActivatePhysicsOnStartup",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:SetPhysics",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:getHighlightableMeshes",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:getClosestHandSocket",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:isBeingGrabbed",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:GetInfoAboutFirstGrabbingActor",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:getPostProcess",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:SetPhysicsIfAllowed",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:OnRep_SnappingProhibitors",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:getGrababbableComponent",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:LocallyControlled",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:EventGraph",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:EventGraph.K2Node_Composite_2.SetPhyiscsOnStartup",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:EventGraph.K2Node_Composite_3.SetRequiredPhysicsSettings",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:EventGraph.K2Node_Composite_7.TemporaryBlockAutoPickup",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:EventGraph.K2Node_Composite_0.ReleaseOnDestroy",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_ActorPickedUp",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_ActorReleased",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_Thumbstick",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_KeyInput",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_Highlight",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_TriggerAxis",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Grab.Comp_Grab:Grab_GripAxis"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Create Latching Helper",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:SetVariables",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:canBeLatchedOnTo?",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:setEnable",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:getDesiredAttachPoint",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:getMaxAttachDistance",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:isAutoLatch",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:DrawDebug",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:getClosestAttachPoint",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:SpawnLatchHelper",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:SocketInRange",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:getPostProcess",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:EventGraph",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:EventGraph.K2Node_Composite_0.ReleaseOnDestroy",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_ActorGotLatched",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_ActorLatchReleased",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_Highlight",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_ThumbstickAxis",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_KeyInput",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_TriggerAxis",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch.Comp_Latch:Latch_GripAxis"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch_Drag",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch_Drag.Comp_Latch_Drag:SpawnLatchHelper",
+        "/Game/AFCore/Blueprints/Components/Interaction/Comp_Latch_Drag.Comp_Latch_Drag:EventGraph"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/Misc/Comp_Video",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:OnRep_Playing",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:getMediaPlayer",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:getMediaPlayer.K2Node_Composite_0.CreateMediaSource",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:getMediaPlayer.K2Node_Composite_2.AssignMediaSound",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:getVideoMaterial",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:EventGraph",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:Video_PlayingStateChanged",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:Component_Bool_GetValue",
+        "/Game/AFCore/Blueprints/Components/Misc/Comp_Video.Comp_Video:Component_Bool_ButtonRange"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/State/Comp_Drag",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getHandleComponent",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getTransformFromPosition",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:SectionExtremes",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getSplineComponent",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getClosestSegment",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:SearchForBestPointToOffset",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:Get Setup Locations",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:Apply",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:FindSection",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:GetSnappingSpeedExtremes",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:OnRep_ReplicatedPositions",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:FollowReplicatedMovement",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getButtonsForIdentifier",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getSectionForIdentifier",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:getAllSectionIdentifiers",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:CreateSections",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:SelectRotationVectors",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:CallSnappingCompleted",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:IsLocallyControlled",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_1.Identifier",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_2.Identifier_Single",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_3.SnappingReset",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_4.Snapping_Segment",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_5.Snapping_FreeMovement",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_6.Snapping_MoveToPosition",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_7.UpdateLoopingSound",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:EventGraph.K2Node_Composite_8.UpdateHaptics",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:DragStateChanged_Single",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:DragStateChanged_Constant",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:SnappingCompleted",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:Component_Name_Buttons",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Drag.Comp_Drag:Component_Name_GetValue"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Components/State/Comp_Open",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:Apply",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:OnRep_Open",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:Toggle",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:EventGraph",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:EventGraph.K2Node_Composite_2.Empty?",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:OpenPercentChanged",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:OpenStateChanged",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:Component_Bool_GetValue",
+        "/Game/AFCore/Blueprints/Components/State/Comp_Open.Comp_Open:Component_Bool_ButtonRange"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Helpers/BP_Helper_Latch_Drag",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Helpers/BP_Helper_Latch_Drag.BP_Helper_Latch_Drag:UserConstructionScript",
+        "/Game/AFCore/Blueprints/Helpers/BP_Helper_Latch_Drag.BP_Helper_Latch_Drag:getDragComponent",
+        "/Game/AFCore/Blueprints/Helpers/BP_Helper_Latch_Drag.BP_Helper_Latch_Drag:EventGraph"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag",
+      "graphs": [
+        "/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag.Widget_NameTag:getRootWidget",
+        "/Game/AFCore/Blueprints/Widgets/Pawn/Widget_NameTag.Widget_NameTag:EventGraph"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Examples/Blueprints/Samples/BP_Chair",
+      "graphs": [
+        "/Game/AFCore/Examples/Blueprints/Samples/BP_Chair.BP_Chair:UserConstructionScript",
+        "/Game/AFCore/Examples/Blueprints/Samples/BP_Chair.BP_Chair:EventGraph"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Examples/Blueprints/Samples/BP_Door",
+      "graphs": [
+        "/Game/AFCore/Examples/Blueprints/Samples/BP_Door.BP_Door:UserConstructionScript",
+        "/Game/AFCore/Examples/Blueprints/Samples/BP_Door.BP_Door:EventGraph"
+      ]
+    },
+    {
+      "asset": "/Game/AFCore/Libraries/FLib_Utility",
+      "graphs": [
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:CalculatePositionalOffset",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:CutGameplayTag",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveTransform",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveFloat",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveBool",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveInt",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveString",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveVector",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveRotator",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveLinearColor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getActorIAmConnectedTo",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:ModuloCycleByte",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:IncrementIntWithModulo",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DecrementIntWithModulo",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:IsVectorLookingAtLocation",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:AngleBetweenTwoVectors",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:AngleFromLookingDirection",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getIndexFromArrayOfPercent",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DeleteActor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:AppearActor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getPlayerStart",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:AreAllObjectsOfArrayValid",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveVector2D",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:LerpVector2D",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:FindClosestSocket",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DifferenceBetweenTwoFloats",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getAllMeshComponents",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:UpdateMaterialLibrary",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getLargestComponent",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getSymbolTexture",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getAllRelevantComponents",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getAllRelevantComponents.K2Node_Composite_1.AddComponentsWithTag",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getAllRelevantComponents.K2Node_Composite_2.AddComponentsWithTag_2",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getAllRelevantComponents.K2Node_Composite_0.AddComponentsWithTag_3",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveActor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SaveObject",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_1.IsValidSnapping",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_2.IsValidGrab",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_3.IsValidSelect",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_4.IsValidGaze",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_5.IsValidLatch",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_6.IsValidOverlap",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:SetInteractionProhibitor.K2Node_Composite_0.IsValidTeleport",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_1.IsValidSnapping",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_2.IsValidGrab",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_3.IsValidSelect",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_4.IsValidGaze",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_5.IsValidLatch",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_6.IsValidOverlap",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:RemoveInteractionProhibitor.K2Node_Composite_0.IsValidTeleport",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:Check And Detach Actor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:Check And Detach Actor.K2Node_Composite_0.SendDetachToGrabComponent",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:Check And Detach Actor.K2Node_Composite_6.AreGrabbingActorsGrabbing",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:Check And Detach Actor.K2Node_Composite_1.AreConnectorsConnected",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DetachFromConnector",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DetachFromGrabbingActor",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DetachForGrab",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DetachForConnector",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:DetachForRelease",
+        "/Game/AFCore/Libraries/FLib_Utility.FLib_Utility:getComponentsFromReferenceList"
+      ]
+    },
+    {
+      "asset": "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer",
+      "graphs": [
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:UserConstructionScript",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:Dynamic Adjustments",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:Calibrate Player Height",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:GetGrabComponentNearMotionController",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:Footstep FX",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:Custom Crouch",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:Character Prerequisites",
+        "/Game/FullBodyVRTemplate/BluePrints/BP_VRBodyCharacer.BP_VRBodyCharacer:EventGraph"
+      ]
+    }
+  ]
+}
