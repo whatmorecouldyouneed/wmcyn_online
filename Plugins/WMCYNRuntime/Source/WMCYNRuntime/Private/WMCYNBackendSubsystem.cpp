@@ -2,6 +2,7 @@
 #include "WMCYNAccountAvatarCatalog.h"
 
 #include "Dom/JsonObject.h"
+#include "WMCYNJsonHelpers.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
@@ -21,20 +22,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNBackend, Log, All);
 
+using namespace WMCYNJson;
+
 namespace
 {
-bool ParseJsonObject(const FString& Body, TSharedPtr<FJsonObject>& OutObject)
-{
-    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-    return FJsonSerializer::Deserialize(Reader, OutObject) && OutObject.IsValid();
-}
-
-FString ReadString(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field)
-{
-    FString Value;
-    return Object.IsValid() && Object->TryGetStringField(Field, Value) ? Value : FString();
-}
-
 int32 ReadInt32(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, const int32 DefaultValue = 0)
 {
     double Value = 0.0;

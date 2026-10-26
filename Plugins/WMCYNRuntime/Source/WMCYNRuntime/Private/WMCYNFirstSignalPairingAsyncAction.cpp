@@ -17,22 +17,10 @@
 #include "Serialization/JsonWriter.h"
 #include "TimerManager.h"
 #include "WMCYNFirstSignalBlueprintLibrary.h"
+#include "WMCYNJsonHelpers.h"
 #include "WMCYNWorldRuntimeSubsystem.h"
 
-namespace
-{
-bool ParseJsonObject(const FString& Body, TSharedPtr<FJsonObject>& OutObject)
-{
-    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-    return FJsonSerializer::Deserialize(Reader, OutObject) && OutObject.IsValid();
-}
-
-FString ReadString(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field)
-{
-    FString Value;
-    return Object.IsValid() && Object->TryGetStringField(Field, Value) ? Value : FString();
-}
-}
+using namespace WMCYNJson;
 
 void UWMCYNFirstSignalPairingAsyncAction::PrimeLoginWidget(UUserWidget* InLoginWidget)
 {
