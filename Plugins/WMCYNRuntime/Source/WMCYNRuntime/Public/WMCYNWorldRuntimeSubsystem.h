@@ -4,6 +4,7 @@
 #include "Containers/Ticker.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "WMCYNJoinTicket.h"
+#include "WMCYNBackendSubsystem.h"
 #include "WMCYNWorldRuntimeSubsystem.generated.h"
 
 class AGameModeBase;
@@ -43,6 +44,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "WMCYN|WorldRuntime")
     FString GetRuntimeId() const { return RuntimeId; }
 
+    /** Resolve only the account established by this controller's verified ticket. */
+    void RequestAccountAvatar(APlayerController* Controller, FWMCYNAvatarManifestCallback&& Callback);
+
+    /** Server memory only; never populated from client identity RPC arguments. */
+    const FWMCYNJoinTicketPayload* GetVerifiedIdentity(const AController* Controller) const;
+
 private:
     bool ResolveConfiguration();
     void SendRegister();
@@ -80,4 +87,7 @@ private:
 
     /** Controller -> slot, so logout can release occupancy. */
     TMap<FObjectKey, FString> ControllerSlots;
+    TMap<FObjectKey, FString> VerifiedControllerUsers;
+    TMap<FObjectKey, FString> VerifiedControllerPlatforms;
+    TMap<FObjectKey, FWMCYNJoinTicketPayload> VerifiedControllerIdentities;
 };

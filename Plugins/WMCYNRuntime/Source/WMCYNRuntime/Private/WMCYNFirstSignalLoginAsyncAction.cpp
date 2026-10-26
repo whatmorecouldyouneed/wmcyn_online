@@ -11,6 +11,23 @@
 #include "WMCYNFirstSignalBlueprintLibrary.h"
 #include "WMCYNWorldRuntimeSubsystem.h"
 
+bool UWMCYNFirstSignalLoginAsyncAction::ContinueRememberedSignIn(const UObject* WorldContextObject, UUserWidget* InLoginWidget)
+{
+    UGameInstance* Instance = WorldContextObject ? UGameplayStatics::GetGameInstance(WorldContextObject) : nullptr;
+    UWMCYNBackendSubsystem* Backend = Instance ? Instance->GetSubsystem<UWMCYNBackendSubsystem>() : nullptr;
+    if (!InLoginWidget || !Backend || !Backend->HasRememberedSignIn() ||
+        Backend->LoginState == EWMCYNBackendLoginState::Authenticating ||
+        Backend->LoginState == EWMCYNBackendLoginState::LoadingBootstrap) return false;
+    UWMCYNFirstSignalLoginAsyncAction* Action = NewObject<UWMCYNFirstSignalLoginAsyncAction>();
+    Action->WorldContext = WorldContextObject;
+    Action->LoginWidget = InLoginWidget;
+    Action->bRestoreRememberedSignIn = true;
+    Action->bAllowLocalPIEFallback = false;
+    Action->RegisterWithGameInstance(WorldContextObject);
+    Action->Activate();
+    return true;
+}
+
 bool UWMCYNFirstSignalLoginAsyncAction::StartForLoginWidget(
     const UObject* WorldContextObject,
     UUserWidget* InLoginWidget,
@@ -58,7 +75,7 @@ UWMCYNFirstSignalLoginAsyncAction* UWMCYNFirstSignalLoginAsyncAction::Authentica
 
 void UWMCYNFirstSignalLoginAsyncAction::Activate()
 {
-    if (!WorldContext.IsValid() || LoginIdentifier.IsEmpty() || LoginPassword.Len() < 6)
+    if (!WorldContext.IsValid() || (!bRestoreRememberedSignIn && (LoginIdentifier.IsEmpty() || LoginPassword.Len() < 6)))
     {
         const FString Message = TEXT("Enter a valid username or email and password.");
         SetLoginStatus(Message);
@@ -111,7 +128,8 @@ void UWMCYNFirstSignalLoginAsyncAction::Activate()
 
     BackendSubsystem->OnLoginStateChanged.AddDynamic(this, &UWMCYNFirstSignalLoginAsyncAction::HandleLoginStateChanged);
     BackendSubsystem->OnLoginReady.AddDynamic(this, &UWMCYNFirstSignalLoginAsyncAction::HandleLoginReady);
-    BackendSubsystem->LoginAndLoadBootstrap(LoginIdentifier, LoginPassword);
+    if (bRestoreRememberedSignIn) BackendSubsystem->RestoreSignInAndLoadBootstrap();
+    else BackendSubsystem->LoginAndLoadBootstrap(LoginIdentifier, LoginPassword);
 }
 
 void UWMCYNFirstSignalLoginAsyncAction::HandleLoginStateChanged(
@@ -132,8 +150,16 @@ void UWMCYNFirstSignalLoginAsyncAction::HandleLoginStateChanged(
         return;
     }
 
+    if (State == EWMCYNBackendLoginState::SignedOut && bAuthenticationStarted)
+    {
+        OnFailed.Broadcast(TEXT("Sign-in cancelled."));
+        Finish();
+        return;
+    }
+
     if (State == EWMCYNBackendLoginState::Authenticating)
     {
+        bAuthenticationStarted = true;
         SetLoginStatus(TEXT("Signing in..."));
         OnProgress.Broadcast(TEXT("Signing in..."));
     }
@@ -199,21 +225,20 @@ void UWMCYNFirstSignalLoginAsyncAction::HandleLoginReady(
 
 bool UWMCYNFirstSignalLoginAsyncAction::ShouldUsePIEDevelopmentFallback() const
 {
-    if (!bAllowLocalPIEFallback || FParse::Param(FCommandLine::Get(), TEXT("WMCYNForceBackendAuth")))
+#if UE_BUILD_SHIPPING
+    return false;
+#else
+    if (!bAllowLocalPIEFallback || FParse::Param(FCommandLine::Get(), TEXT("WMCYNForceBackendAuth")) ||
+        FParse::Param(FCommandLine::Get(), TEXT("WMCYNForceLogin")))
     {
         return false;
     }
 
-    if (FParse::Param(FCommandLine::Get(), TEXT("WMCYNLocalIdentity")))
-    {
-        return true;
-    }
-
-#if WITH_EDITOR
     const UWorld* World = WorldContext.IsValid() ? WorldContext->GetWorld() : nullptr;
-    return World && World->WorldType == EWorldType::PIE;
-#else
-    return false;
+    const UGameInstance* Instance = World ? World->GetGameInstance() : nullptr;
+    const UWMCYNWorldRuntimeSubsystem* Runtime = Instance ? Instance->GetSubsystem<UWMCYNWorldRuntimeSubsystem>() : nullptr;
+    return FParse::Param(FCommandLine::Get(), TEXT("WMCYNLocalIdentity")) && World && World->GetNetMode() == NM_Standalone &&
+        (!Runtime || !Runtime->IsRuntimeRegistrationActive());
 #endif
 }
 

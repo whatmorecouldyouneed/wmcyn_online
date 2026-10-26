@@ -1,4 +1,5 @@
 #include "WMCYNBackendSubsystem.h"
+#include "WMCYNAccountAvatarCatalog.h"
 
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"
@@ -11,10 +12,12 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
+#include "Misc/SecureHash.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #include "WMCYNFirstSignalWorldContract.h"
+#include "WMCYNSecureSignInStore.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNBackend, Log, All);
 
@@ -66,6 +69,127 @@ void UWMCYNBackendSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     }
 }
 
+void UWMCYNBackendSubsystem::Deinitialize()
+{
+    ++AuthenticationGeneration;
+    IdToken.Reset();
+    RefreshToken.Reset();
+    JoinTicket.Reset();
+    Super::Deinitialize();
+}
+
+FString UWMCYNBackendSubsystem::GetCredentialScope() const
+{
+    return TEXT("WMCYN/SignIn/v1/") + FMD5::HashAnsiString(*(BackendBaseUrl + TEXT("|") + ResolveFirebaseWebApiKey()));
+}
+
+bool UWMCYNBackendSubsystem::IsForceLoginTesting() const
+{
+    return FParse::Param(FCommandLine::Get(), TEXT("WMCYNForceLogin"));
+}
+
+bool UWMCYNBackendSubsystem::HasRememberedSignIn() const
+{
+    if (IsRunningDedicatedServer() || IsForceLoginTesting() || bSuppressRememberedSignIn) return false;
+    FString Token, Label;
+    return WMCYNSecureSignInStore::Read(GetCredentialScope(), Token, Label);
+}
+
+FString UWMCYNBackendSubsystem::GetRememberedDisplayLabel() const
+{
+    if (!HasRememberedSignIn()) return FString();
+    FString Token, Label;
+    WMCYNSecureSignInStore::Read(GetCredentialScope(), Token, Label);
+    return Label;
+}
+
+void UWMCYNBackendSubsystem::SetRememberSignIn(const bool bRemember)
+{
+    bRememberSignIn = bRemember;
+    if (!bRemember)
+    {
+        bSuppressRememberedSignIn = true;
+        bCredentialRemovalFailed = !WMCYNSecureSignInStore::Remove(GetCredentialScope());
+        if (bCredentialRemovalFailed)
+            UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AUTH stage=credential_delete result=failed"));
+    }
+    else
+    {
+        bSuppressRememberedSignIn = false;
+        if (LoginState == EWMCYNBackendLoginState::Ready) PersistSignIn();
+    }
+}
+
+void UWMCYNBackendSubsystem::PersistSignIn()
+{
+    if (!bRememberSignIn || IsForceLoginTesting() || IsRunningDedicatedServer() || RefreshToken.IsEmpty()) return;
+    const bool bSaved = WMCYNSecureSignInStore::Write(GetCredentialScope(), RefreshToken,
+        VerifiedDisplayName.IsEmpty() ? VerifiedUsername : VerifiedDisplayName);
+    bSuppressRememberedSignIn = !bSaved;
+    UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AUTH stage=credential_save result=%s"), bSaved ? TEXT("success") : TEXT("unavailable"));
+}
+
+void UWMCYNBackendSubsystem::RestoreSignInAndLoadBootstrap()
+{
+    if (LoginState == EWMCYNBackendLoginState::Authenticating || LoginState == EWMCYNBackendLoginState::LoadingBootstrap) return;
+    FString SavedToken, SavedLabel;
+    if (!HasRememberedSignIn() || !WMCYNSecureSignInStore::Read(GetCredentialScope(), SavedToken, SavedLabel))
+    {
+        Fail(TEXT("remembered_sign_in_unavailable"));
+        return;
+    }
+    const FString ApiKey = ResolveFirebaseWebApiKey();
+    if (ApiKey.IsEmpty()) { Fail(TEXT("firebase_web_api_key_missing")); return; }
+    const uint64 Generation = ++AuthenticationGeneration;
+    IdToken.Reset();
+    JoinTicket.Reset();
+    VerifiedUserId.Reset();
+    VerifiedUsername.Reset();
+    VerifiedDisplayName.Reset();
+    bRememberSignIn = true;
+    SetState(EWMCYNBackendLoginState::Authenticating, TEXT("restoring_sign_in"));
+    const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(TEXT("https://securetoken.googleapis.com/v1/token?key=") + FGenericPlatformHttp::UrlEncode(ApiKey));
+    Request->SetVerb(TEXT("POST"));
+    Request->SetTimeout(15.0f);
+    Request->SetHeader(TEXT("Content-Type"), TEXT("application/x-www-form-urlencoded"));
+    Request->SetContentAsString(TEXT("grant_type=refresh_token&refresh_token=") + FGenericPlatformHttp::UrlEncode(SavedToken));
+    Request->OnProcessRequestComplete().BindWeakLambda(this,
+        [this, Generation, SavedLabel](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        {
+            if (Generation != AuthenticationGeneration) return;
+            if (!bSucceeded || !Response.IsValid()) { Fail(TEXT("refresh_unreachable")); return; }
+            TSharedPtr<FJsonObject> Root;
+            const bool bJson = ParseJsonObject(Response->GetContentAsString(), Root);
+            if (Response->GetResponseCode() != 200 || !bJson)
+            {
+                const TSharedPtr<FJsonObject>* Error = nullptr;
+                const FString Code = bJson && Root->TryGetObjectField(TEXT("error"), Error)
+                    ? ReadString(*Error, TEXT("message")) : FString();
+                if (Code == TEXT("TOKEN_EXPIRED") || Code == TEXT("INVALID_REFRESH_TOKEN") ||
+                    Code == TEXT("USER_DISABLED") || Code == TEXT("USER_NOT_FOUND"))
+                {
+                    SignOut();
+                    Fail(TEXT("sign_in_required"));
+                }
+                else Fail(TEXT("refresh_failed_retry_available"));
+                return;
+            }
+            IdToken = ReadString(Root, TEXT("id_token"));
+            RefreshToken = ReadString(Root, TEXT("refresh_token"));
+            VerifiedUserId = ReadString(Root, TEXT("user_id"));
+            if (IdToken.IsEmpty() || RefreshToken.IsEmpty() || VerifiedUserId.IsEmpty())
+            { Fail(TEXT("invalid_refresh_response")); return; }
+            // Save rotation before bootstrap: an offline world must not lose the new credential.
+            if (bRememberSignIn && !bSuppressRememberedSignIn &&
+                !WMCYNSecureSignInStore::Write(GetCredentialScope(), RefreshToken, SavedLabel))
+                UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AUTH stage=credential_rotation result=failed"));
+            UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AUTH stage=refresh result=success"));
+            RequestBootstrap();
+        });
+    if (!Request->ProcessRequest()) Fail(TEXT("request_start_failed"));
+}
+
 void UWMCYNBackendSubsystem::LoginAndLoadBootstrap(const FString& Identifier, const FString& Password)
 {
     if (LoginState == EWMCYNBackendLoginState::Authenticating ||
@@ -81,8 +205,9 @@ void UWMCYNBackendSubsystem::LoginAndLoadBootstrap(const FString& Identifier, co
         return;
     }
 
-    SignOut();
+    ResetAuthentication(!IsForceLoginTesting());
     SetState(EWMCYNBackendLoginState::Authenticating, TEXT("authenticating"));
+    const uint64 Generation = AuthenticationGeneration;
 
     TSharedRef<FJsonObject> Payload = MakeShared<FJsonObject>();
     Payload->SetStringField(TEXT("identifier"), CleanIdentifier);
@@ -99,8 +224,9 @@ void UWMCYNBackendSubsystem::LoginAndLoadBootstrap(const FString& Identifier, co
     Request->SetContentAsString(Body);
     Request->OnProcessRequestComplete().BindWeakLambda(
         this,
-        [this](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        [this, Generation](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
         {
+            if (Generation != AuthenticationGeneration) return;
             if (!bSucceeded || !Response.IsValid())
             {
                 Fail(TEXT("backend_unreachable"));
@@ -169,8 +295,9 @@ void UWMCYNBackendSubsystem::SignInWithCustomTokenAndLoadBootstrap(const FString
         return;
     }
 
-    SignOut();
+    ResetAuthentication(!IsForceLoginTesting());
     SetState(EWMCYNBackendLoginState::Authenticating, TEXT("exchanging_pairing_code"));
+    const uint64 Generation = AuthenticationGeneration;
 
     TSharedRef<FJsonObject> Payload = MakeShared<FJsonObject>();
     Payload->SetStringField(TEXT("token"), CleanCustomToken);
@@ -191,8 +318,9 @@ void UWMCYNBackendSubsystem::SignInWithCustomTokenAndLoadBootstrap(const FString
     Request->SetContentAsString(Body);
     Request->OnProcessRequestComplete().BindWeakLambda(
         this,
-        [this](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        [this, Generation](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
         {
+            if (Generation != AuthenticationGeneration) return;
             if (!bSucceeded || !Response.IsValid())
             {
                 Fail(TEXT("backend_unreachable"));
@@ -230,6 +358,7 @@ void UWMCYNBackendSubsystem::SignInWithCustomTokenAndLoadBootstrap(const FString
 
 void UWMCYNBackendSubsystem::RequestBootstrap()
 {
+    const uint64 Generation = AuthenticationGeneration;
     SetState(EWMCYNBackendLoginState::LoadingBootstrap, TEXT("loading_world"));
 
     const FString Query = FString::Printf(
@@ -240,15 +369,24 @@ void UWMCYNBackendSubsystem::RequestBootstrap()
 
     const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
     Request->SetURL(MakeUrl(Query));
+    Request->SetTimeout(15.0f);
     Request->SetVerb(TEXT("GET"));
     Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *IdToken));
     Request->OnProcessRequestComplete().BindWeakLambda(
         this,
-        [this](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        [this, Generation](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
         {
+            if (Generation != AuthenticationGeneration) return;
             if (!bSucceeded || !Response.IsValid())
             {
                 Fail(TEXT("backend_unreachable"));
+                return;
+            }
+
+            if (Response->GetResponseCode() == 401)
+            {
+                SignOut();
+                Fail(TEXT("sign_in_required"));
                 return;
             }
 
@@ -264,12 +402,15 @@ void UWMCYNBackendSubsystem::RequestBootstrap()
             }
 
             const TSharedPtr<FJsonObject>* Identity = nullptr;
-            if (Root->TryGetObjectField(TEXT("identity"), Identity) && Identity)
+            if (!Root->TryGetObjectField(TEXT("identity"), Identity) || !Identity ||
+                ReadString(*Identity, TEXT("uid")).IsEmpty() ||
+                ReadString(*Identity, TEXT("uid")) != VerifiedUserId)
             {
-                VerifiedUserId = ReadString(*Identity, TEXT("uid"));
-                VerifiedUsername = ReadString(*Identity, TEXT("username"));
-                VerifiedDisplayName = ReadString(*Identity, TEXT("displayName"));
+                Fail(TEXT("bootstrap_identity_mismatch"));
+                return;
             }
+            VerifiedUsername = ReadString(*Identity, TEXT("username"));
+            VerifiedDisplayName = ReadString(*Identity, TEXT("displayName"));
 
             const TSharedPtr<FJsonObject>* World = nullptr;
             if (!Root->TryGetObjectField(TEXT("world"), World) || !World)
@@ -321,6 +462,7 @@ void UWMCYNBackendSubsystem::RequestBootstrap()
                 return;
             }
 
+            PersistSignIn();
             SetState(EWMCYNBackendLoginState::Ready, TEXT("ready"));
             OnLoginReady.Broadcast(VerifiedUsername, VerifiedDisplayName, WorldHost, WorldPort);
         });
@@ -333,6 +475,17 @@ void UWMCYNBackendSubsystem::RequestBootstrap()
 
 void UWMCYNBackendSubsystem::SignOut()
 {
+    bRememberSignIn = false;
+    ResetAuthentication(true);
+}
+
+void UWMCYNBackendSubsystem::ResetAuthentication(const bool bForgetSavedCredential)
+{
+    ++AuthenticationGeneration;
+    bSuppressRememberedSignIn = true;
+    bCredentialRemovalFailed = bForgetSavedCredential && !WMCYNSecureSignInStore::Remove(GetCredentialScope());
+    if (bCredentialRemovalFailed)
+        UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AUTH stage=credential_delete result=failed"));
     IdToken.Reset();
     RefreshToken.Reset();
     VerifiedUserId.Reset();
@@ -411,21 +564,51 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
     TSharedRef<FWMCYNAvatarManifestCallback> Completion = MakeShared<FWMCYNAvatarManifestCallback>(MoveTemp(Callback));
 
     const FString Platform = ResolveAvatarManifestPlatform();
+
+    // Dev-only synthetic manifest for workstation validation of the Crib's
+    // presentation avatar copies (-WMCYNDevAvatarJared). Packaged and hosted
+    // builds always keep the trusted backend as the owner of published
+    // account resolution; this override never answers there.
+    // RequiresCookedData() is true for any cooked target, so this is false only
+    // in an uncooked editor build. FPlatformMisc::IsPackaged() does not exist in
+    // UE 5.8 and was failing the whole module build, which is why the override
+    // never reached the DLL.
+    if (!FPlatformProperties::RequiresCookedData() &&
+        FParse::Param(FCommandLine::Get(), TEXT("WMCYNDevAvatarJared")))
+    {
+        FWMCYNAvatarManifest DevManifest;
+        DevManifest.bIsDefaultAvatar = false;
+        DevManifest.AvatarId = TEXT("dev-jared-preview");
+        DevManifest.AvatarVersion = 1;
+        DevManifest.Platform = Platform;
+        DevManifest.DisplayName = TEXT("Jared");
+        DevManifest.CacheKey = TEXT("dev-jared-preview");
+        DevManifest.DeliveryType = TEXT("runtime_mesh");
+        DevManifest.DeliverySkeletalMeshPath = TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/SKM_Jared_Body_Preview.SKM_Jared_Body_Preview");
+        DevManifest.DeliveryHeadSkeletalMeshPath = TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/SKM_Jared_Head_Preview.SKM_Jared_Head_Preview");
+        DevManifest.DeliveryAnimClassPath = TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/ABP_WMCYN_MetaHuman_Presentation.ABP_WMCYN_MetaHuman_Presentation_C");
+        UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AVATAR stage=manifest_http result=success platform=%s source=dev_override"), *Platform);
+        Completion->ExecuteIfBound(true, DevManifest, FString());
+        return;
+    }
+
     const FString Query = FString::Printf(
         TEXT("/v1/avatar/manifest?platform=%s"),
         *FGenericPlatformHttp::UrlEncode(Platform));
 
     const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
     Request->SetURL(MakeUrl(Query));
+    Request->SetTimeout(15.0f);
     Request->SetVerb(TEXT("GET"));
     Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *IdToken));
     Request->OnProcessRequestComplete().BindWeakLambda(
         this,
-        [Completion](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        [Completion, Platform, RequestedUid = VerifiedUserId](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
         {
             FWMCYNAvatarManifest Manifest;
             if (!bSucceeded || !Response.IsValid())
             {
+                UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AVATAR stage=manifest_http result=failure reason=transport"));
                 Completion->ExecuteIfBound(false, Manifest, TEXT("backend_unreachable"));
                 return;
             }
@@ -436,14 +619,20 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
             {
                 TSharedPtr<FJsonObject> ErrorRoot;
                 ParseJsonObject(Response->GetContentAsString(), ErrorRoot);
-                Completion->ExecuteIfBound(false, Manifest, ReadString(ErrorRoot, TEXT("error")));
+                UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AVATAR stage=manifest_http result=failure status=%d"), Response->GetResponseCode());
+                Completion->ExecuteIfBound(false, Manifest, TEXT("manifest_http_or_json_error"));
                 return;
             }
 
             Manifest.AvatarId = ReadString(Root, TEXT("avatarId"));
             Manifest.AvatarVersion = ReadInt32(Root, TEXT("avatarVersion"), 1);
             Manifest.Platform = ReadString(Root, TEXT("platform"));
-            Manifest.bIsDefaultAvatar = Root->GetBoolField(TEXT("isDefaultAvatar"));
+            if (!Root->TryGetBoolField(TEXT("isDefaultAvatar"), Manifest.bIsDefaultAvatar) || Manifest.Platform != Platform)
+            {
+                UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AVATAR stage=manifest_http result=failure reason=invalid_contract"));
+                Completion->ExecuteIfBound(false, Manifest, TEXT("manifest_contract_invalid"));
+                return;
+            }
             Manifest.DisplayName = ReadString(Root, TEXT("displayName"));
             Manifest.CacheKey = ReadString(Root, TEXT("cacheKey"));
 
@@ -458,6 +647,18 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
                 Manifest.DeliveryAnimClassPath = ReadString(*Delivery, TEXT("animClassPath"));
             }
 
+            if (!Manifest.bIsDefaultAvatar && (Manifest.DeliveryType != TEXT("runtime_mesh") || Manifest.DeliverySkeletalMeshPath.IsEmpty()))
+            {
+                UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN_AVATAR stage=manifest_http result=failure reason=precooked_delivery_required"));
+                Completion->ExecuteIfBound(false, Manifest, TEXT("precooked_delivery_required"));
+                return;
+            }
+            if (Manifest.bIsDefaultAvatar && WMCYNAccountAvatarCatalog::Resolve(RequestedUid, Platform, Manifest))
+            {
+                UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AVATAR stage=account_catalog result=selected authority=verified_login"));
+            }
+            UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AVATAR stage=manifest_http result=success platform=%s source=%s"),
+                *Platform, Manifest.bIsDefaultAvatar ? TEXT("default") : TEXT("published"));
             Completion->ExecuteIfBound(true, Manifest, FString());
         });
 
@@ -469,16 +670,30 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
 
 void UWMCYNBackendSubsystem::SetBackendBaseUrl(const FString& InBaseUrl)
 {
-    BackendBaseUrl = InBaseUrl.TrimStartAndEnd();
-    while (BackendBaseUrl.EndsWith(TEXT("/")))
+    FString NewBaseUrl = InBaseUrl.TrimStartAndEnd();
+    while (NewBaseUrl.EndsWith(TEXT("/")))
     {
-        BackendBaseUrl.LeftChopInline(1);
+        NewBaseUrl.LeftChopInline(1);
+    }
+    if (BackendBaseUrl != NewBaseUrl)
+    {
+        ResetAuthentication(false);
+        BackendBaseUrl = NewBaseUrl;
+        bSuppressRememberedSignIn = false;
+        bRememberSignIn = false;
     }
 }
 
 void UWMCYNBackendSubsystem::SetFirebaseWebApiKey(const FString& InFirebaseWebApiKey)
 {
-    FirebaseWebApiKey = InFirebaseWebApiKey.TrimStartAndEnd();
+    const FString NewKey = InFirebaseWebApiKey.TrimStartAndEnd();
+    if (FirebaseWebApiKey != NewKey)
+    {
+        ResetAuthentication(false);
+        FirebaseWebApiKey = NewKey;
+        bSuppressRememberedSignIn = false;
+        bRememberSignIn = false;
+    }
 }
 
 void UWMCYNBackendSubsystem::SetState(EWMCYNBackendLoginState NewState, const FString& Message)

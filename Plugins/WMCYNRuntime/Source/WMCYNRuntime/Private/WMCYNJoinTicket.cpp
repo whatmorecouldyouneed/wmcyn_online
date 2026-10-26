@@ -243,6 +243,8 @@ bool VerifyJoinTicket(const FString& Secret, const FString& Ticket, FWMCYNJoinTi
     FWMCYNJoinTicketPayload Payload;
     Payload.TicketId = Json->GetStringField(TEXT("tid"));
     Payload.Uid = Json->GetStringField(TEXT("uid"));
+    Json->TryGetStringField(TEXT("username"), Payload.Username);
+    Json->TryGetStringField(TEXT("displayName"), Payload.DisplayName);
     Payload.WorldId = Json->GetStringField(TEXT("worldId"));
     Payload.LocationId = Json->GetStringField(TEXT("locationId"));
     Payload.RuntimeId = Json->GetStringField(TEXT("runtimeId"));

@@ -1,4 +1,6 @@
 #include "WMCYNWorldRuntimeSubsystem.h"
+#include "WMCYNAccountAvatarCatalog.h"
+#include "WMCYNIdentityPolicy.h"
 
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"
@@ -10,6 +12,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "HttpModule.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Kismet/GameplayStatics.h"
@@ -353,9 +356,24 @@ void UWMCYNWorldRuntimeSubsystem::HandlePostLogin(AGameModeBase* GameMode, APlay
         return;
     }
 
+    if (!WMCYNIdentityPolicy::IsUsableName(Payload.Username) ||
+        !WMCYNIdentityPolicy::IsUsableName(Payload.DisplayName))
+    {
+        KickInvalidLogin(GameMode, NewPlayer, TEXT("signed profile identity missing or invalid"));
+        return;
+    }
     UsedTicketExpiry.Add(Payload.TicketId, Payload.ExpiresAtUnix);
     OccupiedSlots.Add(Payload.Slot, Payload.Uid);
     ControllerSlots.Add(FObjectKey(NewPlayer), Payload.Slot);
+    VerifiedControllerUsers.Add(FObjectKey(NewPlayer), Payload.Uid);
+    VerifiedControllerIdentities.Add(FObjectKey(NewPlayer), Payload);
+    if (NewPlayer->PlayerState)
+    {
+        NewPlayer->PlayerState->SetPlayerName(Payload.DisplayName);
+        NewPlayer->PlayerState->ForceNetUpdate();
+    }
+    VerifiedControllerPlatforms.Add(FObjectKey(NewPlayer),
+        Payload.Mode == TEXT("PCVR") ? TEXT("pcvr") : TEXT("quest"));
 
     UE_LOG(LogWMCYNWorldRuntime, Display,
         TEXT("WMCYN WorldRuntime: validated join ticket for slot %s (mode %s)."),
@@ -370,11 +388,103 @@ void UWMCYNWorldRuntimeSubsystem::HandleLogout(AGameModeBase* GameMode, AControl
     }
 
     FString Slot;
+    VerifiedControllerUsers.Remove(FObjectKey(Exiting));
+    VerifiedControllerPlatforms.Remove(FObjectKey(Exiting));
+    VerifiedControllerIdentities.Remove(FObjectKey(Exiting));
     if (ControllerSlots.RemoveAndCopyValue(FObjectKey(Exiting), Slot))
     {
         OccupiedSlots.Remove(Slot);
         UE_LOG(LogWMCYNWorldRuntime, Display,
             TEXT("WMCYN WorldRuntime: released slot %s on logout."), *Slot);
+    }
+}
+
+const FWMCYNJoinTicketPayload* UWMCYNWorldRuntimeSubsystem::GetVerifiedIdentity(const AController* Controller) const
+{
+    return bActive && IsValid(Controller) && Controller->HasAuthority()
+        ? VerifiedControllerIdentities.Find(FObjectKey(Controller)) : nullptr;
+}
+
+void UWMCYNWorldRuntimeSubsystem::RequestAccountAvatar(
+    APlayerController* Controller, FWMCYNAvatarManifestCallback&& Callback)
+{
+    const FObjectKey Key(Controller);
+    const FString* User = VerifiedControllerUsers.Find(Key);
+    const FString* Platform = VerifiedControllerPlatforms.Find(Key);
+    if (!bActive || !IsValid(Controller) || !Controller->HasAuthority() || !User || !Platform)
+    {
+        Callback.ExecuteIfBound(false, FWMCYNAvatarManifest(), TEXT("ticket_identity_unavailable"));
+        return;
+    }
+
+    const FString RequestedUser = *User;
+    const FString RequestedPlatform = *Platform;
+    const TWeakObjectPtr<APlayerController> WeakController(Controller);
+    const auto Completion = MakeShared<FWMCYNAvatarManifestCallback>(MoveTemp(Callback));
+    const auto Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(BackendBaseUrl + TEXT("/v1/vr/runtime/avatar?uid=") +
+        FGenericPlatformHttp::UrlEncode(RequestedUser) + TEXT("&platform=") + RequestedPlatform);
+    Request->SetVerb(TEXT("GET"));
+    Request->SetTimeout(15.0f);
+    Request->SetHeader(TEXT("x-wmcyn-server-key"), ServerKey);
+    Request->OnProcessRequestComplete().BindWeakLambda(this,
+        [this, Key, WeakController, RequestedUser, RequestedPlatform, Completion]
+        (FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        {
+            FWMCYNAvatarManifest Manifest;
+            const FString* CurrentUser = VerifiedControllerUsers.Find(Key);
+            if (!bActive || !WeakController.IsValid() || !CurrentUser || *CurrentUser != RequestedUser)
+            {
+                Completion->ExecuteIfBound(false, Manifest, TEXT("ticket_identity_changed"));
+                return;
+            }
+            TSharedPtr<FJsonObject> Root;
+            if (!bSucceeded || !Response.IsValid() || Response->GetResponseCode() != 200 ||
+                !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Response->GetContentAsString()), Root) ||
+                !Root.IsValid())
+            {
+                UE_LOG(LogWMCYNWorldRuntime, Warning,
+                    TEXT("WMCYN_AVATAR stage=server_manifest result=failure status=%d"),
+                    Response.IsValid() ? Response->GetResponseCode() : 0);
+                Completion->ExecuteIfBound(false, Manifest, TEXT("server_manifest_failed"));
+                return;
+            }
+            Root->TryGetStringField(TEXT("platform"), Manifest.Platform);
+            if (Manifest.Platform != RequestedPlatform ||
+                !Root->TryGetBoolField(TEXT("isDefaultAvatar"), Manifest.bIsDefaultAvatar))
+            {
+                Completion->ExecuteIfBound(false, Manifest, TEXT("manifest_contract_invalid"));
+                return;
+            }
+            Root->TryGetStringField(TEXT("cacheKey"), Manifest.CacheKey);
+            const TSharedPtr<FJsonObject>* Delivery = nullptr;
+            if (Root->TryGetObjectField(TEXT("delivery"), Delivery) && Delivery && Delivery->IsValid())
+            {
+                (*Delivery)->TryGetStringField(TEXT("type"), Manifest.DeliveryType);
+                (*Delivery)->TryGetStringField(TEXT("skeletalMeshPath"), Manifest.DeliverySkeletalMeshPath);
+                (*Delivery)->TryGetStringField(TEXT("headSkeletalMeshPath"), Manifest.DeliveryHeadSkeletalMeshPath);
+                (*Delivery)->TryGetStringField(TEXT("animClassPath"), Manifest.DeliveryAnimClassPath);
+            }
+            if (!Manifest.bIsDefaultAvatar && (Manifest.DeliveryType != TEXT("runtime_mesh") ||
+                Manifest.DeliverySkeletalMeshPath.IsEmpty() || Manifest.CacheKey.IsEmpty()))
+            {
+                Completion->ExecuteIfBound(false, Manifest, TEXT("manifest_contract_invalid"));
+                return;
+            }
+            if (Manifest.bIsDefaultAvatar &&
+                WMCYNAccountAvatarCatalog::Resolve(RequestedUser, RequestedPlatform, Manifest))
+            {
+                UE_LOG(LogWMCYNWorldRuntime, Display,
+                    TEXT("WMCYN_AVATAR stage=account_catalog result=selected authority=verified_ticket"));
+            }
+            UE_LOG(LogWMCYNWorldRuntime, Display,
+                TEXT("WMCYN_AVATAR stage=server_manifest result=success source=%s"),
+                Manifest.bIsDefaultAvatar ? TEXT("default") : TEXT("published"));
+            Completion->ExecuteIfBound(true, Manifest, FString());
+        });
+    if (!Request->ProcessRequest())
+    {
+        Completion->ExecuteIfBound(false, FWMCYNAvatarManifest(), TEXT("request_start_failed"));
     }
 }
 

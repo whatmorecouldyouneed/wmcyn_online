@@ -63,7 +63,25 @@ class WMCYNRUNTIME_API UWMCYNBackendSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    bool bCredentialRemovalFailed = false;
+
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
+
+    /** Refresh saved authentication, then obtain a fresh server-verified bootstrap ticket. */
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
+    void RestoreSignInAndLoadBootstrap();
+
+    UFUNCTION(BlueprintPure, Category = "WMCYN|Backend")
+    bool HasRememberedSignIn() const;
+
+    UFUNCTION(BlueprintPure, Category = "WMCYN|Backend")
+    FString GetRememberedDisplayLabel() const;
+
+    /** User consent to persistence; unsupported platforms remain memory-only. */
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
+    void SetRememberSignIn(bool bRemember);
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     void LoginAndLoadBootstrap(const FString& Identifier, const FString& Password);
@@ -141,6 +159,13 @@ public:
     TArray<FString> PresenceCapabilities;
 
 private:
+    FString GetCredentialScope() const;
+    bool IsForceLoginTesting() const;
+    void PersistSignIn();
+    void ResetAuthentication(bool bForgetSavedCredential);
+    uint64 AuthenticationGeneration = 0;
+    bool bRememberSignIn = false;
+    bool bSuppressRememberedSignIn = false;
     void RequestBootstrap();
     void SetState(EWMCYNBackendLoginState NewState, const FString& Message);
     void Fail(const FString& ErrorCode);

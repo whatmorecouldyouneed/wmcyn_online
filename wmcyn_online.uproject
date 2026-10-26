@@ -21,7 +21,12 @@
 		},
 		{
 			"Name": "SteamController",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "HDRIBackdrop",
@@ -58,19 +63,39 @@
 		},
 		{
 			"Name": "MetaHuman",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "MetaHumanCharacter",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "MetaHumanSDK",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "MetaHumanLiveLink",
-			"Enabled": true
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "AppleARKitFaceSupport",

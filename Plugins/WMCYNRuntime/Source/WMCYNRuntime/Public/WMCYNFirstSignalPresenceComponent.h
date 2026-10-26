@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "WMCYNFirstSignalPresenceComponent.generated.h"
 
 class ACharacter;
@@ -20,14 +21,23 @@ class UWidgetInteractionComponent;
 class UWidgetComponent;
 class FTextProperty;
 class FStrProperty;
+class UWMCYNRememberedSignInControls;
 
 UCLASS(ClassGroup = (WMCYN), meta = (BlueprintSpawnableComponent))
 class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorComponent
 {
     GENERATED_BODY()
 
+    UPROPERTY(Transient)
+    TObjectPtr<UWMCYNRememberedSignInControls> RememberedSignInControls;
+
 public:
+    bool HasVerifiedRecordingCapability() const { return bVerifiedRecordingCapability; }
     UWMCYNFirstSignalPresenceComponent();
+private:
+    UPROPERTY(Replicated)
+    bool bVerifiedRecordingCapability = false;
+public:
 
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -43,6 +53,20 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Presence")
     void RequestRespawnToPresenceSlot();
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Menu")
+    void SetLocalMicrophoneMuted(bool bMuted);
+
+    UFUNCTION(BlueprintPure, Category = "WMCYN|Menu")
+    FString GetLocalMicrophoneStatus() const;
+
+    bool IsLocalMicrophoneMuted() const { return bLocalMicrophoneMuted; }
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Menu")
+    void ResetRuntimeMenuPosition();
+
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Menu")
+    void SetRuntimeMenuPinned(bool bPinned);
 
 protected:
     UFUNCTION(Server, Unreliable)
@@ -76,6 +100,8 @@ protected:
     void OnRep_AvatarPresentation();
 
 private:
+    bool bLocalMicrophoneMuted = false;
+    bool bRuntimeMenuPinned = false;
     void ApplyIdentityToPlayerState(APlayerState* PlayerState, const FString& Username, const FString& DisplayName, bool bForceReplication);
     bool TryApplyPlayerInfoDisplayName(UActorComponent* Component, const FString& DisplayName) const;
     FString ResolvePreferredDisplayName(const APlayerState* PlayerState) const;
@@ -112,6 +138,9 @@ private:
     void ActivateLocalVoice();
     void HandleVoiceSessionCreated(FName SessionName, bool bWasSuccessful);
     void EnsureAvatarPresentationComponents();
+    void RestoreAvatarSourceTickPolicy();
+    TOptional<EVisibilityBasedAnimTickOption> SavedAvatarSourceTickPolicy;
+    TWeakObjectPtr<USkeletalMeshComponent> AvatarTickPolicySource;
 
     UPROPERTY(Replicated)
     FVector_NetQuantize10 ReplicatedHeadLocation;
@@ -192,6 +221,27 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<USkeletalMeshComponent> AvatarHeadVisual;
 
+    /**
+     * Garments follow AvatarBodyVisual by leader pose rather than evaluating a
+     * second retarget: they carry the same body skeleton, so copying its pose
+     * is both correct and cheaper. Optional - a family with no garments leaves
+     * these components present but empty and hidden.
+     */
+    UPROPERTY(Transient)
+    TObjectPtr<USkeletalMeshComponent> AvatarOutfitVisual;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USkeletalMeshComponent> AvatarShoesVisual;
+
+    /**
+     * Hair, eyebrows and goatee. One GroomComponent per groom, each attached to
+     * AvatarHeadVisual and bound to it, so they follow the face rather than the
+     * body. Sized by the matched family, so a family with no grooms leaves this
+     * empty.
+     */
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<class UGroomComponent>> AvatarGroomVisuals;
+
     UPROPERTY(Transient)
     TObjectPtr<UWidgetComponent> Nameplate;
 
@@ -203,6 +253,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "WMCYN|Identity")
     TSoftObjectPtr<UObject> NameplateThemeAsset;
+
+    UPROPERTY(EditDefaultsOnly, Category = "WMCYN|UI")
+    TSoftObjectPtr<UObject> RuntimeMenuThemeAsset;
 
     UPROPERTY(Transient)
     TObjectPtr<UWidgetComponent> RuntimeMenu;
@@ -251,6 +304,10 @@ private:
     bool bLoginGateLockApplied = false;
     bool bLoginGateCompleted = false;
     bool bAvatarManifestRequested = false;
+    int32 AvatarManifestAttempts = 0;
+    float NextAvatarManifestRequestTime = 0.0f;
+    FString AvatarManifestUserId;
+    bool bAvatarSubmissionRejectedLogged = false;
     bool bRuntimeMenuVisible = false;
     bool bAutoEntryAttempted = false;
     bool bLoginWidgetPairingPrimed = false;

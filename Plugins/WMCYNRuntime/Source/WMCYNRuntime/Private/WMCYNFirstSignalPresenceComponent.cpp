@@ -1,5 +1,12 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
 
+#include "GroomAsset.h"
+#include "GroomBindingAsset.h"
+#include "GroomComponent.h"
+#include "WMCYNRememberedSignInControls.h"
+#include "WMCYNLocalVoiceTalker.h"
+#include "Interfaces/VoiceInterface.h"
+
 #include "Camera/CameraComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Components/InputComponent.h"
@@ -36,7 +43,10 @@
 #include "OnlineSubsystemUtils.h"
 #include "Blueprint/UserWidget.h"
 #include "UObject/UnrealType.h"
+#include "UObject/StructOnScope.h"
 #include "WMCYNBackendSubsystem.h"
+#include "WMCYNWorldRuntimeSubsystem.h"
+#include "WMCYNIdentityPolicy.h"
 #include "WMCYNFirstSignalPairingAsyncAction.h"
 
 #if PLATFORM_ANDROID
@@ -55,13 +65,95 @@ namespace
 
     FString DeriveHeadMeshPath(const FString& BodyPath)
     {
-        FString DerivedPath = BodyPath;
-        if (DerivedPath.ReplaceInline(TEXT("_Body."), TEXT("_Head."), ESearchCase::IgnoreCase) > 0)
+        FString Package, Object;
+        if (BodyPath.Split(TEXT("."), &Package, &Object) &&
+            Package.EndsWith(TEXT("_Body")) && Object.EndsWith(TEXT("_Body")))
         {
-            return DerivedPath;
+            return Package.LeftChop(5) + TEXT("_Head.") + Object.LeftChop(5) + TEXT("_Head");
         }
         return FString();
     }
+
+    // A groom always travels with the binding that attaches it to a specific
+    // head mesh. Separating them invites a mismatched pair, which renders as
+    // hair floating beside the avatar rather than an obvious failure.
+    struct FRuntimeAvatarGroom
+    {
+        const TCHAR* Groom;
+        const TCHAR* Binding;
+    };
+
+    const FRuntimeAvatarGroom JaredGrooms[] = {
+        {
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Hair_S_360Waves.Hair_S_360Waves"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Hair_S_360Waves_Binding.Hair_S_360Waves_Binding"),
+        },
+        {
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Eyebrows_M_Wide.Eyebrows_M_Wide"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Eyebrows_M_Wide_Binding.Eyebrows_M_Wide_Binding"),
+        },
+        {
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Goatee_L_Wavy.Goatee_L_Wavy"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/Grooms/"
+                 "Goatee_L_Wavy_Binding.Goatee_L_Wavy_Binding"),
+        },
+    };
+
+    struct FRuntimeAvatarAcceptFamily
+    {
+        const TCHAR* Body;
+        const TCHAR* Head;
+        // Garments are optional: a family without them is still valid, and the
+        // 52b64e54 bake has none. Clothing rides with the family identity
+        // rather than the manifest, so no client ever names these paths.
+        const TCHAR* Outfit;
+        const TCHAR* Shoes;
+        // Grooms are optional in the same way garments are.
+        const FRuntimeAvatarGroom* Grooms;
+        int32 GroomCount;
+    };
+
+    // Published avatar families accepted for local-authority application. The
+    // 52b64e54 bake is the historical catalog; the Jared MetaHuman preview
+    // copies are the First Signal presentation family. Their skeletons are
+    // assigned on the assets themselves (2026-10-22). An earlier repair tried
+    // to supply them through CoreRedirects, which could never work: the
+    // Skeleton properties were null rather than stale references, so there was
+    // nothing to redirect, and those entries have been removed.
+    //
+    // A manifest must match one family's body/head paths exactly; the
+    // presentation AnimBP (RuntimeAvatarAnimCookReference) is shared by both.
+    // Garment paths are never matched against a manifest - they are read off
+    // the family once its body/head have been accepted.
+    const FRuntimeAvatarAcceptFamily AcceptedRuntimeAvatarFamilies[] = {
+        {
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
+                 "WMCYNAvatar_52b64e54_Body.WMCYNAvatar_52b64e54_Body"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
+                 "WMCYNAvatar_52b64e54_Head.WMCYNAvatar_52b64e54_Head"),
+            nullptr,
+            nullptr,
+            nullptr,
+            0,
+        },
+        {
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/"
+                 "SKM_Jared_Body_Preview.SKM_Jared_Body_Preview"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/"
+                 "SKM_Jared_Head_Preview.SKM_Jared_Head_Preview"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/"
+                 "SKM_Jared_Outfit_Preview.SKM_Jared_Outfit_Preview"),
+            TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/"
+                 "SKM_Jared_Shoes_Preview.SKM_Jared_Shoes_Preview"),
+            JaredGrooms,
+            UE_ARRAY_COUNT(JaredGrooms),
+        },
+    };
 }
 
 UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
@@ -78,6 +170,8 @@ UWMCYNFirstSignalPresenceComponent::UWMCYNFirstSignalPresenceComponent()
         TEXT("/Game/AFCore/DataAsset/Theme/DA_Theme_Default.DA_Theme_Default")));
     RuntimeMenuWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(
         TEXT("/Game/WMCYN/UI/Menu/WBP_WMCYN_RuntimeMenu.WBP_WMCYN_RuntimeMenu_C")));
+    RuntimeMenuThemeAsset = TSoftObjectPtr<UObject>(FSoftObjectPath(
+        TEXT("/Game/WMCYN/UI/Theme/DA_WMCYN_Theme_Neutral.DA_WMCYN_Theme_Neutral")));
     RuntimeAvatarBodyCookReference = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(
         TEXT("/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/"
              "WMCYNAvatar_52b64e54_Body.WMCYNAvatar_52b64e54_Body")));
@@ -180,6 +274,8 @@ void UWMCYNFirstSignalPresenceComponent::PrimeLoginWidgetPairingPanel()
         }
 
         UWMCYNFirstSignalPairingAsyncAction::PrimeLoginWidget(LoginWidget);
+        RememberedSignInControls = NewObject<UWMCYNRememberedSignInControls>(this);
+        RememberedSignInControls->Initialize(LoginWidget);
         bLoginWidgetPairingPrimed = true;
         UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Login: pairing strip primed under the existing login form"));
         return;
@@ -488,7 +584,7 @@ void UWMCYNFirstSignalPresenceComponent::RequestRespawnToPresenceSlot()
         return;
     }
 
-    if (bRuntimeMenuVisible)
+    if (bRuntimeMenuVisible && !bRuntimeMenuPinned)
     {
         SetRuntimeMenuVisible(false);
     }
@@ -541,6 +637,7 @@ void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    RestoreAvatarSourceTickPolicy();
     if (RuntimeMenuInputComponent.IsValid() && RuntimeMenuInputBindingHandle != INDEX_NONE)
     {
         RuntimeMenuInputComponent->RemoveActionBindingForHandle(RuntimeMenuInputBindingHandle);
@@ -596,9 +693,14 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
     }
     else
     {
+        if (OwnerCharacter->HasAuthority() && AvatarManifestAttempts > 0)
+        {
+            ServerSubmitAvatarPresentation_Implementation(FString(), FString(), FString(), FString(), true);
+        }
         ConfigureRemoteTracking();
         ApplyReplicatedPose(DeltaTime);
-        if (!ReplicatedAvatarCacheKey.IsEmpty() && ReplicatedAvatarCacheKey != AppliedAvatarCacheKey)
+        if (GetWorld()->GetNetMode() != NM_DedicatedServer &&
+            !ReplicatedAvatarCacheKey.IsEmpty() && ReplicatedAvatarCacheKey != AppliedAvatarCacheKey)
         {
             ApplyAvatarPresentation(
                 ReplicatedAvatarSkeletalMeshPath,
@@ -613,6 +715,11 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
     if (Now >= NextNameplateRefreshTime)
     {
         NextNameplateRefreshTime = Now + 0.25f;
+        // PostLogin can precede pawn creation; respawns also need signed identity.
+        if (OwnerCharacter->HasAuthority() && GetNetMode() != NM_Standalone)
+        {
+            ApplyIdentity(FString(), FString());
+        }
         RefreshNameplate();
         if (!bVoiceRegistered)
         {
@@ -660,6 +767,7 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 void UWMCYNFirstSignalPresenceComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, bVerifiedRecordingCapability, COND_OwnerOnly);
 
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedHeadLocation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedHeadRotation, COND_SkipOwner);
@@ -727,6 +835,22 @@ void UWMCYNFirstSignalPresenceComponent::ApplyIdentity(const FString& Username, 
 
     FString CleanUsername = Username.TrimStartAndEnd().Left(32);
     FString CleanDisplayName = DisplayName.TrimStartAndEnd().Left(32);
+    if (GetNetMode() != NM_Standalone)
+    {
+        const auto* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<UWMCYNWorldRuntimeSubsystem>();
+        const auto* Identity = Runtime ? Runtime->GetVerifiedIdentity(OwnerCharacter->GetController()) : nullptr;
+        // Fail closed on networked servers, including failed runtime registration.
+        bVerifiedRecordingCapability = Identity && Identity->Capabilities.Contains(TEXT("Recording"));
+        if (!Identity) return;
+        CleanUsername = Identity->Username;
+        CleanDisplayName = Identity->DisplayName;
+        const FStrProperty* UsernameProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("username"));
+        const FStrProperty* DisplayProperty = FindFProperty<FStrProperty>(PlayerState->GetClass(), TEXT("displayName"));
+        if (UsernameProperty && DisplayProperty &&
+            UsernameProperty->GetPropertyValue_InContainer(PlayerState) == CleanUsername &&
+            DisplayProperty->GetPropertyValue_InContainer(PlayerState) == CleanDisplayName &&
+            PlayerState->GetPlayerName() == CleanDisplayName) return;
+    }
     if (CleanUsername.IsEmpty())
     {
         return;
@@ -737,12 +861,13 @@ void UWMCYNFirstSignalPresenceComponent::ApplyIdentity(const FString& Username, 
     }
 
     ApplyIdentityToPlayerState(PlayerState, CleanUsername, CleanDisplayName, true);
-    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Identity: server accepted %s"), *CleanDisplayName);
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_IDENTITY stage=apply result=success authority=%s"),
+        GetNetMode() == NM_Standalone ? TEXT("local_preview") : TEXT("verified_ticket"));
 }
 
 void UWMCYNFirstSignalPresenceComponent::RequestAvatarManifestIfNeeded()
 {
-    if (bAvatarManifestRequested || !bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    if (!bLoginGateCompleted || !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
     {
         return;
     }
@@ -756,43 +881,89 @@ void UWMCYNFirstSignalPresenceComponent::RequestAvatarManifestIfNeeded()
         return;
     }
 
+    if (AvatarManifestUserId != Backend->VerifiedUserId)
+    {
+        AvatarManifestUserId = Backend->VerifiedUserId;
+        AvatarManifestAttempts = 0;
+        NextAvatarManifestRequestTime = 0.0f;
+        bAvatarManifestRequested = false;
+        if (!OwnerCharacter->HasAuthority() && !ReplicatedAvatarCacheKey.IsEmpty())
+        {
+            OnRep_AvatarPresentation();
+        }
+        else
+        {
+            ApplyAvatarPresentation(FString(), FString(), FString(), TEXT("native-default"), true);
+        }
+        UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=login_uid result=established"));
+    }
+    const float Now = GetWorld()->GetTimeSeconds();
+    if (bAvatarManifestRequested || AvatarManifestAttempts >= 3 || Now < NextAvatarManifestRequestTime)
+    {
+        return;
+    }
     bAvatarManifestRequested = true;
+    ++AvatarManifestAttempts;
+    const FString RequestedUserId = AvatarManifestUserId;
     Backend->RequestAvatarManifest(
         FWMCYNAvatarManifestCallback::CreateWeakLambda(
             this,
-            [this](bool bSuccess, const FWMCYNAvatarManifest& Manifest, const FString& Error)
+            [this, RequestedUserId](bool bSuccess, const FWMCYNAvatarManifest& Manifest, const FString& Error)
             {
+                const UGameInstance* Instance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+                const UWMCYNBackendSubsystem* CurrentBackend = Instance ? Instance->GetSubsystem<UWMCYNBackendSubsystem>() : nullptr;
+                if (!CurrentBackend || CurrentBackend->VerifiedUserId != RequestedUserId ||
+                    CurrentBackend->LoginState != EWMCYNBackendLoginState::Ready)
+                {
+                    if (AvatarManifestUserId == RequestedUserId) bAvatarManifestRequested = false;
+                    return;
+                }
                 if (!bSuccess)
                 {
+                    bAvatarManifestRequested = false;
+                    NextAvatarManifestRequestTime = GetWorld()->GetTimeSeconds() + 5.0f * AvatarManifestAttempts;
                     UE_LOG(LogWMCYNPresence, Warning,
-                        TEXT("WMCYN Avatar: manifest request failed (%s)"), *Error);
+                        TEXT("WMCYN_AVATAR stage=manifest result=failure attempt=%d retry=%s"),
+                        AvatarManifestAttempts, AvatarManifestAttempts < 3 ? TEXT("scheduled") : TEXT("exhausted"));
                     return;
                 }
 
-            ApplyAvatarPresentation(
-                Manifest.DeliverySkeletalMeshPath,
-                Manifest.DeliveryHeadSkeletalMeshPath,
-                Manifest.DeliveryAnimClassPath,
+                UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=selection source=%s"),
+                    Manifest.bIsDefaultAvatar ? TEXT("default") : TEXT("published"));
+                if (OwnerCharacter && !OwnerCharacter->HasAuthority())
+                {
+                    // Ask the server to resolve its ticket-bound account. Never
+                    // overwrite a replicated selection with a client manifest.
+                    ServerSubmitAvatarPresentation(FString(), FString(), FString(), FString(), true);
+                    if (!Manifest.bIsDefaultAvatar)
+                    {
+                        UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=authority result=requested source=ticket_bound_server"));
+                    }
+                    return;
+                }
+
+                ApplyAvatarPresentation(
+                    Manifest.DeliverySkeletalMeshPath,
+                    Manifest.DeliveryHeadSkeletalMeshPath,
+                    Manifest.DeliveryAnimClassPath,
                     Manifest.CacheKey,
                     Manifest.bIsDefaultAvatar);
 
+                const FString ExpectedKey = Manifest.bIsDefaultAvatar ? TEXT("native-default") : FString::Printf(
+                    TEXT("%s|%s|%s|%s"), *Manifest.CacheKey, *Manifest.DeliverySkeletalMeshPath,
+                    *Manifest.DeliveryHeadSkeletalMeshPath, *Manifest.DeliveryAnimClassPath);
+                if (AppliedAvatarCacheKey != ExpectedKey)
+                {
+                    return;
+                }
                 if (OwnerCharacter && OwnerCharacter->HasAuthority())
                 {
-                    ReplicatedAvatarSkeletalMeshPath = Manifest.DeliverySkeletalMeshPath;
-                    ReplicatedAvatarHeadSkeletalMeshPath = Manifest.DeliveryHeadSkeletalMeshPath;
-                    ReplicatedAvatarAnimClassPath = Manifest.DeliveryAnimClassPath;
-                    ReplicatedAvatarCacheKey = Manifest.CacheKey;
+                    ReplicatedAvatarSkeletalMeshPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliverySkeletalMeshPath;
+                    ReplicatedAvatarHeadSkeletalMeshPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliveryHeadSkeletalMeshPath;
+                    ReplicatedAvatarAnimClassPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliveryAnimClassPath;
+                    ReplicatedAvatarCacheKey = Manifest.bIsDefaultAvatar ? TEXT("native-default") : Manifest.CacheKey;
                     bReplicatedAvatarIsDefault = Manifest.bIsDefaultAvatar;
                     OwnerCharacter->ForceNetUpdate();
-                }
-                else
-                {
-                    ServerSubmitAvatarPresentation(
-                        Manifest.DeliverySkeletalMeshPath,
-                        Manifest.DeliveryHeadSkeletalMeshPath,
-                        Manifest.DeliveryAnimClassPath,
-                        Manifest.CacheKey,
-                        Manifest.bIsDefaultAvatar);
                 }
             }));
 }
@@ -836,6 +1007,7 @@ void UWMCYNFirstSignalPresenceComponent::EnsureAvatarPresentationComponents()
         AvatarBodyVisual->AttachToComponent(
             BodyMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
         AvatarBodyVisual->SetRelativeTransform(FTransform::Identity);
+        AvatarBodyVisual->AddTickPrerequisiteComponent(BodyMesh);
     }
     else
     {
@@ -849,6 +1021,34 @@ void UWMCYNFirstSignalPresenceComponent::EnsureAvatarPresentationComponents()
     AvatarHeadVisual->SetGenerateOverlapEvents(false);
     AvatarHeadVisual->SetCastShadow(true);
     AvatarHeadVisual->RegisterComponent();
+
+    // Garments are created unconditionally but left empty and hidden. They are
+    // attached and bound to the body's pose in ApplyAvatarPresentation, once
+    // AvatarBodyVisual actually has a mesh - SetLeaderPoseComponent needs both
+    // sides skinned before it can map bone indices.
+    const auto MakeGarmentVisual = [this](const TCHAR* Name) -> USkeletalMeshComponent*
+    {
+        USkeletalMeshComponent* Visual = NewObject<USkeletalMeshComponent>(OwnerCharacter, Name);
+        OwnerCharacter->AddInstanceComponent(Visual);
+        Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Visual->SetGenerateOverlapEvents(false);
+        Visual->SetCastShadow(true);
+        Visual->RegisterComponent();
+        Visual->SetVisibility(false, true);
+        return Visual;
+    };
+    AvatarOutfitVisual = MakeGarmentVisual(TEXT("WMCYNAvatarOutfitVisual"));
+    AvatarShoesVisual = MakeGarmentVisual(TEXT("WMCYNAvatarShoesVisual"));
+}
+
+void UWMCYNFirstSignalPresenceComponent::RestoreAvatarSourceTickPolicy()
+{
+    if (SavedAvatarSourceTickPolicy.IsSet() && AvatarTickPolicySource.IsValid())
+    {
+        AvatarTickPolicySource->VisibilityBasedAnimTickOption = SavedAvatarSourceTickPolicy.GetValue();
+    }
+    SavedAvatarSourceTickPolicy.Reset();
+    AvatarTickPolicySource.Reset();
 }
 
 void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
@@ -863,17 +1063,56 @@ void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
         CacheNativeComponents();
     }
 
-    if (!BodyMesh || SkeletalMeshPath.IsEmpty())
+    if (!BodyMesh)
     {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN_AVATAR stage=visual result=failure reason=native_mesh_unavailable"));
         return;
     }
 
-    if (!IsWMCYNRuntimeAvatarPath(SkeletalMeshPath))
+    if (bIsDefaultAvatar)
     {
-        UE_LOG(LogWMCYNPresence, Verbose,
-            TEXT("WMCYN Avatar: retaining native Mimic presentation for non-WMCYN asset %s"),
-            *SkeletalMeshPath);
-        AppliedAvatarCacheKey = CacheKey.IsEmpty() ? SkeletalMeshPath : CacheKey;
+        const bool bChanged = AppliedAvatarCacheKey != TEXT("native-default");
+        if (AvatarBodyVisual) AvatarBodyVisual->SetVisibility(false, true);
+        if (AvatarHeadVisual) AvatarHeadVisual->SetVisibility(false, true);
+        if (AvatarOutfitVisual) AvatarOutfitVisual->SetVisibility(false, true);
+        if (AvatarShoesVisual) AvatarShoesVisual->SetVisibility(false, true);
+        for (UGroomComponent* Groom : AvatarGroomVisuals)
+        {
+            if (Groom) Groom->SetVisibility(false, true);
+        }
+        RestoreAvatarSourceTickPolicy();
+        BodyMesh->SetVisibility(true, false);
+        AppliedAvatarCacheKey = TEXT("native-default");
+        if (bChanged) UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=visual result=success source=native_default"));
+        return;
+    }
+
+    // The matched family is kept rather than a bool: its optional garment
+    // paths are read off it below. They are catalog data, never wire data.
+    const FRuntimeAvatarAcceptFamily* MatchedFamily = nullptr;
+    if (IsWMCYNRuntimeAvatarPath(SkeletalMeshPath))
+    {
+        for (const FRuntimeAvatarAcceptFamily& Family : AcceptedRuntimeAvatarFamilies)
+        {
+            if (SkeletalMeshPath != Family.Body)
+            {
+                continue;
+            }
+            if (!HeadSkeletalMeshPath.IsEmpty() && HeadSkeletalMeshPath != Family.Head)
+            {
+                continue;
+            }
+            if (AnimClassPath != RuntimeAvatarAnimCookReference.ToSoftObjectPath().ToString())
+            {
+                continue;
+            }
+            MatchedFamily = &Family;
+            break;
+        }
+    }
+    if (!MatchedFamily)
+    {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN_AVATAR stage=asset_path result=rejected reason=not_precooked_catalog"));
         return;
     }
 
@@ -887,27 +1126,139 @@ void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
     {
         return;
     }
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=asset_path result=accepted catalog=precooked"));
 
     USkeletalMesh* ResolvedMesh = LoadObject<USkeletalMesh>(nullptr, *SkeletalMeshPath);
     if (!ResolvedMesh)
     {
         UE_LOG(LogWMCYNPresence, Warning,
-            TEXT("WMCYN Avatar: could not load skeletal mesh %s"), *SkeletalMeshPath);
+            TEXT("WMCYN_AVATAR stage=mesh_load result=failure part=body"));
         return;
+    }
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=mesh_load result=success part=body"));
+
+    const FString ResolvedHeadPath = HeadSkeletalMeshPath.IsEmpty() ? DeriveHeadMeshPath(SkeletalMeshPath) : HeadSkeletalMeshPath;
+    USkeletalMesh* LoadedHead = LoadObject<USkeletalMesh>(nullptr, *ResolvedHeadPath);
+    UClass* LoadedAnimation = LoadClass<UAnimInstance>(nullptr, *AnimClassPath);
+    const bool bJaredPresentation = SkeletalMeshPath.Contains(TEXT("/Runtime/Jared/Preview/"));
+    UClass* HeadAnimation = bJaredPresentation ? LoadClass<UAnimInstance>(nullptr,
+        TEXT("/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/ABP_Jared_Head_CopyPose.ABP_Jared_Head_CopyPose_C")) : nullptr;
+    if (bJaredPresentation && !HeadAnimation)
+    {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN_AVATAR stage=mesh_load result=failure part=head_pose"));
+        return;
+    }
+    if (!LoadedHead || !LoadedAnimation)
+    {
+        UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN_AVATAR stage=mesh_load result=failure part=%s"),
+            !LoadedHead ? TEXT("head") : TEXT("animation"));
+        return;
+    }
+    UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN_AVATAR stage=mesh_load result=success part=head_and_animation"));
+
+    // Garments load with everything else: a family that names one and cannot
+    // supply it is a broken family, not an excuse to show a half-dressed
+    // avatar. A family that names none is simply unclothed and still valid.
+    USkeletalMesh* LoadedOutfit = nullptr;
+    USkeletalMesh* LoadedShoes = nullptr;
+    {
+        const TCHAR* const GarmentPaths[] = { MatchedFamily->Outfit, MatchedFamily->Shoes };
+        USkeletalMesh** const GarmentSlots[] = { &LoadedOutfit, &LoadedShoes };
+        const TCHAR* const GarmentNames[] = { TEXT("outfit"), TEXT("shoes") };
+        for (int32 Index = 0; Index < UE_ARRAY_COUNT(GarmentPaths); ++Index)
+        {
+            if (!GarmentPaths[Index])
+            {
+                continue;
+            }
+            *GarmentSlots[Index] = LoadObject<USkeletalMesh>(nullptr, GarmentPaths[Index]);
+            if (!*GarmentSlots[Index])
+            {
+                UE_LOG(LogWMCYNPresence, Warning,
+                    TEXT("WMCYN_AVATAR stage=mesh_load result=failure part=%s"), GarmentNames[Index]);
+                return;
+            }
+            UE_LOG(LogWMCYNPresence, Display,
+                TEXT("WMCYN_AVATAR stage=mesh_load result=success part=%s"), GarmentNames[Index]);
+        }
+    }
+
+    // Grooms load with the rest. A family that names one it cannot supply is
+    // broken, and a bald avatar that was meant to have hair should fail loudly
+    // rather than quietly.
+    struct FResolvedGroom
+    {
+        UGroomAsset* Groom = nullptr;
+        UGroomBindingAsset* Binding = nullptr;
+    };
+    TArray<FResolvedGroom> ResolvedGrooms;
+    for (int32 Index = 0; Index < MatchedFamily->GroomCount; ++Index)
+    {
+        const FRuntimeAvatarGroom& Entry = MatchedFamily->Grooms[Index];
+        FResolvedGroom Resolved;
+        Resolved.Groom = LoadObject<UGroomAsset>(nullptr, Entry.Groom);
+        Resolved.Binding = LoadObject<UGroomBindingAsset>(nullptr, Entry.Binding);
+        if (!Resolved.Groom || !Resolved.Binding)
+        {
+            UE_LOG(LogWMCYNPresence, Warning,
+                TEXT("WMCYN_AVATAR stage=mesh_load result=failure part=groom index=%d missing=%s"),
+                Index, !Resolved.Groom ? TEXT("groom") : TEXT("binding"));
+            return;
+        }
+        ResolvedGrooms.Add(Resolved);
+    }
+    if (ResolvedGrooms.Num() > 0)
+    {
+        UE_LOG(LogWMCYNPresence, Display,
+            TEXT("WMCYN_AVATAR stage=mesh_load result=success part=grooms count=%d"),
+            ResolvedGrooms.Num());
     }
 
     EnsureAvatarPresentationComponents();
     if (!AvatarBodyVisual || !AvatarHeadVisual)
     {
         UE_LOG(LogWMCYNPresence, Warning,
-            TEXT("WMCYN Avatar: presentation components could not be created for %s"),
-            *SkeletalMeshPath);
+            TEXT("WMCYN_AVATAR stage=visual result=failure reason=component_creation"));
         return;
     }
 
     if (AvatarBodyVisual->GetSkeletalMeshAsset() != ResolvedMesh)
     {
         AvatarBodyVisual->SetSkeletalMesh(ResolvedMesh);
+    }
+
+    // Garments copy the body's evaluated pose instead of running a retarget of
+    // their own: they share its skeleton, so a leader-pose bind is both correct
+    // and one AnimInstance cheaper per garment. Done after SetSkeletalMesh
+    // above, because the bind maps bone indices between two skinned meshes.
+    {
+        USkeletalMeshComponent* const GarmentVisuals[] = { AvatarOutfitVisual, AvatarShoesVisual };
+        USkeletalMesh* const GarmentMeshes[] = { LoadedOutfit, LoadedShoes };
+        for (int32 Index = 0; Index < UE_ARRAY_COUNT(GarmentVisuals); ++Index)
+        {
+            USkeletalMeshComponent* Visual = GarmentVisuals[Index];
+            if (!Visual)
+            {
+                continue;
+            }
+            if (!GarmentMeshes[Index])
+            {
+                Visual->SetLeaderPoseComponent(nullptr);
+                Visual->SetSkeletalMesh(nullptr);
+                Visual->SetVisibility(false, true);
+                continue;
+            }
+            if (Visual->GetSkeletalMeshAsset() != GarmentMeshes[Index])
+            {
+                Visual->SetSkeletalMesh(GarmentMeshes[Index]);
+            }
+            Visual->AttachToComponent(
+                AvatarBodyVisual, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+            Visual->SetRelativeTransform(FTransform::Identity);
+            Visual->AddTickPrerequisiteComponent(AvatarBodyVisual);
+            Visual->SetLeaderPoseComponent(AvatarBodyVisual);
+            Visual->SetVisibility(true, true);
+        }
     }
 
     // Clear the previous head presentation until this manifest's head is verified.
@@ -921,20 +1272,27 @@ void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
 
     if (!EffectiveHeadPath.IsEmpty())
     {
-        if (USkeletalMesh* ResolvedHeadMesh = LoadObject<USkeletalMesh>(nullptr, *EffectiveHeadPath))
+        if (USkeletalMesh* ResolvedHeadMesh = LoadedHead)
         {
             if (AvatarHeadVisual->GetSkeletalMeshAsset() != ResolvedHeadMesh)
             {
                 AvatarHeadVisual->SetSkeletalMesh(ResolvedHeadMesh);
             }
 
-            const FName HeadAttachmentBone = AvatarBodyVisual->DoesSocketExist(TEXT("head"))
+            const FName HeadAttachmentBone = bJaredPresentation ? NAME_None : AvatarBodyVisual->DoesSocketExist(TEXT("head"))
                 ? FName(TEXT("head"))
                 : FName(TEXT("neck_01"));
             AvatarHeadVisual->AttachToComponent(
                 AvatarBodyVisual,
                 FAttachmentTransformRules::SnapToTargetNotIncludingScale,
                 HeadAttachmentBone);
+            AvatarHeadVisual->AddTickPrerequisiteComponent(AvatarBodyVisual);
+            if (bJaredPresentation)
+            {
+                AvatarHeadVisual->SetRelativeTransform(FTransform::Identity);
+                AvatarHeadVisual->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+                AvatarHeadVisual->SetAnimInstanceClass(HeadAnimation);
+            }
             AvatarHeadVisual->SetVisibility(true, true);
         }
         else
@@ -946,9 +1304,46 @@ void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
         }
     }
 
+    // Grooms attach to the head, not the body: the binding was built against
+    // the head mesh, and hair that follows the pelvis is worse than no hair.
+    // Created here rather than in EnsureAvatarPresentationComponents because
+    // the count depends on the matched family.
+    while (AvatarGroomVisuals.Num() < ResolvedGrooms.Num())
+    {
+        const int32 Index = AvatarGroomVisuals.Num();
+        UGroomComponent* Groom = NewObject<UGroomComponent>(
+            OwnerCharacter, *FString::Printf(TEXT("WMCYNAvatarGroom_%d"), Index));
+        OwnerCharacter->AddInstanceComponent(Groom);
+        Groom->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Groom->SetGenerateOverlapEvents(false);
+        Groom->RegisterComponent();
+        AvatarGroomVisuals.Add(Groom);
+    }
+    for (int32 Index = 0; Index < AvatarGroomVisuals.Num(); ++Index)
+    {
+        UGroomComponent* Groom = AvatarGroomVisuals[Index];
+        if (!Groom)
+        {
+            continue;
+        }
+        if (!ResolvedGrooms.IsValidIndex(Index))
+        {
+            // Left over from a previous family with more grooms.
+            Groom->SetVisibility(false, true);
+            continue;
+        }
+        Groom->AttachToComponent(
+            AvatarHeadVisual, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        Groom->SetRelativeTransform(FTransform::Identity);
+        Groom->AddTickPrerequisiteComponent(AvatarHeadVisual);
+        Groom->SetBindingAsset(ResolvedGrooms[Index].Binding);
+        Groom->SetGroomAsset(ResolvedGrooms[Index].Groom);
+        Groom->SetVisibility(true, true);
+    }
+
     if (!AnimClassPath.IsEmpty())
     {
-        if (UClass* ResolvedAnimClass = LoadClass<UAnimInstance>(nullptr, *AnimClassPath))
+        if (UClass* ResolvedAnimClass = LoadedAnimation)
         {
             AvatarBodyVisual->SetAnimationMode(EAnimationMode::AnimationBlueprint);
             AvatarBodyVisual->SetAnimInstanceClass(ResolvedAnimClass);
@@ -961,15 +1356,20 @@ void UWMCYNFirstSignalPresenceComponent::ApplyAvatarPresentation(
     }
 
     // Keep Mimic instantiated for tracking; only the WMCYN wrapper is visible.
-    BodyMesh->SetVisibility(false, true);
+    if (AvatarTickPolicySource.Get() != BodyMesh.Get())
+    {
+        RestoreAvatarSourceTickPolicy();
+        AvatarTickPolicySource = BodyMesh;
+        SavedAvatarSourceTickPolicy = BodyMesh->VisibilityBasedAnimTickOption;
+    }
+    // AlwaysTickPose alone leaves component-space bones stale when the source is hidden.
+    BodyMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+    AvatarBodyVisual->AddTickPrerequisiteComponent(BodyMesh);
+    BodyMesh->SetVisibility(false, false);
     AvatarBodyVisual->SetVisibility(true, true);
     AppliedAvatarCacheKey = EffectiveCacheKey;
     UE_LOG(LogWMCYNPresence, Display,
-        TEXT("WMCYN Avatar: applied %s presentation wrapper body=%s head=%s anim=%s"),
-        bIsDefaultAvatar ? TEXT("default") : TEXT("published-placeholder"),
-        *SkeletalMeshPath,
-        *EffectiveHeadPath,
-        AnimClassPath.IsEmpty() ? TEXT("reference-pose") : *AnimClassPath);
+        TEXT("WMCYN_AVATAR stage=visual result=success source=published_precooked"));
 }
 
 void UWMCYNFirstSignalPresenceComponent::ServerSubmitAvatarPresentation_Implementation(
@@ -979,23 +1379,69 @@ void UWMCYNFirstSignalPresenceComponent::ServerSubmitAvatarPresentation_Implemen
     const FString& CacheKey,
     const bool bIsDefaultAvatar)
 {
-    ReplicatedAvatarSkeletalMeshPath = SkeletalMeshPath.TrimStartAndEnd();
-    ReplicatedAvatarHeadSkeletalMeshPath = HeadSkeletalMeshPath.TrimStartAndEnd();
-    ReplicatedAvatarAnimClassPath = AnimClassPath.TrimStartAndEnd();
-    ReplicatedAvatarCacheKey = CacheKey.TrimStartAndEnd();
-    bReplicatedAvatarIsDefault = bIsDefaultAvatar;
-
-    ApplyAvatarPresentation(
-        ReplicatedAvatarSkeletalMeshPath,
-        ReplicatedAvatarHeadSkeletalMeshPath,
-        ReplicatedAvatarAnimClassPath,
-        ReplicatedAvatarCacheKey,
-        bReplicatedAvatarIsDefault);
-
-    if (OwnerCharacter)
+    if (!OwnerCharacter || !OwnerCharacter->HasAuthority() || !OwnerCharacter->GetController() ||
+        OwnerCharacter->GetController()->GetPawn() != OwnerCharacter)
     {
-        OwnerCharacter->ForceNetUpdate();
+        return;
     }
+    // The RPC is a request to resolve, never permission to choose asset paths.
+    if (!bIsDefaultAvatar || !SkeletalMeshPath.IsEmpty() || !HeadSkeletalMeshPath.IsEmpty() ||
+        !AnimClassPath.IsEmpty() || !CacheKey.IsEmpty())
+    {
+        if (!bAvatarSubmissionRejectedLogged)
+        {
+            UE_LOG(LogWMCYNPresence, Warning, TEXT("WMCYN_AVATAR stage=authority result=rejected reason=unverified_client_selection"));
+            bAvatarSubmissionRejectedLogged = true;
+        }
+        return;
+    }
+    if (bAvatarManifestRequested || AvatarManifestAttempts >= 3 ||
+        GetWorld()->GetTimeSeconds() < NextAvatarManifestRequestTime)
+    {
+        return;
+    }
+    auto* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<UWMCYNWorldRuntimeSubsystem>();
+    auto* Controller = Cast<APlayerController>(OwnerCharacter->GetController());
+    if (!Runtime || !Runtime->IsRuntimeRegistrationActive() || !Controller) return;
+    bAvatarManifestRequested = true;
+    ++AvatarManifestAttempts;
+    const TWeakObjectPtr<APlayerController> RequestedController(Controller);
+    Runtime->RequestAccountAvatar(Controller, FWMCYNAvatarManifestCallback::CreateWeakLambda(this,
+        [this, RequestedController](bool bSuccess, const FWMCYNAvatarManifest& Manifest, const FString&)
+        {
+            if (!OwnerCharacter || !RequestedController.IsValid() ||
+                OwnerCharacter->GetController() != RequestedController.Get()) return;
+            if (!bSuccess)
+            {
+                bAvatarManifestRequested = false;
+                NextAvatarManifestRequestTime = GetWorld()->GetTimeSeconds() + 5.0f * AvatarManifestAttempts;
+                return;
+            }
+            bool bAccepted = Manifest.bIsDefaultAvatar;
+            for (const FRuntimeAvatarAcceptFamily& Family : AcceptedRuntimeAvatarFamilies)
+            {
+                bAccepted |= Manifest.DeliverySkeletalMeshPath == Family.Body &&
+                    Manifest.DeliveryHeadSkeletalMeshPath == Family.Head &&
+                    Manifest.DeliveryAnimClassPath == RuntimeAvatarAnimCookReference.ToSoftObjectPath().ToString();
+            }
+            if (!bAccepted)
+            {
+                UE_LOG(LogWMCYNPresence, Warning,
+                    TEXT("WMCYN_AVATAR stage=authority result=rejected reason=not_precooked_catalog"));
+                return;
+            }
+            bReplicatedAvatarIsDefault = Manifest.bIsDefaultAvatar;
+            ReplicatedAvatarSkeletalMeshPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliverySkeletalMeshPath;
+            ReplicatedAvatarHeadSkeletalMeshPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliveryHeadSkeletalMeshPath;
+            ReplicatedAvatarAnimClassPath = Manifest.bIsDefaultAvatar ? FString() : Manifest.DeliveryAnimClassPath;
+            ReplicatedAvatarCacheKey = Manifest.bIsDefaultAvatar ? TEXT("native-default") : Manifest.CacheKey;
+            // A headless server validates the catalog but need not instantiate visual meshes.
+            if (GetWorld()->GetNetMode() != NM_DedicatedServer) OnRep_AvatarPresentation();
+            OwnerCharacter->ForceNetUpdate();
+            UE_LOG(LogWMCYNPresence, Display,
+                TEXT("WMCYN_AVATAR stage=authority result=accepted source=%s"),
+                Manifest.bIsDefaultAvatar ? TEXT("default") : TEXT("account_manifest"));
+        }));
 }
 
 void UWMCYNFirstSignalPresenceComponent::OnRep_AvatarPresentation()
@@ -1290,21 +1736,21 @@ void UWMCYNFirstSignalPresenceComponent::RefreshNameplate()
             const FString PreferredDisplayName = ResolvePreferredDisplayName(PlayerState);
             if (!PreferredDisplayName.IsEmpty())
             {
-                if (UFunction* UpdatedPlayerName = NameplateWidget->FindFunction(TEXT("Updated_PlayerName_Event")))
+                // AFCore's unsuffixed event is empty; the bound _0 event updates its text widget.
+                if (UFunction* UpdatedPlayerName = NameplateWidget->FindFunction(TEXT("Updated_PlayerName_Event_0")))
                 {
                     if (FProperty* FirstProperty = UpdatedPlayerName->PropertyLink)
                     {
-                        TArray<uint8> Params;
-                        Params.SetNumZeroed(UpdatedPlayerName->ParmsSize);
+                        FStructOnScope Params(UpdatedPlayerName);
                         if (FTextProperty* TextProperty = CastField<FTextProperty>(FirstProperty))
                         {
-                            TextProperty->SetPropertyValue_InContainer(Params.GetData(), FText::FromString(PreferredDisplayName));
-                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetData());
+                            TextProperty->SetPropertyValue_InContainer(Params.GetStructMemory(), FText::FromString(PreferredDisplayName));
+                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetStructMemory());
                         }
                         else if (FStrProperty* StringProperty = CastField<FStrProperty>(FirstProperty))
                         {
-                            StringProperty->SetPropertyValue_InContainer(Params.GetData(), PreferredDisplayName);
-                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetData());
+                            StringProperty->SetPropertyValue_InContainer(Params.GetStructMemory(), PreferredDisplayName);
+                            NameplateWidget->ProcessEvent(UpdatedPlayerName, Params.GetStructMemory());
                         }
                     }
                 }
@@ -1349,7 +1795,9 @@ void UWMCYNFirstSignalPresenceComponent::CreateRuntimeMenu()
     }
     if (FObjectPropertyBase* ThemeProperty = FindFProperty<FObjectPropertyBase>(RuntimeMenu->GetClass(), TEXT("theme")))
     {
-        ThemeProperty->SetObjectPropertyValue_InContainer(RuntimeMenu, NameplateThemeAsset.LoadSynchronous());
+        UObject* MenuTheme = RuntimeMenuThemeAsset.LoadSynchronous();
+        ThemeProperty->SetObjectPropertyValue_InContainer(RuntimeMenu,
+            MenuTheme ? MenuTheme : NameplateThemeAsset.LoadSynchronous());
     }
     if (FBoolProperty* WidgetVisibilityProperty = FindFProperty<FBoolProperty>(RuntimeMenu->GetClass(), TEXT("widgetVisibility")))
     {
@@ -1507,6 +1955,45 @@ void UWMCYNFirstSignalPresenceComponent::PositionRuntimeMenu()
     RuntimeMenu->SetWorldRotation(FRotator(0.0f, ToViewer.Rotation().Yaw, 0.0f));
 }
 
+void UWMCYNFirstSignalPresenceComponent::ResetRuntimeMenuPosition()
+{
+    if (OwnerCharacter && OwnerCharacter->IsLocallyControlled()) PositionRuntimeMenu();
+}
+
+void UWMCYNFirstSignalPresenceComponent::SetRuntimeMenuPinned(bool bPinned)
+{
+    if (!OwnerCharacter || !OwnerCharacter->IsLocallyControlled() || !RuntimeMenu) return;
+    bRuntimeMenuPinned = bPinned;
+    // Absolute transform prevents a pinned panel following pawn locomotion.
+    const FTransform Transform = RuntimeMenu->GetComponentTransform();
+    RuntimeMenu->SetAbsolute(bPinned, bPinned, false);
+    RuntimeMenu->SetWorldTransform(Transform);
+    if (!bPinned) PositionRuntimeMenu();
+}
+
+void UWMCYNFirstSignalPresenceComponent::SetLocalMicrophoneMuted(bool bMuted)
+{
+    if (!OwnerCharacter || !OwnerCharacter->IsLocallyControlled()) return;
+    bLocalMicrophoneMuted = bMuted;
+    if (APlayerController* PC = Cast<APlayerController>(OwnerCharacter->GetController()))
+        PC->ConsoleCommand(bMuted ? TEXT("ToggleSpeaking 0") : TEXT("ToggleSpeaking 1"), true);
+}
+
+FString UWMCYNFirstSignalPresenceComponent::GetLocalMicrophoneStatus() const
+{
+    if (!OwnerCharacter || !OwnerCharacter->IsLocallyControlled()) return TEXT("Mic unavailable");
+#if PLATFORM_ANDROID
+    if (!UAndroidPermissionFunctionLibrary::CheckPermission(TEXT("android.permission.RECORD_AUDIO")))
+        return TEXT("Mic permission required");
+#endif
+    if (bLocalMicrophoneMuted) return TEXT("Mic muted");
+    IOnlineSubsystem* OSS = Online::GetSubsystem(GetWorld());
+    const IOnlineVoicePtr Voice = OSS ? OSS->GetVoiceInterface() : nullptr;
+    if (!Voice.IsValid()) return TEXT("Voice unavailable");
+    if (Voice->IsLocalPlayerTalking(0)) return TEXT("Mic transmitting");
+    return bVoiceActivationRequested ? TEXT("Mic requested / idle") : TEXT("Mic starting");
+}
+
 void UWMCYNFirstSignalPresenceComponent::RegisterVoice()
 {
     if (bVoiceRegistered || !OwnerCharacter)
@@ -1522,7 +2009,7 @@ void UWMCYNFirstSignalPresenceComponent::RegisterVoice()
 
     if (!VoiceTalker)
     {
-        VoiceTalker = NewObject<UVOIPTalker>(OwnerCharacter, TEXT("WMCYN_VOIPTalker_Runtime"));
+        VoiceTalker = NewObject<UWMCYNLocalVoiceTalker>(OwnerCharacter, TEXT("WMCYN_VOIPTalker_Runtime"));
         if (!VoiceTalker)
         {
             return;
@@ -1635,7 +2122,7 @@ void UWMCYNFirstSignalPresenceComponent::HandleVoiceSessionCreated(const FName S
 
     if (APlayerController* Controller = Cast<APlayerController>(OwnerCharacter ? OwnerCharacter->GetController() : nullptr))
     {
-        Controller->ConsoleCommand(TEXT("ToggleSpeaking 1"), true);
+        Controller->ConsoleCommand(bLocalMicrophoneMuted ? TEXT("ToggleSpeaking 0") : TEXT("ToggleSpeaking 1"), true);
     }
 
     UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Voice: native local capture requested (%s)"), bWasSuccessful ? TEXT("session ready") : TEXT("fallback"));
@@ -1774,19 +2261,7 @@ FString UWMCYNFirstSignalPresenceComponent::ResolvePreferredDisplayName(const AP
     FString Username = ReadOptionalStringProperty(TEXT("username"));
     FString PlayerName = PlayerState->GetPlayerName().TrimStartAndEnd();
 
-    if (!DisplayName.IsEmpty() && !LooksLikeUuid(DisplayName))
-    {
-        return DisplayName;
-    }
-    if (!PlayerName.IsEmpty() && !LooksLikeUuid(PlayerName))
-    {
-        return PlayerName;
-    }
-    if (!Username.IsEmpty())
-    {
-        return Username;
-    }
-    return PlayerName;
+    return WMCYNIdentityPolicy::PreferredName(DisplayName, Username, PlayerName);
 }
 
 bool UWMCYNFirstSignalPresenceComponent::LooksLikeUuid(const FString& Value) const

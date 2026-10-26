@@ -13,6 +13,8 @@ struct WMCYNRUNTIME_API FWMCYNJoinTicketPayload
 {
     FString TicketId;
     FString Uid;
+    FString Username;
+    FString DisplayName;
     FString WorldId;
     FString LocationId;
     FString RuntimeId;

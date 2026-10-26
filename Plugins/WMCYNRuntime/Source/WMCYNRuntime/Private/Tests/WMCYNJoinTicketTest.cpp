@@ -58,6 +58,13 @@ bool FWMCYNJoinTicketNodeParityTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("slot"), Payload.Slot, TEXT("StandaloneVR_A"));
     TestEqual(TEXT("mode"), Payload.Mode, TEXT("Quest"));
 
+    const TCHAR* IdentityTicket = TEXT("v1.eyJ0aWQiOiJmaXh0dXJlLXYyIiwidWlkIjoiZml4dHVyZS11aWQiLCJ1c2VybmFtZSI6ImphcmVkIiwiZGlzcGxheU5hbWUiOiJKYXJlZCIsIndvcmxkSWQiOiJ3bWN5bi1vbmxpbmUiLCJsb2NhdGlvbklkIjoid21jeW4tY3JpYiIsInJ1bnRpbWVJZCI6ImZpeHR1cmUtcnVudGltZSIsImJ1aWxkSWQiOiJmaXJzdC1zaWduYWwtMDAxIiwicHJvdG9jb2xWZXJzaW9uIjoyLCJtb2RlIjoiUENWUiIsInNsb3QiOiJQQ1ZSX1JlY29yZGluZyIsImNhcGFiaWxpdGllcyI6WyJSZWNvcmRpbmciXSwiaWF0IjoxNzUyNTg1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.oGx7w51GtrxE0Tip531H4Fo7Fm0HXsjJJEvsomRQc4U");
+    TestTrue(TEXT("Node signed identity ticket verifies"),
+        WMCYNJoinTicket::VerifyJoinTicket(GFixtureSecret, IdentityTicket, Payload));
+    TestEqual(TEXT("signed username"), Payload.Username, FString(TEXT("jared")));
+    TestEqual(TEXT("signed display name"), Payload.DisplayName, FString(TEXT("Jared")));
+    TestEqual(TEXT("identity protocol"), Payload.ProtocolVersion, 2);
+
     TestFalse(TEXT("Wrong secret fails"),
         WMCYNJoinTicket::VerifyJoinTicket(TEXT("wrong-secret-wrong-secret-wrong-secret"), GFixtureTicket, Payload));
 

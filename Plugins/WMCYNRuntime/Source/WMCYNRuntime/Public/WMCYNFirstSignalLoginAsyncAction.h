@@ -22,6 +22,9 @@ class WMCYNRUNTIME_API UWMCYNFirstSignalLoginAsyncAction : public UBlueprintAsyn
     GENERATED_BODY()
 
 public:
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend", meta = (WorldContext = "WorldContextObject"))
+    static bool ContinueRememberedSignIn(const UObject* WorldContextObject, UUserWidget* LoginWidget);
+
     static bool StartForLoginWidget(
         const UObject* WorldContextObject,
         UUserWidget* LoginWidget,
@@ -81,4 +84,6 @@ private:
     FString LoginPassword;
     bool bAllowLocalPIEFallback = true;
     bool bFinished = false;
+    bool bRestoreRememberedSignIn = false;
+    bool bAuthenticationStarted = false;
 };
