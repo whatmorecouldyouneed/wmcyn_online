@@ -2,6 +2,8 @@
 Binaries/
 Build/
 Builds/
+!Tools/Build/
+!Tools/Build/*.ps1
 
 # Exception: ship the prebuilt WMCYNRuntime editor module so level/Blueprint
 # collaborators can open the project without a C++ toolchain. The BuildId in

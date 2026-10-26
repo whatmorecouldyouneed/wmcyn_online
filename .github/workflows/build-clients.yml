@@ -1,0 +1,89 @@
+name: Build VR Clients
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Source/**'
+      - 'Plugins/**'
+      - 'Content/**'
+      - 'Config/**'
+      - '*.uproject'
+      - '.gitattributes'
+      - 'Tools/Build/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [Both, Quest, PCVR]
+        default: Both
+      configuration:
+        type: choice
+        options: [Development, Shipping]
+        default: Development
+      publish_alpha:
+        description: Publish the Quest artifact to ALPHA after validation
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Shared with the existing server workflow. Never interrupt a cook or upload.
+concurrency:
+  group: unreal-build
+  cancel-in-progress: false
+
+jobs:
+  clients:
+    runs-on: [self-hosted, wmcyn]
+    timeout-minutes: 720
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          lfs: true
+          path: client-release
+          persist-credentials: false
+      - name: Build selected clients
+        env:
+          TARGET: ${{ inputs.target || 'Both' }}
+          CONFIGURATION: ${{ inputs.configuration || 'Development' }}
+          PUBLISH_ALPHA: ${{ inputs.publish_alpha || false }}
+          # Existing runner-only signing files; contents never printed.
+          WMCYN_SIGNING_INI: ${{ vars.WMCYN_SIGNING_INI }}
+          WMCYN_KEYSTORE: ${{ vars.WMCYN_KEYSTORE }}
+          WMCYN_CERT_SHA256: ${{ vars.WMCYN_CERT_SHA256 }}
+        run: |
+          & ./client-release/Tools/Build/Build-Clients.ps1 -Target $env:TARGET -Configuration $env:CONFIGURATION -PublishRequested ($env:PUBLISH_ALPHA -eq 'true')
+      - name: Preserve packages and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmcyn-clients-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            client-release/Saved/FounderRelease/**
+            client-release/Saved/Logs/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Publish verified Quest package
+        if: success() && inputs.publish_alpha
+        env:
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+        run: |
+          & ./client-release/Tools/Build/Publish-QuestAlpha.ps1
+      - name: Build summary
+        if: always()
+        run: |
+          @'
+          ## Founder client build
+          Commit: `${{ github.sha }}`
+          [Artifacts and logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          Packages are build evidence, not headset or remote multiplayer acceptance.
+          ALPHA publication is explicit; server deployment is separate.
+          '@ | Add-Content $env:GITHUB_STEP_SUMMARY

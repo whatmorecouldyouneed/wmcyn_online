@@ -57,6 +57,10 @@ jobs:
   build:
     runs-on: [self-hosted, wmcyn]
     steps:
+      - name: Use the isolated client release workflow
+        shell: powershell
+        run: |
+          throw 'This legacy workflow packages the interactive workspace. Use Build VR Clients with target Quest instead.'
       - name: Check signing config is present
         shell: powershell
         run: |
