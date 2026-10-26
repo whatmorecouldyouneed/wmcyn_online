@@ -1,5 +1,20 @@
 # Agent Handoff
 
+## Active Release Checkpoint - 2026-10-26
+
+Read `Release/FOUNDER_BUILD_2026_10_26.md` first; older status below is historical.
+Unreal source/assets pushed through dcc98d1; backend through 1be0443. Founder
+explicitly approved retaining existing framework changes unchanged. Five native
+tests passed in the October 23 rerun; backend build and 58 tests passed today.
+Client Actions run 40408026391 is artifact-only and currently fetching its isolated
+checkout/LFS content. Runner online; release key and Meta CLI configured.
+Canonical cloud world confirmed online with fresh heartbeat but protocol 1;
+new client code requires protocol 2. No ALPHA upload or server/API deployment yet.
+Next: inspect Actions results, repair clean-build failures, then coordinate the
+matching server/backend deployment and headset validation before publication.
+Do not replace the world while users are active. Preserve remaining local docs,
+source art and tooling; they are not part of the runtime checkpoint.
+
 ## 2026-10-23 First Interview Checkpoint
 
 - Unreal branch `main`, starting HEAD `5d74a0a` (2026-10-14). Over 250 dirty
@@ -55,6 +70,22 @@
 - Attempted docs-only checkpoint was blocked twice by a concurrent Git index
   lock (active Git processes observed). Left lock and existing index untouched.
   New docs remain uncommitted; retry after that operation finishes.
+
+## 2026-10-23 Avatar Appearance Pass (separate, founder-directed)
+
+- Founder directed continuing Jared avatar appearance work despite the Next Exact
+  Task below. Garments, grooms, groom materials and eye stand-ins are implemented;
+  see `Docs/CURRENT_STATE.md` for the derivation and the open judgement call.
+- **This pass rebuilt and relinked WMCYNRuntime + WMCYNRuntimeEditor** with the
+  Launcher UE_5.8 engine selected by matching the plugin manifest BuildId, not by
+  a hardcoded path. The identity/camera automation below has therefore not been
+  run against the DLLs that are now loaded. Treat the native checkpoint as still
+  unverified and rerun it.
+- `WMCYNRuntime.uplugin` now lists the `HairStrands` dependency, clearing the
+  pre-existing warning recorded above.
+- Evidence is two JSON reports under `Saved/Diagnostics/Avatars/`. No headset,
+  PIE, packaged or remote verification was performed. Do not record this pass as
+  a visual pass.
 
 ## Next Exact Task
 
