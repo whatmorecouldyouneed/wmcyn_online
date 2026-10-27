@@ -4,6 +4,9 @@ param(
     [bool]$PublishRequested = $false
 )
 $ErrorActionPreference = 'Stop'
+# Fail in the first second if Utility cannot load, not seven minutes in.
+Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
+. "$PSScriptRoot/Common.ps1"
 $root = (Resolve-Path "$PSScriptRoot/../..").Path
 if (-not $env:GITHUB_WORKSPACE -or -not $root.StartsWith([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE), [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Run in the dedicated Actions checkout, not the interactive project.'
@@ -198,7 +201,7 @@ $notes += @(
 [IO.File]::WriteAllLines("$output/INSTALL.md", $notes)
 
 $hashes = @(Get-ChildItem $output -Recurse -File | ForEach-Object {
-    @{ path = $_.FullName.Substring($output.Length + 1); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash; bytes = $_.Length }
+    @{ path = $_.FullName.Substring($output.Length + 1); sha256 = (Get-Sha256Hex $_.FullName); bytes = $_.Length }
 })
 @{ commit=$sha; configuration=$Configuration; target=$Target; versionCode=$version; files=$hashes;
    questApkBytes=$apkBytes; questApkSizeState=$sizeState; certificateSha256=$fingerprint;

@@ -1,10 +1,12 @@
 $ErrorActionPreference = 'Stop'
+Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
+. "$PSScriptRoot/Common.ps1"
 $root = (Resolve-Path "$PSScriptRoot/../..").Path
 $output = "$root/Saved/FounderRelease"
 $manifest = Get-Content "$output/build-manifest.json" -Raw | ConvertFrom-Json
 if ($manifest.commit -ne $env:GITHUB_SHA) { throw 'Manifest commit mismatch.' }
 foreach ($file in $manifest.files) {
-    if ((Get-FileHash (Join-Path $output $file.path) -Algorithm SHA256).Hash -ne $file.sha256) { throw 'Artifact changed after verification.' }
+    if ((Get-Sha256Hex (Join-Path $output $file.path)) -ne $file.sha256) { throw 'Artifact changed after verification.' }
 }
 $apk = @(Get-ChildItem "$output/Android" -Recurse -Filter '*.apk')
 $obb = @(Get-ChildItem "$output/Android" -Recurse -Filter '*.obb')
