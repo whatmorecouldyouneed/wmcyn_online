@@ -63,9 +63,11 @@ project; a build against another install can exit 0 without compiling.
 - Meta caps the APK at 1 GB (VRC.Quest.Packaging.5). The build fails above
   1 GiB and warns between decimal 1 GB and 1 GiB, because Meta's wording does
   not say which it means.
-- `bPackageDataInsideApk=True`, so no OBB is produced. Going over the cap
-  requires turning that off; the build and publish scripts already handle an
-  OBB once one exists.
+- `bPackageDataInsideApk=False`, so game data ships in an expansion file named
+  `main.<versionCode>.<package>.obb`. The build fails if it is missing, misnamed
+  or over 4 GB. A channel install delivers it automatically; a sideload needs it
+  pushed to `/sdcard/Android/obb/<package>/` by hand, and the client launches to
+  an empty world without it. See the `INSTALL.md` written beside each build.
 - Quest clients do not show the MetaHuman avatar. The plugin is desktop-only,
   and MetaHuman content is excluded from the Android cook.
 - Signing is applied after packaging by `apksigner`, not by Unreal's

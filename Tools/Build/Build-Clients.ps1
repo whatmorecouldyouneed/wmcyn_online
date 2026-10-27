@@ -25,7 +25,7 @@ foreach ($key in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
 }
 $version = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 # Quest-only validation facts; stay null for PCVR builds.
-$apkBytes = $null; $sizeState = $null; $fingerprint = $null; $pcvrArchive = $null
+$apkBytes = $null; $sizeState = $null; $fingerprint = $null; $pcvrArchive = $null; $obbBytes = $null; $obbName = $null
 if ($version -gt 2100000000) { throw 'Android version allocation requires migration.' }
 if ($Target -ne 'PCVR') {
     foreach ($path in @($env:WMCYN_SIGNING_INI, $env:WMCYN_KEYSTORE)) {
@@ -106,6 +106,29 @@ if ($Target -ne 'PCVR') {
     if ($sizeState -ne 'ok') {
         Write-Warning ("Quest APK is {0:N0} bytes: under 1 GiB by {1:N0} but over decimal 1 GB. Upload may be rejected; prefer an OBB." -f $apkBytes, ($limitBinary - $apkBytes))
     }
+
+    # Data ships outside the APK, so an expansion file must exist and must carry
+    # the exact name Meta expects: main.<versionCode>.<package>.obb. A mismatch
+    # is rejected at upload, so fail here instead.
+    $engineIni = Get-Content -LiteralPath "$root/Config/DefaultEngine.ini" -Raw
+    $packageName = [regex]::Match($engineIni, '(?m)^PackageName=(.+)$').Groups[1].Value.Trim()
+    $dataInsideApk = [regex]::Match($engineIni, '(?m)^bPackageDataInsideApk=(\w+)$').Groups[1].Value
+    $obb = @(Get-ChildItem "$output/Android" -Recurse -Filter '*.obb')
+    if ($obb.Count -gt 1) { throw 'More than one expansion file; review the package layout before upload.' }
+    if ($dataInsideApk -eq 'False' -and $obb.Count -eq 0) {
+        throw 'Data is configured outside the APK but no expansion file was produced.'
+    }
+    if ($obb.Count -eq 1) {
+        $obbBytes = $obb[0].Length
+        $obbName = $obb[0].Name
+        if ($obbBytes -gt 4294967296) {
+            throw ("Expansion file is {0:N0} bytes, over Meta's 4 GB cap." -f $obbBytes)
+        }
+        $expectedObb = "main.$version.$packageName.obb"
+        if ($obbName -ne $expectedObb) {
+            throw "Expansion file is named $obbName but Meta requires $expectedObb."
+        }
+    }
 }
 # Protocol and build identifiers come from the shipped world contract, so the
 # manifest cannot drift from what the client actually negotiates with the server.
@@ -144,6 +167,24 @@ if ($apkBytes) {
         ""
     )
 }
+if ($obbName) {
+    # An expansion file is not installed by adb install. Pushing it to the wrong
+    # path, or renaming it, gives a client that launches to an empty world.
+    $notes += @(
+        "## Expansion file",
+        "",
+        "Game data is in $obbName ($obbBytes bytes), not inside the APK.",
+        "A channel install from Meta delivers it automatically. A sideload does not:",
+        "",
+        "    adb install -r <apk>",
+        "    adb shell mkdir -p /sdcard/Android/obb/$packageName",
+        "    adb push $obbName /sdcard/Android/obb/$packageName/",
+        "",
+        "Do not rename it. The APK looks for this exact filename and launches to an",
+        "empty world without it.",
+        ""
+    )
+}
 if ($pcvrArchive) {
     $notes += @("## PCVR", "", "Unzip $pcvrArchive and run the packaged executable.", "")
 }
@@ -162,5 +203,6 @@ $hashes = @(Get-ChildItem $output -Recurse -File | ForEach-Object {
 @{ commit=$sha; configuration=$Configuration; target=$Target; versionCode=$version; files=$hashes;
    questApkBytes=$apkBytes; questApkSizeState=$sizeState; certificateSha256=$fingerprint;
    protocolVersion=$protocolVersion; buildId=$buildId; worldCapacity=$worldCapacity; pcvrArchive=$pcvrArchive;
+   questObbBytes=$obbBytes; questObbName=$obbName;
    hardwareAcceptance='pending'; serverCompatibility='requires verification' } |
     ConvertTo-Json -Depth 6 | Set-Content "$output/build-manifest.json"
