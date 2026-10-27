@@ -47,7 +47,7 @@ channel starts empty, and the Administrator role does not grant access.
 | --- | --- |
 | Unreal Engine | 5.8, Launcher install at `C:\Program Files\Epic Games\UE_5.8` |
 | Android build-tools | 36.0.0 (`apksigner`) |
-| Min / target SDK | 29 / 35 |
+| Min / target SDK | 29 / 34 (Meta rejects above 34) |
 | Android package | `com.wmcyn.wmcyn_online` |
 | Android graphics | Vulkan only; OpenGL ES3.1 disabled |
 | Windows graphics | DX11 / SM5 only; SM6 and ES31 shader formats disabled |
@@ -60,9 +60,14 @@ project; a build against another install can exit 0 without compiling.
 
 ## Known constraints
 
-- Meta caps the APK at 1 GB (VRC.Quest.Packaging.5). The build fails above
-  1 GiB and warns between decimal 1 GB and 1 GiB, because Meta's wording does
-  not say which it means.
+- The uploader states a 1.10 GB APK limit, while VRC.Quest.Packaging.5 states
+  1 GB. The build fails above 1 GiB and warns between decimal 1 GB and 1 GiB,
+  which is conservative against both.
+- Meta validates the manifest at upload and reports every failure at once, so
+  each mistake costs a full build. Shipping builds are gated locally on
+  `android:debuggable` false, `android:installLocation=auto`, a landscape
+  `android:screenOrientation`, and `targetSdkVersion` at most 34. Shipping
+  passes `-distribution`, without which Unreal marks the APK debuggable.
 - `bPackageDataInsideApk=False`, so game data ships in an expansion file named
   `main.<versionCode>.<package>.obb`. The build fails if it is missing, misnamed
   or over 4 GB. A channel install delivers it automatically; a sideload needs it

@@ -53,6 +53,11 @@ $platforms = if ($Target -eq 'Both') { @('Win64','Android') } elseif ($Target -e
 foreach ($platform in $platforms) {
     $args = @('BuildCookRun', "-project=$project", "-platform=$platform", "-clientconfig=$Configuration", '-build','-cook','-stage','-pak','-package','-archive',"-archivedirectory=$output/$platform",'-unattended','-noP4','-utf8output')
     if ($platform -eq 'Android') { $args += '-cookflavor=ASTC' }
+    # Without -distribution Unreal emits android:debuggable="true", which Meta
+    # rejects outside private channels. It also applies the keystore from the
+    # signing override written above; the explicit apksigner pass still runs and
+    # normalises to v2-only.
+    if ($platform -eq 'Android' -and $Configuration -eq 'Shipping') { $args += '-distribution' }
     & $uat @args
     if ($LASTEXITCODE -ne 0) { throw "$platform packaging failed ($LASTEXITCODE)." }
 }
@@ -133,6 +138,26 @@ if ($Target -ne 'PCVR') {
         $expectedObb = "main.$version.$packageName.obb"
         if ($obbName -ne $expectedObb) {
             throw "Expansion file is named $obbName but Meta requires $expectedObb."
+        }
+    }
+
+    # Meta validates the manifest at upload and reports all failures at once,
+    # costing a full build per round trip. Check the same attributes here.
+    # Development builds are meant to be debuggable, so only gate Shipping.
+    if ($Configuration -eq 'Shipping') {
+        $generated = @(Get-ChildItem "$root/Intermediate/Android" -Recurse -Filter 'AndroidManifest.xml' -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending)
+        if ($generated.Count -eq 0) { throw 'No generated AndroidManifest.xml to validate.' }
+        $xml = Get-Content -LiteralPath $generated[0].FullName -Raw
+        $problems = @()
+        if ($xml -match 'android:debuggable="true"') { $problems += 'android:debuggable is true' }
+        if ($xml -notmatch 'android:installLocation="auto"') { $problems += 'android:installLocation is not auto' }
+        $orientation = [regex]::Match($xml, 'android:screenOrientation="([^"]+)"').Groups[1].Value
+        if ($orientation -and $orientation -ne 'landscape') { $problems += "android:screenOrientation is $orientation" }
+        $targetSdk = [regex]::Match($xml, 'android:targetSdkVersion="(\d+)"').Groups[1].Value
+        if ($targetSdk -and [int]$targetSdk -gt 34) { $problems += "targetSdkVersion is $targetSdk" }
+        if ($problems.Count -gt 0) {
+            throw ("Meta would reject this APK: {0}. Fixing these needs a repackage." -f ($problems -join '; '))
         }
     }
 }
