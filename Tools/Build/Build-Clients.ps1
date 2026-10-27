@@ -24,6 +24,8 @@ foreach ($key in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
     if ($value) { [Environment]::SetEnvironmentVariable($key, $value, 'Process') }
 }
 $version = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+# Quest-only validation facts; stay null for PCVR builds.
+$apkBytes = $null; $sizeState = $null; $fingerprint = $null; $pcvrArchive = $null
 if ($version -gt 2100000000) { throw 'Android version allocation requires migration.' }
 if ($Target -ne 'PCVR') {
     foreach ($path in @($env:WMCYN_SIGNING_INI, $env:WMCYN_KEYSTORE)) {
@@ -37,6 +39,12 @@ if ($Target -ne 'PCVR') {
     if ($ini -notmatch '(?m)^KeyStore=wmcyn-release\.keystore\s*$') { throw 'Signing override must reference wmcyn-release.keystore.' }
     $ini = $ini -replace '(?m)^StoreVersion=.*', "StoreVersion=$version"
     [IO.File]::WriteAllText("$root/Config/Android/AndroidEngine.ini", $ini)
+    # AndroidFileServer is a USB file-serving dev tool CI never uses. Leaving it
+    # enabled breaks Shipping: AndroidFileServer_UPL.xml forces bCompileAFSProject
+    # back on when Configuration=Shipping and bIncludeInShipping=False, then runs a
+    # bare "gradlew.bat" in AFSProject, which has no wrapper. Fails after the cook.
+    $afs = @('', '[/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings]', 'bEnablePlugin=False', '') -join "`r`n"
+    [IO.File]::AppendAllText("$root/Config/Android/AndroidEngine.ini", $afs)
 }
 $platforms = if ($Target -eq 'Both') { @('Win64','Android') } elseif ($Target -eq 'Quest') { @('Android') } else { @('Win64') }
 foreach ($platform in $platforms) {
@@ -44,6 +52,17 @@ foreach ($platform in $platforms) {
     if ($platform -eq 'Android') { $args += '-cookflavor=ASTC' }
     & $uat @args
     if ($LASTEXITCODE -ne 0) { throw "$platform packaging failed ($LASTEXITCODE)." }
+}
+if ($Target -ne 'Quest') {
+    # Spec deliverable is a single packaged ZIP, not a loose staged tree.
+    $pcvrDir = Join-Path $output 'Win64'
+    if (-not (Test-Path $pcvrDir)) { throw 'PCVR archive directory is missing.' }
+    $pcvrArchive = "wmcyn_online-PCVR-$Configuration-$($sha.Substring(0,12)).zip"
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($pcvrDir, (Join-Path $output $pcvrArchive), [IO.Compression.CompressionLevel]::Optimal, $false)
+    $zipItem = Get-Item (Join-Path $output $pcvrArchive) -ErrorAction SilentlyContinue
+    if (-not $zipItem -or $zipItem.Length -eq 0) { throw 'PCVR archive creation failed.' }
+    Remove-Item $pcvrDir -Recurse -Force
 }
 if ($Target -ne 'PCVR') {
     $apk = @(Get-ChildItem "$output/Android" -Recurse -Filter '*.apk')
@@ -73,9 +92,75 @@ if ($Target -ne 'PCVR') {
     $fingerprint = [regex]::Match($text, 'certificate SHA-256 digest: ([a-fA-F0-9]+)').Groups[1].Value
     if ($fingerprint -ne ($env:WMCYN_CERT_SHA256 -replace ':','').Trim()) { throw 'APK certificate does not match pinned Meta certificate.' }
     $report | Set-Content "$output/signature.txt"
+
+    # VRC.Quest.Packaging.5 caps the APK at 1 GB. Meta documents "1 GB" without
+    # stating binary or decimal, so fail only above 1 GiB (certain rejection)
+    # and flag the band between 1e9 and 1 GiB for a human decision on OBB.
+    $apkBytes = $apk[0].Length
+    $limitBinary = 1073741824
+    $limitDecimal = 1000000000
+    if ($apkBytes -gt $limitBinary) {
+        throw ("Quest APK is {0:N0} bytes, over Meta's 1 GB cap ({1:N0}). Move content to an OBB expansion file." -f $apkBytes, $limitBinary)
+    }
+    $sizeState = if ($apkBytes -gt $limitDecimal) { 'within-1GiB-but-over-decimal-1GB' } else { 'ok' }
+    if ($sizeState -ne 'ok') {
+        Write-Warning ("Quest APK is {0:N0} bytes: under 1 GiB by {1:N0} but over decimal 1 GB. Upload may be rejected; prefer an OBB." -f $apkBytes, ($limitBinary - $apkBytes))
+    }
 }
+# Protocol and build identifiers come from the shipped world contract, so the
+# manifest cannot drift from what the client actually negotiates with the server.
+$contractPath = "$root/Plugins/WMCYNRuntime/Source/WMCYNRuntime/Public/WMCYNFirstSignalWorldContract.h"
+$contract = Get-Content -LiteralPath $contractPath -Raw
+$protocolVersion = [regex]::Match($contract, 'ProtocolVersion\s*=\s*(\d+)').Groups[1].Value
+$buildId = [regex]::Match($contract, 'DefaultBuildId\s*=\s*TEXT\("([^"]+)"\)').Groups[1].Value
+$worldCapacity = [regex]::Match($contract, 'Capacity\s*=\s*(\d+)').Groups[1].Value
+if (-not $protocolVersion -or -not $buildId) { throw 'Could not read protocol identifiers from the world contract.' }
+
+$notes = @(
+    "# WMCYN Online founder build",
+    "",
+    "Commit: $sha",
+    "Configuration: $Configuration",
+    "Target: $Target",
+    "Android versionCode: $version",
+    "World protocol version: $protocolVersion",
+    "Default build id: $buildId",
+    "World capacity: $worldCapacity",
+    ""
+)
+if ($apkBytes) {
+    $notes += @(
+        "## Quest",
+        "",
+        "APK size: $apkBytes bytes ($sizeState)",
+        "Signing certificate SHA-256: $fingerprint",
+        "",
+        "Sideload:",
+        "",
+        '    adb install -r <apk>',
+        "",
+        "The server must accept world protocol $protocolVersion. A client and server on",
+        "different protocol versions will not connect.",
+        ""
+    )
+}
+if ($pcvrArchive) {
+    $notes += @("## PCVR", "", "Unzip $pcvrArchive and run the packaged executable.", "")
+}
+$notes += @(
+    "## Status",
+    "",
+    "Hardware acceptance: pending. Packaging success is not device, login, voice or",
+    "multi-user validation. See build-manifest.json for per-file checksums.",
+    ""
+)
+[IO.File]::WriteAllLines("$output/INSTALL.md", $notes)
+
 $hashes = @(Get-ChildItem $output -Recurse -File | ForEach-Object {
     @{ path = $_.FullName.Substring($output.Length + 1); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash; bytes = $_.Length }
 })
-@{ commit=$sha; configuration=$Configuration; target=$Target; versionCode=$version; files=$hashes; hardwareAcceptance='pending'; serverCompatibility='requires verification' } |
+@{ commit=$sha; configuration=$Configuration; target=$Target; versionCode=$version; files=$hashes;
+   questApkBytes=$apkBytes; questApkSizeState=$sizeState; certificateSha256=$fingerprint;
+   protocolVersion=$protocolVersion; buildId=$buildId; worldCapacity=$worldCapacity; pcvrArchive=$pcvrArchive;
+   hardwareAcceptance='pending'; serverCompatibility='requires verification' } |
     ConvertTo-Json -Depth 6 | Set-Content "$output/build-manifest.json"

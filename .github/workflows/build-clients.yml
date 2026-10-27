@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # Shared with the existing server workflow. Never interrupt a cook or upload.
 concurrency:
@@ -36,7 +37,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A queued automatic build whose commit is no longer main's tip is pointless
+  # work. Running builds are never cancelled; concurrency keeps cancel-in-progress
+  # false, so an active cook or upload always finishes.
+  guard:
+    runs-on: [self-hosted, wmcyn]
+    defaults:
+      run:
+        shell: powershell
+    outputs:
+      superseded: ${{ steps.check.outputs.superseded }}
+    steps:
+      - name: Skip superseded automatic builds
+        id: check
+        run: |
+          if ('${{ github.event_name }}' -ne 'push') {
+            'superseded=false' | Add-Content $env:GITHUB_OUTPUT
+            exit 0
+          }
+          $headers = @{ Authorization = 'Bearer ${{ github.token }}'; 'User-Agent' = 'wmcyn-ci' }
+          $tip = (Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/${{ github.repository }}/commits/main').sha
+          if ($tip -ne '${{ github.sha }}') {
+            'superseded=true' | Add-Content $env:GITHUB_OUTPUT
+            "Skipped: main is at $tip, so this queued automatic build is superseded." | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            'superseded=false' | Add-Content $env:GITHUB_OUTPUT
+          }
+
   clients:
+    needs: guard
+    if: needs.guard.outputs.superseded != 'true'
     runs-on: [self-hosted, wmcyn]
     timeout-minutes: 720
     defaults:
@@ -82,13 +112,81 @@ jobs:
           META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
         run: |
           & ./client-release/Tools/Build/Publish-QuestAlpha.ps1
+      - name: Record approved release and rollback reference
+        if: success() && inputs.publish_alpha
+        run: |
+          $headers = @{ Authorization = 'Bearer ${{ github.token }}'; 'User-Agent' = 'wmcyn-ci' }
+          $uri = 'https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100'
+          $previous = (Invoke-RestMethod -Headers $headers -Uri $uri).artifacts |
+            Where-Object { $_.name -like 'wmcyn-approved-release-*' -and -not $_.expired } |
+            Sort-Object { [datetime]$_.created_at } -Descending |
+            Select-Object -First 1
+          $rollbackName = $null
+          $rollbackCreated = $null
+          if ($previous) { $rollbackName = $previous.name; $rollbackCreated = $previous.created_at }
+          $manifest = Get-Content 'client-release/Saved/FounderRelease/build-manifest.json' -Raw | ConvertFrom-Json
+          $reference = [ordered]@{
+            approvedCommit = '${{ github.sha }}'
+            approvedVersionCode = $manifest.versionCode
+            protocolVersion = $manifest.protocolVersion
+            buildId = $manifest.buildId
+            certificateSha256 = $manifest.certificateSha256
+            channel = 'ALPHA'
+            publishedUtc = (Get-Date).ToUniversalTime().ToString('o')
+            rollbackArtifact = $rollbackName
+            rollbackCreatedUtc = $rollbackCreated
+          }
+          $reference | ConvertTo-Json -Depth 4 | Set-Content 'client-release/Saved/FounderRelease/release-reference.json'
+          if ($rollbackName) {
+            "Rollback target: $rollbackName (published $rollbackCreated)." | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            'No previous approved release: this is the first, so there is no rollback target.' | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+
+      # Routine builds expire in 14 days. An approved release must outlive them.
+      - name: Preserve approved release
+        if: success() && inputs.publish_alpha
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmcyn-approved-release-${{ github.run_id }}
+          path: client-release/Saved/FounderRelease/**
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Build summary
         if: always()
         run: |
-          @'
-          ## Founder client build
-          Commit: `${{ github.sha }}`
-          [Artifacts and logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          Packages are build evidence, not headset or remote multiplayer acceptance.
-          ALPHA publication is explicit; server deployment is separate.
-          '@ | Add-Content $env:GITHUB_STEP_SUMMARY
+          $lines = @(
+            '## Founder client build',
+            '',
+            'Commit: ${{ github.sha }}',
+            'Target: ${{ inputs.target || 'Both' }} / ${{ inputs.configuration || 'Development' }}',
+            ''
+          )
+          $manifestPath = 'client-release/Saved/FounderRelease/build-manifest.json'
+          if (Test-Path $manifestPath) {
+            $m = Get-Content $manifestPath -Raw | ConvertFrom-Json
+            $lines += @('### Validation', '', '| Check | Result |', '| --- | --- |')
+            $lines += "| Android versionCode | $($m.versionCode) |"
+            if ($m.certificateSha256) { $lines += "| Signing certificate SHA-256 | $($m.certificateSha256) |" }
+            if ($m.questApkBytes) {
+              $mib = [math]::Round($m.questApkBytes / 1MB, 1)
+              $headroom = 1073741824 - $m.questApkBytes
+              $lines += ('| Quest APK size | {0:N0} bytes / {1} MiB ({2}) |' -f $m.questApkBytes, $mib, $m.questApkSizeState)
+              $lines += ('| Headroom under 1 GiB | {0:N0} bytes |' -f $headroom)
+            }
+            $lines += "| Hardware acceptance | $($m.hardwareAcceptance) |"
+            $lines += "| Server compatibility | $($m.serverCompatibility) |"
+            $lines += @('', '### Packaged files', '')
+            foreach ($f in $m.files) {
+              $lines += ('- {0} / {1:N0} bytes / sha256 {2}' -f $f.path, $f.bytes, $f.sha256)
+            }
+            $lines += ''
+          } else {
+            $lines += @('Packaging did not reach verification, so no manifest was produced.', '')
+          }
+          $lines += '[Artifacts and logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})'
+          $lines += ''
+          $lines += 'Packages are build evidence, not headset or remote multiplayer acceptance.'
+          $lines += 'ALPHA publication is explicit; server deployment is separate.'
+          $lines | Add-Content $env:GITHUB_STEP_SUMMARY
