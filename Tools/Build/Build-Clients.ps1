@@ -99,6 +99,9 @@ if ($Target -ne 'PCVR') {
     # VRC.Quest.Packaging.5 caps the APK at 1 GB. Meta documents "1 GB" without
     # stating binary or decimal, so fail only above 1 GiB (certain rejection)
     # and flag the band between 1e9 and 1 GiB for a human decision on OBB.
+    # Re-stat: the FileInfo was created before apksigner rewrote the APK, so
+    # the cached Length understates it by the signature block.
+    $apk[0].Refresh()
     $apkBytes = $apk[0].Length
     $limitBinary = 1073741824
     $limitDecimal = 1000000000
@@ -161,9 +164,9 @@ if ($apkBytes) {
         "APK size: $apkBytes bytes ($sizeState)",
         "Signing certificate SHA-256: $fingerprint",
         "",
-        "Sideload:",
+        $(if ($obbName) { "Sideload: see Expansion file below. The APK alone is not enough." } else { "Sideload:" }),
         "",
-        '    adb install -r <apk>',
+        $(if ($obbName) { "" } else { '    adb install -r <apk>' }),
         "",
         "The server must accept world protocol $protocolVersion. A client and server on",
         "different protocol versions will not connect.",
