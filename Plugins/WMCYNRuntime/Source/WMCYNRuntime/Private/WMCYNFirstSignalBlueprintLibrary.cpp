@@ -81,16 +81,11 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
         return false;
     }
 
-#if PLATFORM_ANDROID
-    WidgetHost->SetVisibility(false);
-    WidgetHost->SetHiddenInGame(true);
-    WidgetHost->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    UE_LOG(
-        LogWMCYNFirstSignalUI,
-        Display,
-        TEXT("WMCYN UI: Quest/Android is using the platform keyboard; AFCore keyboard host suppressed"));
-    return false;
-#else
+    // Quest has no platform keyboard available to this build: the MetaXR plugin
+    // is not installed and base OpenXR has no virtual-keyboard extension, while
+    // Android's soft IME cannot render in a stereo view. Suppressing the AFCore
+    // keyboard here left the headset with no text entry at all, so Quest now uses
+    // the same in-world keyboard as PCVR.
     APawn* Pawn = UGameplayStatics::GetPlayerPawn(WorldContextObject, 0);
     UWMCYNFirstSignalPresenceComponent* Presence =
         Pawn ? Pawn->FindComponentByClass<UWMCYNFirstSignalPresenceComponent>() : nullptr;
@@ -117,7 +112,6 @@ bool UWMCYNFirstSignalBlueprintLibrary::PrepareLocalFirstSignalWidgetInteraction
         TEXT("WMCYN UI: registered %s as the AFCore keyboard source interaction"),
         *WidgetInteraction->GetName());
     return true;
-#endif
 }
 
 bool UWMCYNFirstSignalBlueprintLibrary::RequestLocalFirstSignalRespawn(const UObject* WorldContextObject)
