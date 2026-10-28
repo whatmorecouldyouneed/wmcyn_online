@@ -66,8 +66,12 @@ project; a build against another install can exit 0 without compiling.
 - Meta validates the manifest at upload and reports every failure at once, so
   each mistake costs a full build. Shipping builds are gated locally on
   `android:debuggable` false, `android:installLocation=auto`, a landscape
-  `android:screenOrientation`, and `targetSdkVersion` at most 34. Shipping
-  passes `-distribution`, without which Unreal marks the APK debuggable.
+  `android:screenOrientation`, `android:allowBackup=false`, and
+  `targetSdkVersion` at most 34. Shipping passes `-distribution`, without which
+  Unreal marks the APK debuggable.
+- Meta also runs a security scan after upload. Shipping builds are checked for
+  a `DexClassLoader` in the dex, which the unused GoogleARCore plugin
+  introduced. Keep that plugin disabled; nothing in the project referenced it.
 - `bPackageDataInsideApk=False`, so game data ships in an expansion file named
   `main.<versionCode>.<package>.obb`. The build fails if it is missing, misnamed
   or over 4 GB. A channel install delivers it automatically; a sideload needs it

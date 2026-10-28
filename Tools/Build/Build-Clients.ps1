@@ -152,10 +152,25 @@ if ($Target -ne 'PCVR') {
         $problems = @()
         if ($xml -match 'android:debuggable="true"') { $problems += 'android:debuggable is true' }
         if ($xml -notmatch 'android:installLocation="auto"') { $problems += 'android:installLocation is not auto' }
+        if ($xml -notmatch 'android:allowBackup="false"') { $problems += 'android:allowBackup is not false' }
         $orientation = [regex]::Match($xml, 'android:screenOrientation="([^"]+)"').Groups[1].Value
         if ($orientation -and $orientation -ne 'landscape') { $problems += "android:screenOrientation is $orientation" }
         $targetSdk = [regex]::Match($xml, 'android:targetSdkVersion="(\d+)"').Groups[1].Value
         if ($targetSdk -and [int]$targetSdk -gt 34) { $problems += "targetSdkVersion is $targetSdk" }
+        # Meta's security scan flags dynamic code loading. ARCore pulled in a
+        # DexClassLoader that nothing in this project used; catch a reintroduction.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = [IO.Compression.ZipFile]::OpenRead($apk[0].FullName)
+        try {
+            foreach ($entry in @($archive.Entries | Where-Object { $_.FullName -like 'classes*.dex' })) {
+                $reader = New-Object IO.StreamReader($entry.Open(), [Text.Encoding]::ASCII)
+                try { $dex = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                if ($dex.Contains('DexClassLoader')) {
+                    $problems += "$($entry.FullName) references DexClassLoader (dynamic code loading)"
+                    break
+                }
+            }
+        } finally { $archive.Dispose() }
         if ($problems.Count -gt 0) {
             throw ("Meta would reject this APK: {0}. Fixing these needs a repackage." -f ($problems -join '; '))
         }

@@ -1,4 +1,4 @@
-{
+﻿{
 	"FileVersion": 3,
 	"EngineAssociation": "5.8",
 	"Category": "",
@@ -14,7 +14,7 @@
 		},
 		{
 			"Name": "GoogleARCore",
-			"Enabled": true,
+			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Android"
 			]
