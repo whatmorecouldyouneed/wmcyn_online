@@ -111,6 +111,7 @@ private:
     void UpdateWidgetInteractionPresentation();
     void UpdatePointerBeam(bool bVisible);
     void PrimeLoginWidgetPairingPanel();
+    void EnsureLoginPanelPresent();
     void TryAutoEnterFromVerifiedLogin();
     AActor* ResolveLoginPanelActor();
     void ApplyLocalLoginGateLock();
@@ -311,6 +312,7 @@ private:
     bool bRuntimeMenuVisible = false;
     bool bAutoEntryAttempted = false;
     bool bLoginWidgetPairingPrimed = false;
+    bool bLoginPanelRestoreFailed = false;
     bool bRuntimeMenuCreateFailed = false;
     int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
     TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;

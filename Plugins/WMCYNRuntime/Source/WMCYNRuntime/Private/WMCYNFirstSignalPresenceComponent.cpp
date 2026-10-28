@@ -46,6 +46,12 @@
 #include "UObject/StructOnScope.h"
 #include "WMCYNBackendSubsystem.h"
 #include "WMCYNWorldRuntimeSubsystem.h"
+
+// Referenced by both the resolver and the restore path below. Deliberately one
+// definition with a distinctive name: this module builds with unity enabled.
+static const TCHAR* const WMCYNFirstSignalEntryManagerClassPath =
+    TEXT("/Game/WMCYN/Core/BP_WMCYN_FirstSignalEntryManager.BP_WMCYN_FirstSignalEntryManager_C");
+static constexpr float WMCYNFirstSignalLoginPanelRestoreDistance = 200.0f;
 #include "WMCYNIdentityPolicy.h"
 #include "WMCYNFirstSignalPairingAsyncAction.h"
 
@@ -299,7 +305,7 @@ AActor* UWMCYNFirstSignalPresenceComponent::ResolveLoginPanelActor()
     // L_WMCYNOnline. Match it by class name without a hard dependency.
     if (UClass* EntryManagerClass = LoadClass<AActor>(
             nullptr,
-            TEXT("/Game/WMCYN/Core/BP_WMCYN_FirstSignalEntryManager.BP_WMCYN_FirstSignalEntryManager_C")))
+            WMCYNFirstSignalEntryManagerClassPath))
     {
         TArray<AActor*> Found;
         UGameplayStatics::GetAllActorsOfClass(World, EntryManagerClass, Found);
@@ -310,6 +316,70 @@ AActor* UWMCYNFirstSignalPresenceComponent::ResolveLoginPanelActor()
         }
     }
     return nullptr;
+}
+
+void UWMCYNFirstSignalPresenceComponent::EnsureLoginPanelPresent()
+{
+    if (bLoginGateCompleted || bLoginPanelRestoreFailed ||
+        !OwnerCharacter || !OwnerCharacter->IsLocallyControlled())
+    {
+        return;
+    }
+
+    if (ResolveLoginPanelActor())
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    UClass* EntryManagerClass = World
+        ? LoadClass<AActor>(nullptr, WMCYNFirstSignalEntryManagerClassPath)
+        : nullptr;
+    if (!EntryManagerClass)
+    {
+        bLoginPanelRestoreFailed = true;
+        UE_LOG(LogWMCYNPresence, Warning,
+            TEXT("WMCYN Login: entry manager class unavailable; cannot restore the sign-in panel"));
+        return;
+    }
+
+    // Sign-in is mandatory and locomotion stays locked until it succeeds, so a
+    // dismissed or destroyed panel strands the player with no way back. Place a
+    // fresh one where they are already looking, which also spares them having to
+    // turn around to find it.
+    const FVector EyeLocation = TrackedCamera
+        ? TrackedCamera->GetComponentLocation()
+        : OwnerCharacter->GetActorLocation();
+    FVector Forward = TrackedCamera
+        ? TrackedCamera->GetForwardVector()
+        : OwnerCharacter->GetActorForwardVector();
+    Forward.Z = 0.0f;
+    if (!Forward.Normalize())
+    {
+        Forward = FVector::ForwardVector;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride =
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    AActor* Restored = World->SpawnActor<AActor>(
+        EntryManagerClass,
+        EyeLocation + Forward * WMCYNFirstSignalLoginPanelRestoreDistance,
+        (-Forward).Rotation(),
+        SpawnParams);
+    if (!Restored)
+    {
+        bLoginPanelRestoreFailed = true;
+        UE_LOG(LogWMCYNPresence, Warning,
+            TEXT("WMCYN Login: failed to restore the sign-in panel"));
+        return;
+    }
+
+    ResolvedLoginPanelActor = Restored;
+    // The replacement carries a new widget, so the pairing strip must re-prime.
+    bLoginWidgetPairingPrimed = false;
+    UE_LOG(LogWMCYNPresence, Display,
+        TEXT("WMCYN Login: restored the sign-in panel in front of the player"));
 }
 
 void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
@@ -680,6 +750,7 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
 
     if (OwnerCharacter->IsLocallyControlled())
     {
+        EnsureLoginPanelPresent();
         PrimeLoginWidgetPairingPanel();
         if (!bLoginGateCompleted && !bAutoEntryAttempted)
         {
