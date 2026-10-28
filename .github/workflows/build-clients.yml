@@ -73,10 +73,15 @@ jobs:
       run:
         shell: powershell
     steps:
+      # Only a pre-check: opening the editor mid-build still breaks the build,
+      # because Live Coding takes the editor module locks that the cook needs.
+      # UnrealEditor-Cmd is deliberately not checked, since the cook runs it.
       - name: Check editor is closed
         run: |
-          if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) {
-            throw 'Save and close Unreal before building on this shared runner. Live Coding blocks native linking; the workflow will not close your editor.'
+          $blockers = @(Get-Process -Name UnrealEditor, LiveCodingConsole -ErrorAction SilentlyContinue)
+          if ($blockers.Count -gt 0) {
+            $names = ($blockers | Select-Object -ExpandProperty ProcessName -Unique) -join ', '
+            throw "Save and close Unreal before building on this shared runner ($names is running). Live Coding holds the editor modules the cook rebuilds, and this workflow will not close your editor. Leave it closed until the build finishes."
           }
       - uses: actions/checkout@v4
         with:
