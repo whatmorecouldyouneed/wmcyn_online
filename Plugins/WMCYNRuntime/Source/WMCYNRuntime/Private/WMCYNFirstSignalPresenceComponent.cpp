@@ -1742,6 +1742,7 @@ void UWMCYNFirstSignalPresenceComponent::CreateNameplate()
     {
         return;
     }
+    Nameplate->ComponentTags.AddUnique(TEXT("WMCYNCameraVisible"));
 
     if (FBoolProperty* CustomThemeProperty = FindFProperty<FBoolProperty>(Nameplate->GetClass(), TEXT("customTheme")))
     {

@@ -224,7 +224,6 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraClicked()
             CameraPreview->SetVisibility(Tool->IsCameraEnabled() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
         }
         if (CameraStatus) CameraStatus->SetText(FText::FromString(!bSuccess ? TEXT("Camera unavailable: PCVR pilot") : Tool->IsCameraEnabled() ? TEXT("Camera ready") : TEXT("Camera off")));
-        if (CameraFOV) Tool->SetFieldOfView(30.0f + CameraFOV->GetValue() * 70.0f);
         RefreshTools();
     }
 }
@@ -240,6 +239,7 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraShotSaveClicked()
     const int32 ShotIndex = CameraShotSelector ? CameraShotSelector->GetSelectedIndex() : INDEX_NONE;
     const bool bSaved = Tool && Tool->SaveShot(ShotIndex);
     if (CameraStatus) CameraStatus->SetText(FText::FromString(bSaved ? TEXT("Shot saved") : TEXT("Enable an authorized camera first")));
+    RefreshTools();
 }
 
 void UWMCYNFirstSignalSettingsWidget::HandleCameraShotSelectClicked()
@@ -248,6 +248,7 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraShotSelectClicked()
     const int32 ShotIndex = CameraShotSelector ? CameraShotSelector->GetSelectedIndex() : INDEX_NONE;
     const bool bSelected = Tool && Tool->SelectShot(ShotIndex);
     if (CameraStatus) CameraStatus->SetText(FText::FromString(bSelected ? TEXT("Shot selected") : TEXT("Shot unavailable or camera off")));
+    RefreshTools();
 }
 
 void UWMCYNFirstSignalSettingsWidget::HandleCameraOutputClicked()
@@ -300,6 +301,19 @@ void UWMCYNFirstSignalSettingsWidget::RefreshTools()
     const bool bCameraActive = CameraTool && CameraTool->IsCameraEnabled();
     const ESlateVisibility CameraVisibility = bCameraActive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
     if (CameraFOV) CameraFOV->SetVisibility(CameraVisibility);
+    if (CameraFOV && bCameraActive) CameraFOV->SetValue((CameraTool->GetFieldOfView() - 30.f) / 70.f);
+    if (CameraShotSelector) CameraShotSelector->SetVisibility(CameraVisibility);
+    if (CameraShotSaveButton)
+    {
+        CameraShotSaveButton->SetVisibility(CameraVisibility);
+        CameraShotSaveButton->SetIsEnabled(bCameraActive && CameraTool->CanOperateCamera());
+    }
+    if (CameraShotSelectButton)
+    {
+        CameraShotSelectButton->SetVisibility(CameraVisibility);
+        CameraShotSelectButton->SetIsEnabled(bCameraActive && CameraTool->CanOperateCamera() &&
+            CameraShotSelector && CameraTool->HasShot(CameraShotSelector->GetSelectedIndex()));
+    }
     if (CameraResetButton) CameraResetButton->SetVisibility(CameraVisibility);
 #if PLATFORM_WINDOWS
     if (CameraOutputButton) CameraOutputButton->SetVisibility(CameraVisibility);

@@ -34,8 +34,8 @@ jobs:
       - name: Check editor is closed
         shell: powershell
         run: |
-          if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) {
-            throw 'Save and close Unreal before building on this shared runner.'
+          if (Get-Process -Name UnrealEditor, LiveCodingConsole -ErrorAction SilentlyContinue) {
+            throw 'Save and close Unreal and Live Coding before building on this shared runner.'
           }
       - uses: actions/checkout@v4
         with:

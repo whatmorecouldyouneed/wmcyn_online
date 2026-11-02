@@ -22,6 +22,7 @@ public:
     void ResetCameraPose();
     UFUNCTION(BlueprintCallable, Category="WMCYN|Camera")
     void SetFieldOfView(float Degrees);
+    float GetFieldOfView() const;
     UFUNCTION(BlueprintCallable, Category="WMCYN|Camera")
     bool SetSpectatorOutput(bool bEnabled);
     /** Slots: 0 master, 1 interviewer, 2 guest. Local to this pawn/world lifetime. */
@@ -45,6 +46,7 @@ private:
     bool IsNearDoor(const FVector& HandLocation) const;
     void UpdateGrip(const FTransform& Hand, bool bTracked, bool bDown, bool bDoorPriority);
     void RefreshCaptureExclusions();
+    void UpdateCaptureResolution();
     float ExclusionRefreshSeconds = 0;
     friend class FWMCYNHandheldCameraTest;
     UPROPERTY(Transient) TObjectPtr<AWMCYNInterviewCamera> CameraProp;

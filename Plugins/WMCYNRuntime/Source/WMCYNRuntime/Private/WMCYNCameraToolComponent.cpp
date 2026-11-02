@@ -15,8 +15,13 @@
 #include "MotionControllerComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "UObject/UnrealType.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNCamera, Log, All);
+
+static TAutoConsoleVariable<int32> CVarCameraCaptureHeight(
+    TEXT("wmcyn.Camera.CaptureHeight"), 360,
+    TEXT("Local interview capture height: 360, 720 or 1080. Invalid values use 360. Measure GPU cost before recording."));
 
 UWMCYNCameraToolComponent::UWMCYNCameraToolComponent()
 {
@@ -29,7 +34,7 @@ bool UWMCYNCameraToolComponent::SetCameraEnabled(bool bEnabled)
 {
     if (bEnabled && !CanOperateCamera()) return false;
     APawn* Pawn = Cast<APawn>(GetOwner());
-    if (!Pawn || !Pawn->IsLocallyControlled() || GetNetMode() == NM_DedicatedServer) return false;
+    if (bEnabled && (!Pawn || !Pawn->IsLocallyControlled() || GetNetMode() == NM_DedicatedServer)) return false;
 #if !PLATFORM_WINDOWS
     if (bEnabled) return false; // PCVR pilot: do not allocate a second view on Quest yet.
 #endif
@@ -70,12 +75,25 @@ bool UWMCYNCameraToolComponent::SetCameraEnabled(bool bEnabled)
     if (!bEnabled) SetSpectatorOutput(false);
     if (Capture)
     {
+        if (bEnabled) UpdateCaptureResolution();
         RefreshCaptureExclusions();
         Capture->bCaptureEveryFrame = bEnabled;
         if (CameraProp) Capture->HideActorComponents(CameraProp);
         Capture->SetVisibility(bEnabled);
     }
     return true;
+}
+
+void UWMCYNCameraToolComponent::UpdateCaptureResolution()
+{
+    if (!Target) return;
+    const int32 Requested = CVarCameraCaptureHeight.GetValueOnGameThread();
+    const int32 Height = Requested == 720 || Requested == 1080 ? Requested : 360;
+    const int32 Width = Height * 16 / 9;
+    if (Target->SizeX == Width && Target->SizeY == Height) return;
+    // Resize the same resource so the menu, prop and spectator keep one feed.
+    Target->ResizeTarget(Width, Height);
+    UE_LOG(LogWMCYNCamera, Display, TEXT("Camera capture resolution: %dx%d (performance validation required)"), Width, Height);
 }
 
 bool UWMCYNCameraToolComponent::CanOperateCamera() const
@@ -98,7 +116,8 @@ void UWMCYNCameraToolComponent::RefreshCaptureExclusions()
     for (TActorIterator<AActor> It(GetWorld()); It; ++It)
     {
         TInlineComponentArray<UWidgetComponent*> Widgets(*It);
-        for (UWidgetComponent* Widget : Widgets) Capture->HiddenComponents.Add(Widget);
+        for (UWidgetComponent* Widget : Widgets)
+            if (!Widget->ComponentHasTag(TEXT("WMCYNCameraVisible"))) Capture->HiddenComponents.Add(Widget);
     }
     if (CameraProp) Capture->HideActorComponents(CameraProp);
 }
@@ -163,6 +182,7 @@ void UWMCYNCameraToolComponent::TickComponent(float DeltaTime, ELevelTick TickTy
     if (ExclusionRefreshSeconds >= 1.f)
     {
         RefreshCaptureExclusions();
+        UpdateCaptureResolution();
         ExclusionRefreshSeconds = 0;
     }
     APawn* Pawn = Cast<APawn>(GetOwner());
@@ -197,6 +217,11 @@ void UWMCYNCameraToolComponent::SetFieldOfView(float Degrees)
     if (Capture && FMath::IsFinite(Degrees)) Capture->FOVAngle = FMath::Clamp(Degrees, 30.0f, 100.0f);
 }
 
+float UWMCYNCameraToolComponent::GetFieldOfView() const
+{
+    return Capture ? Capture->FOVAngle : 60.f;
+}
+
 bool UWMCYNCameraToolComponent::HasShot(int32 Slot) const
 {
     return Slot >= 0 && Slot < 3 && Shots.Contains(Slot);
@@ -212,6 +237,7 @@ bool UWMCYNCameraToolComponent::SaveShot(int32 Slot)
     Shot.Pose = CameraProp->GetActorTransform();
     Shot.FieldOfView = Capture->FOVAngle;
     Shots.Add(Slot, Shot);
+    UE_LOG(LogWMCYNCamera, Display, TEXT("Camera shot saved: slot=%d FOV=%.1f"), Slot, Shot.FieldOfView);
     return true;
 }
 
@@ -225,6 +251,7 @@ bool UWMCYNCameraToolComponent::SelectShot(int32 Slot)
     bGripWasDown = true;
     CameraProp->SetActorTransform(Shot.Pose);
     SetFieldOfView(Shot.FieldOfView);
+    UE_LOG(LogWMCYNCamera, Display, TEXT("Camera shot selected: slot=%d"), Slot);
     return true;
 }
 

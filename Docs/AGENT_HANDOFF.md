@@ -1,5 +1,22 @@
 # Agent Handoff
 
+## Active Camera Checkpoint - 2026-11-02
+
+Founder confirms distribution closed; Gio/Cole green. Older release blockers
+below are historical, not a reason to restart the distribution lane.
+Camera changes are local and uncommitted: capture-height console setting,
+nameplate inclusion, ownership-loss shutdown, FOV/menu state synchronization,
+and expanded synthetic tests. Launcher UE 5.8 native build passes; report at
+`Saved/Diagnostics/Camera20261102/index.json`: 1 passed, 0 warnings/errors.
+NullRHI tests cannot prove rendered output or headset/OBS acceptance.
+Settings UMG previously lacked the optional shot controls. All three are now
+present as variable-bound Designer widgets; Blueprint compiled and saved.
+Editor reopened with rebuilt DLL. No packaged update or deployment this pass.
+Existing dirty docs/tools/DLLs were preserved; no framework or map edits.
+Next: use `INTERVIEW_CAMERA_REHEARSAL.md`; verify menu and real camera controls,
+then a short switched OBS take with headset microphones. No new deployment.
+
+
 ## Active Release Checkpoint - 2026-10-26
 
 Read `Release/FOUNDER_BUILD_2026_10_26.md` first; older status below is historical.
