@@ -1,5 +1,27 @@
 # Matched Protocol-2 Cutover
 
+## Live Cutover Result (November 2, evening ET)
+
+- Server run 41549189104 and Both-client run 41549193056 succeeded from 4152296.
+- All client manifest SHA-256 entries verified locally. Quest versionCode
+  1793668406, expected release certificate, APK plus OBB present.
+- Server archive SHA-256 verified remotely before extraction:
+  F300E538914D49FF462E6C979440341AA917082B391182EF6060D6965EE72D7B.
+- Fresh zero-user heartbeat checked immediately before stop/switch/start.
+- New server registration returned HTTP 200; canonical record online with
+  protocol 2, build first-signal-001, fresh heartbeat. NRestarts=0 at first check.
+- Previous live directory retained as `/opt/wmcyn/LinuxServer-pre4152296`;
+  original root-only rollback copy/service unit also retained. No secrets changed.
+- Exact-artifact ALPHA promotion run 41563083633 is in progress, not yet confirmed
+  published. New manual workflow verifies source run/commit and package hashes;
+  no rebuild required. Workflow commit ae59836 does not change runtime source.
+- PCVR archive: runner `client-release/Saved/FounderRelease/`
+  `wmcyn_online-PCVR-Development-41522965cac9.zip`.
+- Bootstrap protocol mismatch is resolved at registration level. Fresh account
+  login, network join, headset/remote camera acceptance still require testing.
+
+The sections below record pre-cutover observations, not current deployment state.
+
 ## Verified Before Build
 
 - Founder reports no users online and editor closed, November 2.

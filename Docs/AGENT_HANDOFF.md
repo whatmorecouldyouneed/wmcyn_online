@@ -1,5 +1,16 @@
 # Agent Handoff
 
+## Live Release - November 2, Evening ET
+
+Protocol-2 server from 4152296 deployed after matching Linux/PCVR/Quest builds
+passed and fresh connectedUsers=0 check. Registration HTTP 200; online heartbeat
+protocol=2, build=first-signal-001, NRestarts=0. Old server preserved; no secret or
+cost-control changes. Exact Quest ALPHA promotion run 41563083633 in progress.
+Check its outcome before saying founders can update. Fresh login/network join
+and remote camera recording remain unverified. Read
+`Release/MATCHED_PROTOCOL2_2026_11_02.md` first; older deployment blockers below
+are historical. Local editor camera DLL was already rebuilt before packaging.
+
 ## Active Camera Checkpoint - 2026-11-02
 
 Founder confirms distribution closed; Gio/Cole green. Older release blockers
