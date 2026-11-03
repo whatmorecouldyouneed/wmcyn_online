@@ -1,0 +1,71 @@
+name: Publish Verified Quest ALPHA
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build VR Clients run containing the verified package
+        required: true
+        type: string
+      commit:
+        description: Full expected source commit (40 hexadecimal characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: unreal-build
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: [self-hosted, wmcyn]
+    timeout-minutes: 60
+    steps:
+      - name: Verify source run
+        id: source
+        shell: powershell
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          EXPECTED_COMMIT: ${{ inputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RUN_ID -notmatch '^\d+$' -or $env:EXPECTED_COMMIT -notmatch '^[0-9a-f]{40}$') { throw 'Invalid run or commit.' }
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; 'User-Agent' = 'wmcyn-release' }
+          $base = 'https://api.github.com/repos/${{ github.repository }}/actions/runs/' + $env:RUN_ID
+          $run = Invoke-RestMethod -Headers $headers -Uri $base
+          if ($run.conclusion -ne 'success' -or $run.head_sha -ne $env:EXPECTED_COMMIT -or $run.path -ne '.github/workflows/build-clients.yml') { throw 'Source run is not the expected successful client build.' }
+          $name = "wmcyn-clients-$($env:RUN_ID)-$($run.run_attempt)"
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "$base/artifacts"
+          $matches = @($artifacts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired })
+          if ($matches.Count -ne 1) { throw 'Expected exactly one non-expired client artifact.' }
+          "artifact=$name" | Add-Content $env:GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          path: alpha-promotion
+          lfs: false
+          persist-credentials: false
+          sparse-checkout: Tools/Build
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.source.outputs.artifact }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: alpha-promotion/Saved
+      - name: Verify hashes and publish exact package
+        shell: powershell
+        env:
+          EXPECTED_COMMIT: ${{ inputs.commit }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:GITHUB_SHA = $env:EXPECTED_COMMIT
+          & ./alpha-promotion/Tools/Build/Publish-QuestAlpha.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          'Verified artifact submitted to ALPHA; Meta processing and hardware acceptance remain separate.' | Add-Content $env:GITHUB_STEP_SUMMARY

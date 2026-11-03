@@ -30,3 +30,18 @@
 
 Build/deploy status is pending until results are added below. No server replacement,
 ALPHA publication, headset acceptance or remote camera recording claimed here.
+
+## Execution Checkpoint
+
+- Shared source commit: `41522965cac9cc0c87efb905cfc2b1fe115b1321`, pushed to main.
+- Linux Actions run: `41549189104` (deploy=false), checkout/LFS in progress.
+- Both-client Actions run: `41549193056` (Development, publish_alpha=false),
+  waiting behind the server job in `unreal-build` concurrency.
+- Runner online, editor/Live Coding preflight passed, local disk ~270 GB free.
+- Backend checkout `1be0443`: TypeScript build and 58/58 tests passed again.
+- Live heartbeat connectedUsers=0 before staging. Recheck before actual cutover.
+- Rollback preserved remotely at `/opt/wmcyn/rollback/protocol1-20261102/`:
+  2.3 GB LinuxServer copy plus service unit, root-only directory, READY marker.
+  Service remained active. Private service contents were not printed or committed.
+- Do not deploy from the legacy overwrite-in-place workflow step. Stage and
+  verify the new package, retain rollback, then cut over only after client success.
