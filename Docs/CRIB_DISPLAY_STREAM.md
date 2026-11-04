@@ -28,8 +28,8 @@ private can't be filtered through Electra.
 
 **YouTube and Twitch:** each client resolves the page link itself through `WMCYNVideoResolver`, so
 direct URLs are never replicated. PCVR packages a pinned, checksummed `yt-dlp.exe` via
-`Tools/Video/Get-YtDlp.ps1`; run that script to use it in a local editor. Quest shows "aren't
-available on Quest yet" until its dependency is approved, per `SHARED_VIDEO_QUEST_GATE.md`.
+`Tools/Video/Get-YtDlp.ps1`; run that script to use it in a local editor. Quest resolves on the
+headset through `WMCYNRuntime_UPL.xml`, capped at 720p; see `SHARED_VIDEO_QUEST_GATE.md`.
 
 Files seek to the shared start time. Live streams stay at their live edge.
 

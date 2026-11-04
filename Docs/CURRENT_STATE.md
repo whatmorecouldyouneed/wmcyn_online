@@ -3,8 +3,8 @@
 ## Active Priority - 2026-11-04
 
 - Shared video: three channels (living room, stage plus DJ mirror, basement) and in-world panels
-  replace the autoplay actor. PCVR resolves YouTube and Twitch per client with pinned yt-dlp; Quest
-  plays direct links and reports those two as unavailable until its dependency is approved.
+  replace the autoplay actor. Each client resolves YouTube and Twitch itself with yt-dlp: a pinned
+  exe on PCVR and the audited MIT Android library on Quest, approved by the founder 2026-11-04.
   Simulate and 17/17 synthetic tests pass; Win64, Android and Linux compile. No real YouTube or
   Twitch link has been resolved yet, and panels are untested in a headset. See
   `CRIB_DISPLAY_STREAM.md` and `SHARED_VIDEO_QUEST_GATE.md`.
@@ -16,7 +16,7 @@
 - Shared video Quest-first gate started: isolated VideoProbe map/native diagnostic
   added; Win64 Editor build and Android ARM64 native compile/link pass. Packaged
   playback is NOT verified. GPL Android wrapper is blocked; the MIT alternative is
-  audited but not adopted. See `SHARED_VIDEO_QUEST_GATE.md`.
+  adopted. See `SHARED_VIDEO_QUEST_GATE.md`.
 
 - Tray session (Joint Roller port) in progress. Native code and content are in the working tree;
   11/11 synthetic WMCYN tests pass. Local `ProtocolVersion` is now 3, so local builds cannot join the

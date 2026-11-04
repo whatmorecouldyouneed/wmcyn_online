@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quest resolves YouTube and Twitch on the headset, so links match its IP. See SHARED_VIDEO_QUEST_GATE.md. -->
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+    <buildGradleAdditions>
+        <insert>
+dependencies {
+    implementation 'dev.ffmpegkit-maintained:yt-dlp-android:2.0.2'
+}
+        </insert>
+    </buildGradleAdditions>
+
+    <proguardAdditions>
+        <insert>
+-keep class com.chaquo.python.** { *; }
+-keep class dev.ffmpegkit_maintained.ytdlp.** { *; }
+-dontwarn com.chaquo.python.**
+        </insert>
+    </proguardAdditions>
+
+    <gameActivityImportAdditions>
+        <insert>
+import com.chaquo.python.Kwarg;
+import com.chaquo.python.PyObject;
+import com.chaquo.python.Python;
+import dev.ffmpegkit_maintained.ytdlp.YtDlp;
+        </insert>
+    </gameActivityImportAdditions>
+
+    <gameActivityClassAdditions>
+        <insert>
+    // Called from a worker thread. Returns an empty string on any failure, so nothing reaches JNI as an exception.
+    public String AndroidThunkJava_WMCYNResolveVideo(String url)
+    {
+        try
+        {
+            YtDlp.init(this);
+            Python python = Python.getInstance();
+            PyObject options = python.getBuiltins().callAttr("dict");
+            options.callAttr("__setitem__", "quiet", Boolean.TRUE);
+            options.callAttr("__setitem__", "no_warnings", Boolean.TRUE);
+            options.callAttr("__setitem__", "noplaylist", Boolean.TRUE);
+            options.callAttr("__setitem__", "skip_download", Boolean.TRUE);
+            options.callAttr("__setitem__", "socket_timeout", Integer.valueOf(15));
+            // Electra plays H.264 and AAC in one stream. HLS keeps long videos and live streams adaptive.
+            options.callAttr("__setitem__", "format",
+                "best[vcodec^=avc1][acodec!=none][protocol*=m3u8][height&lt;=720]/best[vcodec^=avc1][acodec!=none][height&lt;=720]/best[acodec!=none][vcodec!=none]");
+            PyObject downloader = python.getModule("yt_dlp").callAttr("YoutubeDL", options);
+            PyObject info = downloader.callAttr("extract_info", url, new Kwarg("download", Boolean.FALSE));
+            PyObject direct = info == null ? null : info.callAttr("get", "url");
+            return direct == null ? "" : direct.toString();
+        }
+        catch (Throwable error)
+        {
+            android.util.Log.w("WMCYNVideo", "Link resolve failed: " + error.getClass().getName());
+            return "";
+        }
+    }
+        </insert>
+    </gameActivityClassAdditions>
+</root>

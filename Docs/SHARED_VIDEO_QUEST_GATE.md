@@ -15,9 +15,10 @@ PCVR resolving is implemented; the founder chose to validate it from the built c
   loads native modules, so Meta's scan is unproven.
 - Its `execute()` always downloads and has no `-g`, so the planned bridge calls
   `yt_dlp.YoutubeDL.extract_info(download=False)` through Chaquopy instead.
-- Adding it needs `WMCYNRuntime_UPL.xml` beside `WMCYNRuntime.Build.cs`, which picks the file up
-  automatically. Native code already calls `AndroidThunkJava_WMCYNResolveVideo` if present. The file
-  was blocked as an untrusted dependency, so it needs explicit founder approval.
+- The founder approved adding it on 2026-11-04. `WMCYNRuntime_UPL.xml` adds the dependency and
+  `AndroidThunkJava_WMCYNResolveVideo`; `WMCYNRuntime.Build.cs` picks the file up automatically.
+- A resolver crash on Quest is covered by the channel's crash marker, which is set before resolving.
+- Still unproven: real links on Quest 2, first-use Python startup time, and Meta's scan.
 
 ## Status - 2026-11-04
 
