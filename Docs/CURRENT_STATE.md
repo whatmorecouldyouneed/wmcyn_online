@@ -9,9 +9,9 @@
   Twitch link has been resolved yet, and panels are untested in a headset. See
   `CRIB_DISPLAY_STREAM.md` and `SHARED_VIDEO_QUEST_GATE.md`.
 
-- Release hold: the tray and video work is committed locally only. The tray's rights acceptance
-  covers the closed ALPHA, and this GitHub repo is public, so pushing would publish that art. The
-  owner decides on making the repo private first. Protocol 3 then needs a matched server cutover.
+- Release hold: the tray and video work is on `feature/protocol3-tray-and-video`, not `main`. On
+  2026-11-04 the founder chose to push it while the repo stays public for now, which publishes the
+  tray art. Protocol 3 still needs a matched server cutover.
 
 - Shared video Quest-first gate started: isolated VideoProbe map/native diagnostic
   added; Win64 Editor build and Android ARM64 native compile/link pass. Packaged

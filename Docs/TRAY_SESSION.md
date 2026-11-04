@@ -88,8 +88,8 @@ Meta's content and ad rules.
 a client's protocol with the running server's, so no backend deploy is needed. A matched
 Linux/PCVR/Quest release is required and has not been approved.
 
-The GitHub repo is public. Pushing these assets is itself a public release under the rights note
-above, so they stay local until the owner makes the repo private or accepts that.
+The GitHub repo is public, so pushing these assets published them. The founder chose that on
+2026-11-04, for now. It's separate from a game release, which still needs the rights note above.
 
 ## Status - 2026-11-04
 
