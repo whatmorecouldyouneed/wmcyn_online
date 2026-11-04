@@ -1,0 +1,14 @@
+{
+  "meshes": 89,
+  "polygons": 24908,
+  "materials": [
+    "Chrome",
+    "floor",
+    "footings",
+    "light_handle",
+    "light_inside_bar",
+    "light_pot"
+  ],
+  "origin": "Original deck top center",
+  "placement_scale": 0.2578787879980278
+}

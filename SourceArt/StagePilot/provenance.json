@@ -1,0 +1,32 @@
+[
+  {
+    "name": "StageDeck",
+    "source": "C:\\Users\\jvred\\WMCYN v2.0\\Assets\\stage.fbx",
+    "source_dimensions_m": [
+      19.388954162597656,
+      13.336772918701172,
+      0.23094868659973145
+    ],
+    "materials": [
+      "floor"
+    ]
+  },
+  {
+    "name": "AlephStandard",
+    "source": "C:\\Users\\jvred\\WMCYN v2.0\\Assets\\aleph 9\\VDJ_R2100\\Model\\Booth_StandardSet.fbx",
+    "source_dimensions_m": [
+      1.9299168586730957,
+      0.7522812485694885,
+      1.1254194974899292
+    ],
+    "materials": [
+      "DISP",
+      "DJset",
+      "booth",
+      "glass",
+      "light",
+      "light2",
+      "metal"
+    ]
+  }
+]

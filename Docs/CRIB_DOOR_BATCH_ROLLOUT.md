@@ -19,6 +19,8 @@ Moving leaves intentionally remain nonblocking, matching the approved pilot. The
 
 ## Verification
 
+- **Headset validation passed, user-reported (2026-10-14).** Jared confirmed the headset pass; another tester was unavailable for multi-headset validation. This does not establish simultaneous multiplayer behavior or individual coverage of all 15 leaves.
+
 - All 15 WMCYN door Blueprints compiled with warnings treated as errors.
 - PIE synthetic hinge tests passed for all 15: original pose -> configured swing limit -> original pose, within two degrees. This tests the AFCore hinge path, not hardware grip input.
 - All 15 doorway center traces are clear of the imported static geometry after the cut.
@@ -29,8 +31,7 @@ Moving leaves intentionally remain nonblocking, matching the approved pilot. The
 
 ## Remaining Gates
 
-- Headset: approach the right door, hold right side grip near its handle, swing it, release, and walk through. Repeat representative doors on each floor and the downstairs double doors.
-- Confirm each swing direction clears nearby decoration and feels natural; hinge anchors for baked-open double leaves are approximate and need headset review.
+- Local headset acceptance is complete based on Jared's report. Exhaustive per-door coverage was not recorded; baked-open double-leaf anchors remain approximate.
 - **Standalone VR Preview only:** the grip adapter still uses `IsStandalone`. Replication flags do not make this a working multiplayer door system. Server-authoritative interaction routing and multi-user conflict/release tests remain pending before packaged online rollout.
 - No client/server build or deployment was performed.
 

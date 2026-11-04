@@ -6,6 +6,9 @@
 #include "WMCYNFirstSignalPresenceComponent.generated.h"
 
 class ACharacter;
+class AWMCYNVideoChannel;
+class AWMCYNJointItem;
+class AWMCYNSessionItem;
 class APlayerState;
 class UAnimInstance;
 class UCameraComponent;
@@ -33,6 +36,16 @@ class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorCompone
 
 public:
     bool HasVerifiedRecordingCapability() const { return bVerifiedRecordingCapability; }
+    void RequestVideoChannel(AWMCYNVideoChannel* Channel, const FString& Url, bool bReset);
+    FString VideoResponse;
+    USceneComponent* GetTrackedHand(bool bRightHand) const;
+    bool IsHandTracked(bool bRightHand) const;
+    bool IsRuntimeMenuVisible() const { return bRuntimeMenuVisible; }
+    bool CanUseWorldItems() const;
+    void RequestItemTake(AWMCYNSessionItem* Item, bool bRightHand, const FTransform& Grip);
+    void RequestItemDrop(AWMCYNSessionItem* Item, const FVector& Location, const FRotator& Rotation);
+    void RequestItemUse(AWMCYNSessionItem* Item, bool bDown);
+    void RequestItemContact(AWMCYNJointItem* Joint, AWMCYNSessionItem* Other);
     UWMCYNFirstSignalPresenceComponent();
 private:
     UPROPERTY(Replicated)
@@ -69,6 +82,11 @@ public:
     void SetRuntimeMenuPinned(bool bPinned);
 
 protected:
+    UFUNCTION(Server, Reliable)
+    void ServerSetVideoChannel(AWMCYNVideoChannel* Channel, const FString& Url, bool bReset);
+    UFUNCTION(Client, Reliable)
+    void ClientVideoResponse(const FString& Message);
+
     UFUNCTION(Server, Unreliable)
     void ServerUpdateTrackedPose(
         FVector_NetQuantize10 InHeadLocation,
@@ -83,6 +101,19 @@ protected:
 
     UFUNCTION(Server, Reliable)
     void ServerRequestRespawnToPresenceSlot();
+
+    // Items have no owning connection, so their RPCs travel through this pawn's component.
+    UFUNCTION(Server, Reliable)
+    void ServerItemTake(AWMCYNSessionItem* Item, bool bRightHand, FVector_NetQuantize100 GripLocation, FRotator GripRotation);
+
+    UFUNCTION(Server, Reliable)
+    void ServerItemDrop(AWMCYNSessionItem* Item, FVector_NetQuantize100 Location, FRotator Rotation);
+
+    UFUNCTION(Server, Reliable)
+    void ServerItemUse(AWMCYNSessionItem* Item, bool bDown);
+
+    UFUNCTION(Server, Reliable)
+    void ServerItemContact(AWMCYNJointItem* Joint, AWMCYNSessionItem* Other);
 
     UFUNCTION(Server, Reliable)
     void ServerSubmitAvatarPresentation(
@@ -112,6 +143,7 @@ private:
     void UpdatePointerBeam(bool bVisible);
     void PrimeLoginWidgetPairingPanel();
     void EnsureLoginPanelPresent();
+    void EnsureItemInteraction();
     void TryAutoEnterFromVerifiedLogin();
     AActor* ResolveLoginPanelActor();
     void ApplyLocalLoginGateLock();
@@ -313,6 +345,7 @@ private:
     bool bAutoEntryAttempted = false;
     bool bLoginWidgetPairingPrimed = false;
     bool bLoginPanelRestoreFailed = false;
+    bool bItemInteractionCreated = false;
     bool bRuntimeMenuCreateFailed = false;
     int32 RuntimeMenuInputBindingHandle = INDEX_NONE;
     TWeakObjectPtr<UInputComponent> RuntimeMenuInputComponent;

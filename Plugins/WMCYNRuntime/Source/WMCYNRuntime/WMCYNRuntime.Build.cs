@@ -13,9 +13,13 @@ public class WMCYNRuntime : ModuleRules
             "Engine",
             "HeadMountedDisplay",
             "HTTP",
+            "ApplicationCore",
             "InputCore",
             "Json",
+            "MediaAssets",
+            "AudioMixer",
             "NetCore",
+            "Niagara",
             "OnlineSubsystem",
             "OnlineSubsystemUtils",
             "UMG",
@@ -34,6 +38,10 @@ public class WMCYNRuntime : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Android)
         {
             PrivateDependencyModuleNames.Add("AndroidPermission");
+            PrivateDependencyModuleNames.Add("Launch");
+            // The Quest resolver is opt-in: this file exists only once its dependency is approved.
+            string ResolverPlugin = System.IO.Path.Combine(ModuleDirectory, "WMCYNRuntime_UPL.xml");
+            if (System.IO.File.Exists(ResolverPlugin)) AdditionalPropertiesForReceipt.Add("AndroidPlugin", ResolverPlugin);
         }
     }
 }

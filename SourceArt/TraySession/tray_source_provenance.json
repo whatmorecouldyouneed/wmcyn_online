@@ -1,0 +1,79 @@
+{
+  "source": "C:/Users/jvred/WMCYN v2.0/Assets/Joints By Matic 954/Joint Roller/",
+  "meshes": [
+    {
+      "mesh": "SM_Tray_Joint",
+      "triangles": 160,
+      "size_cm": [
+        0.66,
+        0.66,
+        8.28
+      ],
+      "materials": [
+        "Cigarettes1:Cigarette"
+      ]
+    },
+    {
+      "mesh": "SM_Tray_Tray",
+      "triangles": 916,
+      "size_cm": [
+        38.33,
+        49.09,
+        2.98
+      ],
+      "materials": [
+        "Tray_MAT"
+      ]
+    },
+    {
+      "mesh": "SM_Tray_Ashtray",
+      "triangles": 2062,
+      "size_cm": [
+        29.15,
+        29.15,
+        7.35
+      ],
+      "materials": [
+        "Material #2"
+      ]
+    },
+    {
+      "mesh": "SM_Tray_Lighter",
+      "triangles": 564,
+      "size_cm": [
+        3.9,
+        1.8,
+        12.0
+      ],
+      "materials": [
+        "lambert2SG",
+        "lambert4SG"
+      ]
+    },
+    {
+      "mesh": "SM_Tray_Grinder",
+      "triangles": 1040,
+      "size_cm": [
+        10.0,
+        10.0,
+        7.37
+      ],
+      "materials": [
+        "initialShadingGroup"
+      ]
+    },
+    {
+      "mesh": "SM_Tray_Papers",
+      "triangles": 2348,
+      "size_cm": [
+        18.7,
+        4.63,
+        4.65
+      ],
+      "materials": [
+        "Feuille",
+        "Paquet"
+      ]
+    }
+  ]
+}

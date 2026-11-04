@@ -12,7 +12,8 @@ inline const TCHAR* WorldId = TEXT("wmcyn-online");
 inline const TCHAR* LocationId = TEXT("wmcyn-crib");
 inline const TCHAR* DefaultBuildId = TEXT("first-signal-001");
 // Protocol 2 requires signed, account-derived public identity.
-constexpr int32 ProtocolVersion = 2;
+// Protocol 3 adds replicated tray items and their pawn RPCs.
+constexpr int32 ProtocolVersion = 3;
 constexpr int32 Capacity = 4;
 constexpr float HeartbeatIntervalSeconds = 10.0f;
 

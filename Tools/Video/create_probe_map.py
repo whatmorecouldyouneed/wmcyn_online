@@ -1,0 +1,32 @@
+"""Creates an isolated media gate map; never loads or saves the Crib."""
+import unreal
+
+path='/Game/WMCYN/Dev/VideoProbe/L_VideoProbe'
+world=unreal.EditorLoadingAndSavingUtils.new_blank_map(False)
+world.get_world_settings().set_editor_property('default_game_mode',unreal.GameModeBase)
+mel=unreal.MaterialEditingLibrary
+tools=unreal.AssetToolsHelpers.get_asset_tools()
+mat=unreal.load_asset('/Game/WMCYN/Dev/VideoProbe/M_VideoProbe') or tools.create_asset('M_VideoProbe','/Game/WMCYN/Dev/VideoProbe',unreal.Material,unreal.MaterialFactoryNew())
+mel.delete_all_material_expressions(mat)
+mat.set_editor_property('shading_model',unreal.MaterialShadingModel.MSM_UNLIT)
+mat.set_editor_property('two_sided',True)
+node=mel.create_material_expression(mat,unreal.MaterialExpressionTextureSampleParameter2D)
+node.set_editor_property('parameter_name','VideoTexture')
+texture=unreal.load_asset('/Game/WMCYN/Dev/VideoProbe/MT_VideoProbe') or tools.create_asset('MT_VideoProbe','/Game/WMCYN/Dev/VideoProbe',unreal.MediaTexture,unreal.MediaTextureFactoryNew())
+node.set_editor_property('texture',texture)
+node.set_editor_property('sampler_type',unreal.MaterialSamplerType.SAMPLERTYPE_EXTERNAL)
+mel.connect_material_property(node,'RGB',unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+mel.recompile_material(mat)
+unreal.EditorAssetLibrary.save_loaded_asset(texture)
+unreal.EditorAssetLibrary.save_loaded_asset(mat)
+sub=unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+actor=sub.spawn_actor_from_class(unreal.load_class(None,'/Script/WMCYNRuntime.WMCYNVideoProbe'),unreal.Vector(0,0,160))
+actor.set_editor_property('screen_material',mat)
+screen=actor.get_editor_property('screen')
+screen.set_static_mesh(unreal.load_asset('/Engine/BasicShapes/Plane'))
+screen.set_relative_location(unreal.Vector(250,0,0),False,False)
+screen.set_relative_rotation(unreal.Rotator(pitch=90,yaw=0,roll=0),False,False)
+screen.set_relative_scale3d(unreal.Vector(1.125,2,1))
+sub.spawn_actor_from_class(unreal.PlayerStart,unreal.Vector(0,0,160))
+assert unreal.EditorLoadingAndSavingUtils.save_map(world,path)
+print('WMCYN_VIDEO_PROBE_MAP_READY')

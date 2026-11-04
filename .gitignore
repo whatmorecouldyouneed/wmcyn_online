@@ -49,3 +49,6 @@ desktop.ini
 # Both the .keystore and these passwords must exist in the password manager:
 # Meta locks the app to the first certificate uploaded and it can never change.
 Config/Android/AndroidEngine.ini
+
+# Fetched and checksummed by Tools/Video/Get-YtDlp.ps1
+/ThirdParty/yt-dlp/

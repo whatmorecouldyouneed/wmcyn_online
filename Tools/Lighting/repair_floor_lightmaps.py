@@ -24,7 +24,8 @@ for component_name, source_name in repairs:
     assert mesh
     source = unreal.load_asset("/Game/Environments/WMCYN_Crib/" + source_name)
     bounds = mesh.get_bounds()
-    source_collision = source.get_editor_property("body_setup").get_editor_property("collision_trace_flag")
+    # Existing WMCYN duplicates may already carry verified collision repairs.
+    source_collision = mesh.get_editor_property("body_setup").get_editor_property("collision_trace_flag")
     assert ss.generate_box_uv_channel(mesh, 0, 1, bounds.origin,
         unreal.Rotator(), bounds.box_extent * 2)
     settings = ss.get_lod_build_settings(mesh, 0)

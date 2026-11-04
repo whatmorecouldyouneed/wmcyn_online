@@ -1,4 +1,5 @@
 #include "WMCYNCameraToolComponent.h"
+#include "WMCYNDoorGrip.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/WidgetComponent.h"
@@ -138,16 +139,7 @@ void UWMCYNCameraToolComponent::ResetCameraPose()
 
 bool UWMCYNCameraToolComponent::IsNearDoor(const FVector& HandLocation) const
 {
-    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
-    {
-        if (!It->GetClass()->GetPathName().StartsWith(TEXT("/Game/WMCYN/Environment/Crib/Doors/"))) continue;
-        // Existing door adapters poll raw grip. Yield before their 35 cm pickup range,
-        // including swept leaves, rather than consuming or rewriting their input.
-        if (const FBoolProperty* Held = FindFProperty<FBoolProperty>(It->GetClass(), TEXT("GripHeld")))
-            if (Held->GetPropertyValue_InContainer(*It)) return true;
-        if (It->GetComponentsBoundingBox(true).ExpandBy(50).IsInsideOrOn(HandLocation)) return true;
-    }
-    return false;
+    return WMCYNIsHandNearDoor(GetWorld(), HandLocation);
 }
 
 void UWMCYNCameraToolComponent::UpdateGrip(const FTransform& Hand, bool bTracked, bool bDown, bool bDoorPriority)

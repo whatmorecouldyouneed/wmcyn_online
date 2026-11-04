@@ -1,4 +1,5 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
+#include "WMCYNVideoChannel.h"
 
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
@@ -54,6 +55,9 @@ static const TCHAR* const WMCYNFirstSignalEntryManagerClassPath =
 static constexpr float WMCYNFirstSignalLoginPanelRestoreDistance = 200.0f;
 #include "WMCYNIdentityPolicy.h"
 #include "WMCYNFirstSignalPairingAsyncAction.h"
+#include "WMCYNItemInteractionComponent.h"
+#include "WMCYNJointItem.h"
+#include "WMCYNSessionItem.h"
 
 #if PLATFORM_ANDROID
 #include "AndroidPermissionFunctionLibrary.h"
@@ -203,6 +207,48 @@ void UWMCYNFirstSignalPresenceComponent::BeginPlay()
     {
         World->GetTimerManager().SetTimerForNextTick(this, &UWMCYNFirstSignalPresenceComponent::RegisterVoice);
     }
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestVideoChannel(AWMCYNVideoChannel* Channel, const FString& Url, bool bReset)
+{
+    if (Url.Len() > WMCYNVideoPolicy::MaxUrlLength)
+    {
+        VideoResponse = TEXT("Link too long");
+        return;
+    }
+    VideoResponse = TEXT("Submitting");
+    ServerSetVideoChannel(Channel, Url, bReset);
+}
+
+void UWMCYNFirstSignalPresenceComponent::ClientVideoResponse_Implementation(const FString& Message)
+{
+    VideoResponse=Message;
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerSetVideoChannel_Implementation(AWMCYNVideoChannel* Channel,const FString& Url,bool bReset)
+{
+    APawn* Pawn = Cast<APawn>(GetOwner());
+    if (!Pawn || !Channel || !Channel->IsKnownChannel() || Channel->GetWorld() != GetWorld() ||
+        Url.Len() > WMCYNVideoPolicy::MaxUrlLength) return;
+    auto* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<UWMCYNWorldRuntimeSubsystem>();
+    const auto* Identity = Runtime ? Runtime->GetVerifiedIdentity(Pawn->GetController()) : nullptr;
+    FString Uid = Identity ? Identity->Uid : FString();
+    if (GetNetMode() == NM_Standalone)
+    {
+        auto* Backend = GetWorld()->GetGameInstance()->GetSubsystem<UWMCYNBackendSubsystem>();
+        if (Backend && Backend->LoginState == EWMCYNBackendLoginState::Ready) Uid = Backend->VerifiedUserId;
+#if !UE_BUILD_SHIPPING
+        // Explicitly local preview only, matching the camera and tray items.
+        if (Uid.IsEmpty()) Uid = TEXT("local-preview");
+#endif
+    }
+    if (Uid.IsEmpty())
+    {
+        ClientVideoResponse(TEXT("Verified sign-in required"));
+        return;
+    }
+    const FString Error = Channel->Submit(Url, bReset, Uid);
+    ClientVideoResponse(Error.IsEmpty() ? TEXT("Updated for everyone") : Error);
 }
 
 void UWMCYNFirstSignalPresenceComponent::TryAutoEnterFromVerifiedLogin()
@@ -674,6 +720,92 @@ void UWMCYNFirstSignalPresenceComponent::ServerRequestRespawnToPresenceSlot_Impl
     RespawnToPresenceSlot();
 }
 
+USceneComponent* UWMCYNFirstSignalPresenceComponent::GetTrackedHand(const bool bRightHand) const
+{
+    return bRightHand ? RightController : LeftController;
+}
+
+bool UWMCYNFirstSignalPresenceComponent::IsHandTracked(const bool bRightHand) const
+{
+    const UMotionControllerComponent* Hand = bRightHand ? RightController : LeftController;
+    return Hand && Hand->IsTracked();
+}
+
+bool UWMCYNFirstSignalPresenceComponent::CanUseWorldItems() const
+{
+#if !UE_BUILD_SHIPPING
+    // Explicitly local preview only, matching the camera tool.
+    if (GetNetMode() == NM_Standalone) return true;
+#endif
+    return bLoginGateCompleted;
+}
+
+void UWMCYNFirstSignalPresenceComponent::EnsureItemInteraction()
+{
+    if (bItemInteractionCreated || !OwnerCharacter) return;
+    bItemInteractionCreated = true;
+    auto* Interaction = NewObject<UWMCYNItemInteractionComponent>(OwnerCharacter);
+    OwnerCharacter->AddInstanceComponent(Interaction);
+    Interaction->RegisterComponent();
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestItemTake(AWMCYNSessionItem* Item, const bool bRightHand, const FTransform& Grip)
+{
+    ServerItemTake(Item, bRightHand, Grip.GetLocation(), Grip.Rotator());
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestItemDrop(AWMCYNSessionItem* Item, const FVector& Location, const FRotator& Rotation)
+{
+    ServerItemDrop(Item, Location, Rotation);
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestItemUse(AWMCYNSessionItem* Item, const bool bDown)
+{
+    ServerItemUse(Item, bDown);
+}
+
+void UWMCYNFirstSignalPresenceComponent::RequestItemContact(AWMCYNJointItem* Joint, AWMCYNSessionItem* Other)
+{
+    ServerItemContact(Joint, Other);
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerItemTake_Implementation(AWMCYNSessionItem* Item, const bool bRightHand,
+    const FVector_NetQuantize100 GripLocation, const FRotator GripRotation)
+{
+    if (!Item || !Item->TryTake(OwnerCharacter, bRightHand, GripLocation, GripRotation))
+    {
+        UE_LOG(LogTemp, Display, TEXT("WMCYN Item: take refused for %s"), *GetNameSafe(Item));
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerItemDrop_Implementation(AWMCYNSessionItem* Item,
+    const FVector_NetQuantize100 Location, const FRotator Rotation)
+{
+    if (!Item || !Item->TryDrop(OwnerCharacter, Location, Rotation))
+    {
+        UE_LOG(LogTemp, Display, TEXT("WMCYN Item: drop refused for %s"), *GetNameSafe(Item));
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerItemUse_Implementation(AWMCYNSessionItem* Item, const bool bDown)
+{
+    if (!Item || Item->GetHolder() != OwnerCharacter)
+    {
+        UE_LOG(LogTemp, Display, TEXT("WMCYN Item: use refused for %s"), *GetNameSafe(Item));
+        return;
+    }
+    Item->ServerUse(bDown);
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerItemContact_Implementation(AWMCYNJointItem* Joint, AWMCYNSessionItem* Other)
+{
+    const bool bHoldsEither = (Joint && Joint->GetHolder() == OwnerCharacter) || (Other && Other->GetHolder() == OwnerCharacter);
+    if (!Joint || !bHoldsEither || !Joint->ServerApplyContact(Other))
+    {
+        UE_LOG(LogTemp, Display, TEXT("WMCYN Item: contact refused for %s"), *GetNameSafe(Joint));
+    }
+}
+
 void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
 {
     if (!OwnerCharacter || !OwnerCharacter->HasAuthority())
@@ -751,6 +883,7 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
     if (OwnerCharacter->IsLocallyControlled())
     {
         EnsureLoginPanelPresent();
+        EnsureItemInteraction();
         PrimeLoginWidgetPairingPanel();
         if (!bLoginGateCompleted && !bAutoEntryAttempted)
         {

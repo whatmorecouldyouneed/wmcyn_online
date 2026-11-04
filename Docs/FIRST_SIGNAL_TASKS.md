@@ -1,5 +1,23 @@
 # First Signal Tasks
 
+## Active Sprint: First Interview (2026-10-23)
+
+Use `FIRST_INTERVIEW_ROADMAP.md` and `AGENT_HANDOFF.md` before historical tasks.
+- [x] Audit current source and preserve existing dirty framework/asset work.
+- [x] Implement signed profile identity and AP-name filtering in source.
+- [x] Backend compile/tests: 58 pass. No cloud deployment this pass.
+- [x] Add three local camera pose/FOV slots and controller-name correction in source.
+- [x] Native UHT/compile-only: 20 actions pass, no loaded DLL replacement.
+- [ ] Link/restart, identity/ticket and camera automation execution.
+- [ ] Matching protocol-2 server/clients; remote name spoof/respawn/reconnect test.
+- [ ] Expose camera shot slots in styled menu; enforce Recording entitlement.
+- [ ] Headset grab diagnostics and short OBS/microphone recording.
+- [ ] One couch seat locally, then two authoritative occupied seats remotely.
+- [ ] Stage/media rights and placement approval; synchronized prepared playback.
+- [ ] 30-minute interview, transition/performance, playback and backup.
+
+Full scan-to-MetaHuman delivery and iPhone VCam are not episode blockers.
+
 ## Acceptance Target
 
 Bring The WMCYN Crib online with three standalone Quest users and one PCVR recording user in the same always-on world, with basic presence, username/display name, two-way voice, and OBS-friendly capture.
@@ -13,6 +31,16 @@ Bring The WMCYN Crib online with three standalone Quest users and one PCVR recor
 - [ ] Confirm remote voice, OBS capture, reconnect, and packaged four-device behavior.
 
 ## Completed Baseline
+
+### Collision Polish Follow-Up (2026-10-14)
+
+- [ ] Polish Crib floor and player collision; user reports the current working baseline still needs refinement.
+- [ ] Inspect active runtime capsule/body collision after Mimic initialization, seated and standing. Read-only class defaults show WMCYN capsule radius 26 cm, half-height 90 cm, Pawn profile; inherited skeletal mesh also blocks Pawn with QueryAndPhysics enabled. Check actual physics bodies and runtime overrides before changing either.
+- [ ] Test a WMCYN-only skeletal-mesh Pawn-response override if duplicate body blocking is confirmed. Preserve controller interaction, capsule floor collision, Mimic IK, tracking and locomotion.
+- [ ] Compare visible floors against collision at doorway thresholds, especially doors 08/09 and 15. Existing shell hits sit about 25 cm and 99 cm below door bottoms respectively; these are not yet measurements of visible-floor error. Repair only verified mismatches using WMCYN-owned collision.
+- [ ] Review 45 cm MaxStepHeight against actual stairs/thresholds before tuning. Do not globally shrink the capsule, change player scale, or reintroduce a floor guard as a shortcut.
+
+Read-only evidence: `Saved/Diagnostics/Lighting/player_collision_polish_audit.json`; repeat with `Tools/Lighting/audit_player_collision_polish.py`. These are class defaults, not a headset runtime diagnosis. No collision assets or movement settings changed in this audit.
 
 - [x] Preserve HumanCodeable AFCore / Advanced VR Framework as the runtime baseline.
 - [x] Use `L_WMCYNOnline` and the Crib as the active First Signal world.

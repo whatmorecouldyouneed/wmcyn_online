@@ -1,4 +1,5 @@
 #include "WMCYNFirstSignalSettingsWidget.h"
+#include "WMCYNHighEffectComponent.h"
 
 #include "Components/Button.h"
 #include "Components/Slider.h"
@@ -104,6 +105,7 @@ void UWMCYNFirstSignalSettingsWidget::NativeConstruct()
     if (CameraShotSelectButton) CameraShotSelectButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCameraShotSelectClicked);
     if (CameraButton) CameraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCameraClicked);
     if (CameraResetButton) CameraResetButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCameraResetClicked);
+    if (HighEffectButton) HighEffectButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleHighEffectClicked);
     if (CameraOutputButton) CameraOutputButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleCameraOutputClicked);
     if (CameraFOV) CameraFOV->OnValueChanged.AddUniqueDynamic(this, &ThisClass::HandleCameraFOVChanged);
 #if !PLATFORM_WINDOWS
@@ -128,6 +130,7 @@ void UWMCYNFirstSignalSettingsWidget::NativeDestruct()
     if (CameraShotSelectButton) CameraShotSelectButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCameraShotSelectClicked);
     if (CameraButton) CameraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCameraClicked);
     if (CameraResetButton) CameraResetButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCameraResetClicked);
+    if (HighEffectButton) HighEffectButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleHighEffectClicked);
     if (CameraOutputButton) CameraOutputButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCameraOutputClicked);
     if (CameraFOV) CameraFOV->OnValueChanged.RemoveDynamic(this, &ThisClass::HandleCameraFOVChanged);
     if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(ToolsTimer);
@@ -251,6 +254,12 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraShotSelectClicked()
     RefreshTools();
 }
 
+void UWMCYNFirstSignalSettingsWidget::HandleHighEffectClicked()
+{
+    UWMCYNHighEffectComponent::SetEnabledByUser(!UWMCYNHighEffectComponent::IsEnabledByUser());
+    RefreshTools();
+}
+
 void UWMCYNFirstSignalSettingsWidget::HandleCameraOutputClicked()
 {
     if (auto* Tool = ResolveCameraTool())
@@ -295,6 +304,11 @@ void UWMCYNFirstSignalSettingsWidget::HandlePinPanelClicked()
 
 void UWMCYNFirstSignalSettingsWidget::RefreshTools()
 {
+    if (HighEffectStatus)
+    {
+        HighEffectStatus->SetText(FText::FromString(UWMCYNHighEffectComponent::IsEnabledByUser()
+            ? TEXT("Screen effect: on") : TEXT("Screen effect: off")));
+    }
     const APlayerController* CameraPC = UGameplayStatics::GetPlayerController(this, 0);
     const APawn* CameraPawn = CameraPC ? CameraPC->GetPawn() : nullptr;
     const auto* CameraTool = CameraPawn ? CameraPawn->FindComponentByClass<UWMCYNCameraToolComponent>() : nullptr;

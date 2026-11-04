@@ -2,6 +2,10 @@
 
 Last updated: 2026-07-31
 
+## Current Login Gate (2026-10-15)
+
+See `Docs/AVATAR_LOGIN_AUDIT_2026_10_15.md` before publishing. The current test account has no verified account-matched PCVR Unreal output and must retain native default, per user decision. The older `52b64e54` output belongs to another Firebase UID. The legacy publisher's platform-prefixed runtime fields do not match the inspected backend main manifest contract; the historical commands below are not a verified publication recipe for the current backend. Published network avatars remain disabled until server-side account resolution is implemented. Do not mistake a preview/published scan or a signed URL for an available cooked Unreal asset.
+
 ## What the mobile upload actually is
 
 The current phone-side avatar upload is not a ready-made Unreal mesh.

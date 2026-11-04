@@ -1,6 +1,79 @@
 # Current State
 
+## Active Priority - 2026-11-04
+
+- Shared video: three channels (living room, stage plus DJ mirror, basement) and in-world panels
+  replace the autoplay actor. PCVR resolves YouTube and Twitch per client with pinned yt-dlp; Quest
+  plays direct links and reports those two as unavailable until its dependency is approved.
+  Simulate and 17/17 synthetic tests pass; Win64, Android and Linux compile. No real YouTube or
+  Twitch link has been resolved yet, and panels are untested in a headset. See
+  `CRIB_DISPLAY_STREAM.md` and `SHARED_VIDEO_QUEST_GATE.md`.
+
+- Release hold: the tray and video work is committed locally only. The tray's rights acceptance
+  covers the closed ALPHA, and this GitHub repo is public, so pushing would publish that art. The
+  owner decides on making the repo private first. Protocol 3 then needs a matched server cutover.
+
+- Shared video Quest-first gate started: isolated VideoProbe map/native diagnostic
+  added; Win64 Editor build and Android ARM64 native compile/link pass. Packaged
+  playback is NOT verified. GPL Android wrapper is blocked; the MIT alternative is
+  audited but not adopted. See `SHARED_VIDEO_QUEST_GATE.md`.
+
+- Tray session (Joint Roller port) in progress. Native code and content are in the working tree;
+  11/11 synthetic WMCYN tests pass. Local `ProtocolVersion` is now 3, so local builds cannot join the
+  live protocol 2 world until a matched release is approved. See `TRAY_SESSION.md`.
+
+- Stage follow-up: full 89-piece FBX visual assembly restored at a proportional
+  5 m width; old slab retained as hidden simple support. Editor-rendered review
+  and nine expanded support checks pass. Rails/posts are visual-only; functional
+  stage lights, Unity material parity and headset traversal remain pending.
+
+- Founder confirms camera is grabbable and defers seating; stage/DJ layout is next.
+- Original stage deck and Aleph Standard booth reused in the approved pool-side
+  grass alcove. Four WMCYN-only pilot actors saved in L_WMCYNOnline.
+- Editor screenshots reviewed; 26 simple deck/step support checks pass. Lawn
+  approach, headset scale and remote acceptance remain open; no playback added.
+- See `STAGE_DJ_LAYOUT_PILOT.md` for source provenance, scripts and next checks.
+
+## Active Priority - 2026-11-02
+
+- Founder confirms distribution is closed and Gio/Cole are green. This supersedes
+  older distribution blockers below; exact installed artifact hashes were not
+  re-audited in this pass. Do not reopen distribution as the primary work lane.
+- Next: recordable interview camera, two-person seating, then short OBS rehearsal.
+- Camera reliability pass rebuilt successfully with Launcher UE 5.8 (55116800).
+  Expanded `WMCYN.UI.HandheldCamera` automation passes, zero errors/warnings.
+  This is synthetic NullRHI evidence, not a rendered/headset/remote recording pass.
+- See `INTERVIEW_CAMERA_REHEARSAL.md` for capture settings and remaining gates.
+
+## First Interview Priority (2026-10-23)
+
+`FIRST_INTERVIEW_ROADMAP.md` is the canonical delivery plan; `AGENT_HANDOFF.md`
+records the source/build checkpoint. Older sections below are dated history,
+not evidence that today's build passed device testing. Prioritize a recordable
+episode in the approved couch set: default avatar fallback, three switched
+shots, headset microphones/VOIP mix and prepared music. External microphones
+and isolated speaker tracks are deferred per founder correction. Jared's local tracking passed
+October 23; garments and grooms are implemented and asset-verified, but no headset/PIE visual confirmation,
+  and packaged/remote acceptance is open.
+Protocol-2 signed identity and three camera shot slots are source changes only.
+Backend tests pass (58/58); native UHT/compile-only passes (20 actions).
+Link/restart, native test execution and hardware acceptance are pending.
+
 ## Project
+
+- Jared avatar follow-up (2026-10-20): remembered login succeeds, but the live
+  account-owned job is still `preview_ready` without runtime mesh paths, so its
+  PCVR manifest returns default. WMCYN preview skeleton links are valid.
+  Ticket-bound server resolution is implemented in source; publication and
+  matching runtime builds remain pending. See `Docs/JARED_ACCOUNT_AVATAR_2026_10_20.md`.
+
+- Furnishing spec started (2026-10-17): `Specs/004-crib-furnishing/spec.md` defines the main living/dining/bar batch, reference-inspired redesign and static dressing only. Local Unity/package comparison, 87 prefab dependency inspections and ten FBX measurements are recorded in its source audit. Measured Unreal layout/approval remains pending; no furniture imported. Interview-room living-room replica is a separate measured set.
+
+- Adaptive UI pilot (2026-10-16): priorities 1-4 approved and implementation underway. WMCYN login/settings styling, local mic/mirror controls, panel reset/pin, per-person volume and a local camera preview/spectator-output pilot exist. Editor native build passes; headset and remote-peer acceptance remain open. See `Docs/ADAPTIVE_UI_IMPLEMENTATION.md`. Persistent-sign-in acceptance remains separate.
+
+- Development workflow priority (2026-10-16): remembered sign-in first, then explicit offline testing and developer diagnostics, then adaptive UI styling. Windows secure storage/refresh and Designer-visible Remember Me, Continue, Switch Account and Settings Sign Out are implemented. Credential-store automation and local UI smoke checks pass; real-account restore and Quest secure storage remain pending. See `Docs/PERSISTENT_SIGN_IN.md`. Do not treat this as a shipped or headset-validated feature.
+
+- Avatar audit (2026-10-15): the current login test account has no verified account-matched PCVR runtime output. User chose native default, not rebinding the older test-account MetaHuman. Runtime source now hardens fallback, retries, pre-cooked path checks and client avatar RPC handling; published online avatars require a trusted server-side account resolver. No Firestore/backend deployment changes. See `Docs/AVATAR_LOGIN_AUDIT_2026_10_15.md` for evidence, build status and acceptance steps.
 
 - WMCYN Online is an Unreal Engine 5.8 project.
 - Current target: First Signal Build inside The WMCYN Crib.
@@ -16,7 +89,19 @@
 
 ## Crib Lighting (2026-10-14)
 
-- Door rollout: 15 identified wooden leaves across six imported mesh groups now use WMCYN grip-door Blueprints, preserving frames and atlas materials. A WMCYN collision-shell duplicate opens 12 previously blocked doorways; all 811 floor/ceiling trace samples match the original. All 15 synthetic hinge tests pass. This is standalone VR Preview interaction, not validated online replication. See `Docs/CRIB_DOOR_BATCH_ROLLOUT.md`; headset batch acceptance remains open.
+- Bathroom corner follow-up (2026-10-17): extended Door 03 bathroom south into the unused recess, replacing the internal cross-wall with a continuous west wall and a south closure at Y44. Original window remains on the interview side. Eight capsule checks pass, including entry into the enlarged corner. Existing floor finish and final light bake remain unfinished.
+
+- Bathroom layout revision (2026-10-17): Door 03 (left closed door in the approved view) now accesses a separate bathroom shell. Three WMCYN partitions close its connection to the interview space; Door 04 remains the interview entrance and the window alcove remains outside the bathroom. Six synthetic capsule checks pass. Temporary bathroom light only; fixtures, final lighting bake and headset traversal pending. See `Tools/Lighting/build_interview_bathroom_partition.py`.
+
+- Interview-room window correction (2026-10-17): reopened the original window alcove by disabling the new south return and extending the enclosure around it. Original window retained and screenshot-verified; 120 floor samples and four passage sweeps pass. Existing rock intrusion, final lighting and headset validation remain pending.
+
+- Interview-room blockout (2026-10-17): spaces behind Doors 03/04 joined using WMCYN architecture/collision copies, with rear/side enclosure and ceiling. 96/96 floor samples, three capsule passage sweeps, and preservation of 811 shell horizontal faces pass. Headset traversal, threshold polish, set dressing and lighting rebake remain pending. See `Docs/INTERVIEW_ROOM_DOOR03_SCOPE.md`.
+
+- Walking collision repair (2026-10-17): three WMCYN floor duplicates outside spawn had no usable simple collision. UseComplexAsSimple plus double-sided geometry now passes 355/355 surface trace samples (previously 0/355 on the same meshes). No pawn/calibration or source-framework changes. Respawn moved to the top of Settings. Headset traversal and remote/package acceptance remain pending; see `Docs/CRIB_WALKABLE_COLLISION_2026_10_17.md`.
+
+- Collision polish remains open after the successful headset door pass. Read-only pawn-default inspection found a 26 cm WMCYN capsule radius, 45 cm step height, and both capsule and skeletal mesh blocking Pawn. Verify runtime behavior before changing the WMCYN wrapper; do not alter the native Mimic baseline. Doorway threshold-to-floor discrepancies also need visual-floor comparison. See the collision polish follow-up in `Docs/FIRST_SIGNAL_TASKS.md`.
+
+- Door rollout: 15 identified wooden leaves across six imported mesh groups now use WMCYN grip-door Blueprints, preserving frames and atlas materials. A WMCYN collision-shell duplicate opens 12 previously blocked doorways; all 811 floor/ceiling trace samples match the original. All 15 synthetic hinge tests pass. Jared reports headset validation passed (2026-10-14); exhaustive individual door coverage was not recorded. This is standalone VR Preview interaction: multiplayer synchronization implementation and multi-headset validation remain open. See `Docs/CRIB_DOOR_BATCH_ROLLOUT.md`.
 
 - User confirmed the orange door grip/push/pull pilot in headset. The real open left door is now separated into `DOOR_Crib_01_Grip`, with retained frame/UVs and standalone grip control. Adjacent closed-door warped reflections were caused by a visible glass collision shell; its rendering is disabled while collision is preserved. Synthetic real-door swing passes; real-door hardware, blocking safety and multiplayer remain open. See `Docs/CRIB_DOOR_01_CONVERSION.md`.
 
@@ -209,6 +294,8 @@
 - A downward collision trace at `SPAWN_FirstSignal_StandaloneVR_A` and eight surrounding samples all hit the Crib floor near `Z 461.8`. The capsule starts near `Z 557`, leaving its bottom about 5 cm above the floor. Any remaining fall-through needs a specific location outside this validated spawn patch.
 - The four indexed AFCore `BP_PlayerPosition` actors are logical WMCYN post-possession anchors, so Unreal's built-in `PlayerStart` `BAD SIZE` sprite is a false-positive editor badge for this path. Their transforms and collision capsules remain unchanged; only the instance editor sprites in `L_WMCYNOnline` show the normal player marker.
 
+- Crib display stream audio (2026-10-19): BP_Display_C_1 silence healed. Root causes: MediaSound component lacked the `MediaSound` tag AFCore binds by (fixed, persisted in the umap), and the autoplay bind sourced a player from `MT_Video` whose player is `None`. `BP_WMCYN_DisplayAutoplay` now takes its player from the cast `Comp_Video` and binds sound at ~1s/4s after BeginPlay; engine-verified. Known hazard: the adultswim HLS stream corrupt frame asserted Electra (`ElectraUtilsMPEGVideo.cpp:96`) and crashed the editor once; stable feed or local file recommended for long sessions. See `Docs/CRIB_DISPLAY_STREAM.md`.
+
 ## MCP
 
 - Unreal MCP is reachable at `http://127.0.0.1:8000/mcp` when the editor server is running.
@@ -289,6 +376,69 @@
     `/Game/WMCYN/AvatarPipeline/Runtime/WMCYNAvatar_52b64e54/ABP_WMCYN_MetaHuman_Presentation.ABP_WMCYN_MetaHuman_Presentation_C`
 - Do not publish the old Quinn/`ABP_VRBody` animation class against the MetaHuman mesh. The new WMCYN class is a
   reference-pose compatibility wrapper for this gate; its locomotion graph still needs to be authored and tested.
+
+### Jared MetaHuman First Signal presentation family (2026-10-19)
+
+- The newer `/Game/MetaHumans/Jared` import (chosen over the older broken import) now backs a WMCYN-owned
+  First Signal presentation family at `/Game/WMCYN/AvatarPipeline/Runtime/Jared/Preview/`:
+  - `SKM_Jared_Body_Preview` / `SKM_Jared_Head_Preview` (duplicates of the official `SKM_Jared_BodyMesh` / `SKM_Jared_FaceMesh`)
+  - `SKM_Jared_Outfit_Preview` / `SKM_Jared_Shoes_Preview` (duplicates of the import's `RiggedFit` / `Shoes`)
+  - `Grooms/{Hair_S_360Waves,Eyebrows_M_Wide,Goatee_L_Wavy}` plus a retargeted `_Binding` for each
+  - five baked map materials `M_Jared_{Body,Head,Head_LOD2,Head_LOD5to7,Teeth}_BakedPreview` that route official baked
+    textures (`T_*_BC/N`) around the import's missing material-function references (roughness 0.65 / specular 0.3)
+- Repair state:
+  - official import arrived with **empty skeleton references** on all four meshes. The skeletons are now assigned
+    directly on the preview assets by `UWMCYNRetargetEditorLibrary::AssignSkeletalMeshSkeleton`
+    (`Tools/AvatarPipeline/assign_jared_skeletons.py`), which merges the bone tree in C++ because the property is
+    read-only to Python and to the MCP bridge. The earlier `CoreRedirects` approach was removed: the redirects
+    could never fire. Targets are the plugin skeletons `metahuman_base_skel` (342 bones) and
+    `Face_Archetype_Skeleton` (875 bones); the script asserts their bone counts are unchanged by the merge, since
+    those assets live in engine-plugin content under Program Files.
+  - material graphs carry the baked basecolor/normal map wiring; the normal sample feeds the material Normal pin.
+  - garment textures: `RiggedFit`'s ORM had been imported as sRGB colour, which is what made the jacket and pants
+    look like wet plastic. Fixed to `TC_Masks`/sRGB off, with the normal map on `TC_Normalmap`
+    (`Tools/AvatarPipeline/fix_jared_appearance.py`).
+  - eye occlusion shell and lacrimal edge (`eyeshell_shader_shader`, `eyeEdge_shader_shader`) are hidden behind
+    `M_WMCYN_Hidden`, a translucent unlit material at opacity 0.
+  - eyes use `MI_Jared_Eye{L,R}_Preview`, flat DefaultLit stand-ins sampling the baked `T_EyeSclera{L,R}_BC` at
+    roughness 0.15. **This is a judgement call, not a derivation.** The MetaHuman unified eye shader is present
+    but does not resolve here, and its baked-texture path is behind a static switch unreachable from script. If
+    the eyes still look wrong, the next suspects are that the sclera bake omits the iris, or that the eyeball UVs
+    are not what this assumes - not further material swapping.
+  - grooms render against `MID_*` instances duplicated from the source import. Slot-to-material is *derived*, by
+    matching each slot name to the instance's parent material name, not hardcoded. Where several instances share
+    a parent the lowest-numbered wins and the alternatives are recorded in
+    `Saved/Diagnostics/Avatars/jared_groom_materials.json`, so a wrong hair colour is a swap to a named
+    alternative rather than another guess. Every groom material slot was `None` **in the source assets**, not as
+    an artefact of duplication - that is why hair and goatee first rendered white.
+  - eyelashes are deliberately groom-free: the head mesh carries eyelash geometry in its own
+    `eyelashes_shader_shader` section, so adding the groom would double them.
+  - **unverified**: the above is confirmed only by the two diagnostic JSON reports. No headset or PIE visual
+    confirmation of groom colour or the eye stand-in has been recorded.
+  - **pending editor validation**: PIE run, plugin rebuild (Live Coding or restart), visual/bone binding check for
+    both meshes, and an AnimBP compatibility probe for the shared presentation AnimBP.
+- Runtime changes (C++, requires rebuild):
+  - `WMCYNFirstSignalPresenceComponent` now accepts a family table that includes both the historical
+    `WMCYNAvatar_52b64e54` catalog and the new Jared Preview family; manifest body/head paths must match one
+    family exactly, and the shared presentation AnimBP path must match.
+  - **Garments and grooms travel with the family, not over the wire.** `FRuntimeAvatarAcceptFamily` carries
+    optional `Outfit`/`Shoes` paths and a groom list; the 52b64e54 family leaves them null. The manifest contract,
+    the replicated fields and the trust boundary are all unchanged, so the server must still log
+    `stage=authority result=rejected reason=unverified_client_selection` for client-supplied paths. Asset paths
+    originate only in C++. Do not move them into the manifest to "simplify" this.
+  - Garments are driven by `SetLeaderPoseComponent(AvatarBodyVisual)`, not a second AnimBP - they share the body
+    skeleton, so they copy its pose rather than evaluate another retarget. Grooms attach to `AvatarHeadVisual`
+    with `SetBindingAsset` *before* `SetGroomAsset`; that order matters.
+  - All assets load before any visual swap. A family that names an asset which fails to load aborts the whole
+    swap, so a missing garment can never leave a half-dressed avatar.
+  - `WMCYNRuntime.uplugin` now declares the `HairStrands` plugin dependency. It compiled without it, but
+    packaged builds would have failed.
+  - `WMCYNBackendSubsystem::RequestAvatarManifest` gained a dev-only `-WMCYNDevAvatarJared` (editor/unpackaged
+    builds only) synthetic `runtime_mesh` manifest so the Crib can login-validate Jared without a backend
+    publication. Packaged/hosted builds keep the trusted backend as the only published-manifest authority.
+- Pending for hosted-runtime use: a real server-side published `runtime_mesh` manifest for `[account email]`
+  (ownership was verified unresolved in `Docs/AVATAR_LOGIN_AUDIT_2026_10_15.md`); the client accepts it
+  identically through the family table.
 - Offline packaging review on 2026-07-31 confirmed the cooked output contains the published body mesh, head mesh, and
   `ABP_WMCYN_MetaHuman_Presentation`. Explicit WMCYN Asset Manager entries now retain those three manifest targets
   without cooking the discarded one-gigabyte export folder. A full isolated Windows stage was attempted but stopped

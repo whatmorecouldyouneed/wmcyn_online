@@ -1,5 +1,16 @@
 # First Signal Multi-User Validation
 
+## Current Acceptance (2026-10-23)
+
+Use the canonical internet-hosted runtime with matching Linux/PCVR/Quest builds.
+LAN/listen-host instructions below are historical diagnostics, not the release
+gate and not the product architecture. Follow FIRST_INTERVIEW_ROADMAP.md.
+Test two Quest participants plus PCVR operator for the first recording; the full
+world target remains three Quest users plus PCVR. Prior remote visibility/hearing
+is historical evidence, not acceptance of the new protocol-2 source changes.
+Record build/device/date and test names after login, respawn, reconnect; spoofed
+client name submission must not replace signed profile identity.
+
 ## Purpose
 
 Prove three standalone Quest users and one PCVR recording user can enter the same canonical WMCYN Crib world over the public internet with visible identity, replicated presence, voice, and OBS-friendly capture.

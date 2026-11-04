@@ -1,5 +1,42 @@
 # Decisions
 
+## 2026-11-02: Distribution Closed; Recording Next
+
+- Founder reports Gio and Cole green and the distribution loop closed.
+- Prioritize camera controls/output, two-person seating and a short recorded
+  rehearsal. Do not make new avatar fidelity work a recording prerequisite.
+- Keep one local PCVR capture feed; 360p remains the safe default. Opt-in 720p
+  and 1080p require measured GPU/headset comfort and real file playback checks.
+- Preserve in-world nameplates in camera output while excluding menus and the
+  camera prop/display. No framework, furniture, pawn tracking or cloud changes.
+
+
+## 2026-10-23: Headset-Only Recording Pilot
+
+- Founder clarified microphones are the headsets only for now; no external
+  microphone/interface inventory is assumed. This supersedes the separate-mic
+  assumption in the earlier interview plan below.
+- Record the received VOIP mix; explicitly verify local operator speech in OBS
+  without duplicated capture. Separate participant stems are not promised.
+- Co-located headset echo/crosstalk, intelligibility and music/vocal latency
+  must pass a short recorded rehearsal before treating this as episode-ready.
+
+## 2026-10-23: Recordable First Interview Before Full Avatar Delivery
+
+- Keep existing couch set, co-located HQ participants and canonical internet world.
+- Use default avatar fallback; preserve Jared's proven local tracking and newer
+  garment/groom work without claiming packaged or remote appearance acceptance.
+- OBS records one program switching master/interviewer/guest through the existing
+  capture; separate mic/music tracks, prepared backing track plus live vocals.
+- Protocol 2 binds public username/displayName to signed backend profile identity.
+  Network client name submissions cannot override server ticket identity. Missing
+  valid profile names fail bootstrap before reserving a slot; no UID/email fallback.
+- Coordinate backend, Linux runtime and client rollout; never deploy server-only
+  protocol changes into the current client population.
+- Seating needs a WMCYN adapter with server occupancy, not a headset height hack.
+- Stage/DJ assets wait for placement and rights approval. VCam/live DJ/cloud avatar
+  streaming deferred. See FIRST_INTERVIEW_ROADMAP.md for gates and estimates.
+
 This is the running decision log. Add concise dated entries when scope, architecture, or workflow changes.
 
 ## 2026-06-22

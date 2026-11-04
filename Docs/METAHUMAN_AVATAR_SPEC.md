@@ -181,6 +181,108 @@ We need two avatar variants per published avatar:
 
 The manifest endpoint should resolve the right variant by requested platform.
 
+## Clothing Is Catalog-Derived, Not Manifest-Delivered
+
+Decided 2026-10-22, while putting clothes on the first account-bound avatar.
+
+The manifest carries exactly two mesh paths, body and head. Garments do **not**
+travel over it, and no replicated field names them. Instead the pre-cooked
+accept catalog in `WMCYNFirstSignalPresenceComponent.cpp` carries optional
+`Outfit` and `Shoes` paths per family, read off the family only *after* its
+body/head/anim paths have matched. Clothing is part of the avatar's identity,
+so it rides with the family identity.
+
+Consequences, all of them deliberate:
+
+- No new manifest field, no new wire field, no new trust boundary. Asset paths
+  still originate only in C++, so the authority check continues to reject any
+  client-supplied path (`stage=authority result=rejected
+  reason=unverified_client_selection`).
+- A family with no garments is valid and stays valid - the 52b64e54 bake has
+  none. A family that *names* a garment it cannot load is a broken family and
+  aborts the whole swap, so a missing garment can never leave a half-dressed
+  avatar.
+- Garments are driven by `SetLeaderPoseComponent(AvatarBodyVisual)`, not by an
+  AnimBlueprint of their own. They share the body skeleton, so copying its
+  evaluated pose is both correct and one AnimInstance cheaper per garment.
+- Changing an avatar's clothes requires a client build. That is acceptable only
+  while avatars are pre-cooked; the moment delivery becomes real downloads, a
+  `precooked` delivery type and per-slot manifest paths both become necessary.
+
+### The garments are Y-up, and that is fine
+
+Both garments' reference poses differ from the body's by exactly one global
+rotation: every bone maps `(x, y, z) -> (x, z, -y)`, carried entirely by a 90
+degree roll on the `root` bone, with a fitted residual of **0.00 cm** across
+all 11 sampled bones and all 342 bones present. The garments are Y-up (a
+Maya/Unity source convention) while the body is Z-up.
+
+This does **not** need fixing, and the asset bounds that first raised it - the
+outfit is 165 cm tall on Y where the body is 156 cm on Z - are a red herring.
+A leader-pose follower skins as `v_mesh * inv(C_ref) * C_leader`. The garment's
+vertices and its reference pose are both Y-up, so the rotation appears on both
+sides and cancels:
+
+    v_Yup * inv(C_body * R) * C_leader  ==  v_Zup * inv(C_body) * C_leader
+
+The test that matters is therefore *not* whether a garment's bind pose matches
+the body's. It is whether the garment's bind is self-consistent with its own
+vertex data and whether the difference is a pure global rotation.
+`Tools/AvatarPipeline/check_jared_bind_pose.py` fits one across the 24
+determinant-+1 axis permutations and reports the residual; a residual that does
+*not* fit is the real failure, because per-bone discrepancies do not cancel.
+
+Grooms (hair, beard, eyebrows, eyelashes) exist in the source import and are
+still **not** brought across. Strand grooms need rebuilt binding assets and are
+expensive in VR. Deferred, not forgotten.
+
+## Appearance Faults Found In The First Clothed Preview (2026-10-22)
+
+Three faults, three unrelated causes. Recorded because two of them look like
+something they are not, and both cost a wrong first diagnosis.
+
+**Garments looked like wet plastic with white speckling.** Cause: the ORM map
+`RiggedFit_DefaultMaterial_OcclusionRoughnessMetallic_1001` was imported as
+`TC_Default` with `sRGB=true`. An ORM map is data, not colour. Gamma-decoding
+it drags roughness down (glossy everywhere) and makes metallic noisy
+(speckling). BaseColor and Normal were already correct, so this one texture was
+the entire garment problem. **Check texture import flags before reading a
+material graph** - assets from non-Unreal sources routinely arrive mis-flagged.
+
+**Eyes rendered as a flat opaque slab.** Cause: the MetaHuman eye stack puts an
+occlusion shell and a lacrimal edge in front of the eyeball, both meant to be
+translucent; here they resolved opaque. The eyeball materials underneath were
+fine. Fix: hide those two sections with `M_WMCYN_Hidden` (unlit, opacity 0)
+rather than repairing the MetaHuman translucency stack. Stripping occlusion and
+wetness layers is standard for headset-targeted MetaHumans, and they contribute
+nothing at conversational distance.
+
+**The source face materials are the broken ones.** `MI_EyeL_Baked`,
+`MI_Face_Eyelashes` and friends under `/Game/MetaHumans/Jared/Face/Materials/`
+have `None` for every texture parameter. The *preview copies* carry the real
+baked textures. Do not "restore" a preview material to its source equivalent -
+the source is emptier.
+
+### Grooms
+
+Hair, eyebrows and goatee are `UGroomComponent`s attached to `AvatarHeadVisual`
+and listed per-family in the catalog as groom+binding pairs. Eyelashes are
+deliberately excluded: the head mesh carries eyelash geometry in its own
+section, so a groom would double them.
+
+A `UGroomBindingAsset` targets one specific skeletal mesh. The source bindings
+target `SKM_Jared_FaceMesh`, but the pawn renders `SKM_Jared_Head_Preview`. The
+bindings are therefore duplicated into the preview folder and **retargeted**,
+which is only valid because the preview head is a byte-duplicate of the source
+face mesh. `prepare_jared_grooms.py` compares vertex counts and refuses to
+retarget if they ever diverge - at that point the bindings must be rebuilt, not
+repointed. A mismatched binding renders as hair floating beside the avatar.
+
+Hair is the only strand-only groom (`Hair_S_360Waves` has no `CardsMesh`
+variant); eyebrows and goatee ship with card LODs. PCVR only, consistent with
+Quest being deferred for this avatar. Hair cards are the right answer when
+Quest returns.
+
 ## Recommended UE Runtime Architecture
 
 Keep avatar work WMCYN-owned and layered around the proven First Signal pawn.

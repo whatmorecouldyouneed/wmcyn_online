@@ -1,5 +1,18 @@
 # AFCore MVP Reuse Matrix
 
+## First Interview Update (2026-10-23)
+
+- Reuse AFCore Comp_PlayerInfo_Basic / Widget_NameTag and Players/PlayerField
+  against signed, server-owned PlayerState identity. No framework asset edits.
+- Keep native Mimic player body/calibration; AFCore BP_Chair inspection showed
+  a mesh and parent events, not a verified complete seating solution.
+- Existing WMCYN camera remains the sole capture; inspect AFCore grab compatibility
+  through WMCYN adapters. Three shot slots now exist in source, menu/testing pending.
+- Keep AFCore audio controls and display/media reuse through WMCYN wrappers.
+  Replicated playback boolean alone does not satisfy synchronized stage playback.
+- Historical local-only/discovery statuses below do not supersede newer evidence
+  in FIRST_INTERVIEW_ROADMAP.md. No turnkey avatar-preview system was verified.
+
 ## Rule
 
 Reuse AFCore where its behavior matches First Signal. Keep WMCYN product policy, Firebase authentication, persistent-world entry, and native Mimic pawn adaptation in WMCYN-owned code/assets. Do not edit `/Game/AFCore/*`.

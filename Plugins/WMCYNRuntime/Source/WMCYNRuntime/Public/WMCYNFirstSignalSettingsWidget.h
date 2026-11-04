@@ -33,12 +33,15 @@ private:
     UFUNCTION() void HandleCameraClicked();
     UFUNCTION() void HandleCameraResetClicked();
     UFUNCTION() void HandleCameraOutputClicked();
+    UFUNCTION() void HandleHighEffectClicked();
     UFUNCTION() void HandleCameraFOVChanged(float Value);
     UWMCYNCameraToolComponent* ResolveCameraTool();
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UButton> CameraButton;
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UButton> CameraResetButton;
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UButton> CameraOutputButton;
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UTextBlock> CameraStatus;
+    UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UButton> HighEffectButton;
+    UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UTextBlock> HighEffectStatus;
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UImage> CameraPreview;
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<USlider> CameraFOV;
     UFUNCTION() void HandleMicClicked();

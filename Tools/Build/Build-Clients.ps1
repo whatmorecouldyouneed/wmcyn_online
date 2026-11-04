@@ -65,6 +65,10 @@ if ($Target -ne 'Quest') {
     # Spec deliverable is a single packaged ZIP, not a loose staged tree.
     $pcvrDir = Join-Path $output 'Win64'
     if (-not (Test-Path $pcvrDir)) { throw 'PCVR archive directory is missing.' }
+    # Each PC resolves YouTube and Twitch links itself, as VRChat does. Pinned and checksummed.
+    $launcher = Get-ChildItem $pcvrDir -Recurse -Filter 'wmcyn_online.exe' | Sort-Object { $_.FullName.Length } | Select-Object -First 1
+    if (-not $launcher) { throw 'PCVR executable is missing.' }
+    & "$PSScriptRoot/../Video/Get-YtDlp.ps1" -Destination (Join-Path $launcher.DirectoryName 'wmcyn_online/ThirdParty/yt-dlp') | Out-Null
     $pcvrArchive = "wmcyn_online-PCVR-$Configuration-$($sha.Substring(0,12)).zip"
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($pcvrDir, (Join-Path $output $pcvrArchive), [IO.Compression.CompressionLevel]::Optimal, $false)
