@@ -158,7 +158,27 @@ public:
     UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
     TArray<FString> PresenceCapabilities;
 
+    /** What to tell the user after losing the world. Empty when connected. */
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "WMCYN|Backend")
+    FString ConnectionNotice;
+
+    void NoteWorldEntered();
+
+    /** A plain sentence for a backend error code. */
+    static FString DescribeLoginFailure(const FString& ErrorCode);
+
 private:
+    void HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+    void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& ErrorString);
+    void HandleConnectionLost(UWorld* World, const FString& Notice, bool bRetry);
+    void ScheduleReconnect();
+    void Reconnect();
+    FDelegateHandle NetworkFailureHandle;
+    FDelegateHandle TravelFailureHandle;
+    FTimerHandle ReconnectTimer;
+    int32 ReconnectAttempts = 0;
+    bool bReconnecting = false;
+
     FString GetCredentialScope() const;
     bool IsForceLoginTesting() const;
     void PersistSignIn();

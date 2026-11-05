@@ -1,6 +1,7 @@
 #include "WMCYNVideoChannel.h"
 
 #include "Camera/PlayerCameraManager.h"
+#include "Components/AudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
@@ -24,6 +25,10 @@ constexpr double CrashMarkerSeconds = 30.0;
 constexpr double DriftToleranceSeconds = 3.0;
 constexpr double MaxSeekableHours = 24.0;
 constexpr double QuestDecodeRange = 1500.0;
+const TCHAR* const LivingRoomChannel = TEXT("LivingRoom");
+constexpr float LivingRoomGain = 5.0f;
+// The placed sound fell silent at 3.3 m, short of its own panel at 3.65 m. The stage is 45 m away.
+constexpr float LivingRoomFalloff = 800.0f;
 
 FString ExtractHost(const FString& Url)
 {
@@ -136,6 +141,11 @@ void AWMCYNVideoChannel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
     DOREPLIFETIME(AWMCYNVideoChannel, State);
 }
 
+float WMCYNVideoPolicy::VolumeGain(const FName ChannelId, const float SliderValue)
+{
+    return FMath::Clamp(SliderValue, 0.0f, 1.0f) * (ChannelId == LivingRoomChannel ? LivingRoomGain : 1.0f);
+}
+
 bool AWMCYNVideoChannel::IsKnownChannel() const
 {
     return ChannelId == TEXT("LivingRoom") || ChannelId == TEXT("Stage") || ChannelId == TEXT("Basement");
@@ -186,6 +196,8 @@ void AWMCYNVideoChannel::BeginPlay()
         UE_LOG(LogWMCYNVideo, Warning, TEXT("channel=%s state=skipping link that crashed the last run"), *ChannelId.ToString());
     }
     GConfig->GetFloat(VideoConfigSection, *(ChannelId.ToString() + TEXT("_Volume")), Volume, GGameUserSettingsIni);
+    // A replicated state can set the screen up before this runs, with the unsaved default.
+    ApplyVolume();
 }
 
 void AWMCYNVideoChannel::OnRep_State()
@@ -248,6 +260,13 @@ bool AWMCYNVideoChannel::SetupAdapter()
     {
         Sound->ComponentTags.AddUnique(TEXT("MediaSound"));
         Sound->SetMediaPlayer(Player);
+        if (ChannelId == LivingRoomChannel)
+        {
+            // Set here, not in the map, so this client still matches the live server.
+            Sound->AttenuationOverrides.FalloffDistance = LivingRoomFalloff;
+            // The sound auto-activated at load, so its running copy needs the change too.
+            if (UAudioComponent* Audio = Sound->GetAudioComponent()) Audio->AdjustAttenuation(Sound->AttenuationOverrides);
+        }
     }
     ApplyVolume();
     Player->OnMediaOpened.AddDynamic(this, &ThisClass::Opened);
@@ -399,7 +418,7 @@ void AWMCYNVideoChannel::ApplyVolume()
 {
     if (!SourceScreen) return;
     TInlineComponentArray<UMediaSoundComponent*> Sounds(SourceScreen);
-    for (UMediaSoundComponent* Sound : Sounds) Sound->SetVolumeMultiplier(Volume);
+    for (UMediaSoundComponent* Sound : Sounds) Sound->SetVolumeMultiplier(WMCYNVideoPolicy::VolumeGain(ChannelId, Volume));
 }
 
 void AWMCYNVideoChannel::SetLocalVolume(const float Value)

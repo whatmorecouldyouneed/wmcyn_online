@@ -3,7 +3,9 @@
 
 #include "Dom/JsonObject.h"
 #include "WMCYNJsonHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "HAL/PlatformMisc.h"
@@ -39,6 +41,12 @@ void UWMCYNBackendSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
+    if (GEngine && !IsRunningDedicatedServer())
+    {
+        NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(this, &UWMCYNBackendSubsystem::HandleNetworkFailure);
+        TravelFailureHandle = GEngine->OnTravelFailure().AddUObject(this, &UWMCYNBackendSubsystem::HandleTravelFailure);
+    }
+
     FString CommandLineUrl;
     if (FParse::Value(FCommandLine::Get(), TEXT("WMCYNBackendUrl="), CommandLineUrl))
     {
@@ -62,6 +70,11 @@ void UWMCYNBackendSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UWMCYNBackendSubsystem::Deinitialize()
 {
+    if (GEngine)
+    {
+        GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
+        GEngine->OnTravelFailure().Remove(TravelFailureHandle);
+    }
     ++AuthenticationGeneration;
     IdToken.Reset();
     RefreshToken.Reset();
@@ -456,6 +469,14 @@ void UWMCYNBackendSubsystem::RequestBootstrap()
             PersistSignIn();
             SetState(EWMCYNBackendLoginState::Ready, TEXT("ready"));
             OnLoginReady.Broadcast(VerifiedUsername, VerifiedDisplayName, WorldHost, WorldPort);
+            if (bReconnecting)
+            {
+                bReconnecting = false;
+                if (!TravelToFirstSignalWorld())
+                {
+                    ScheduleReconnect();
+                }
+            }
         });
 
     if (!Request->ProcessRequest())
@@ -699,6 +720,91 @@ void UWMCYNBackendSubsystem::Fail(const FString& ErrorCode)
     UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN Backend: %s"), *ErrorCode);
     LoginState = EWMCYNBackendLoginState::Failed;
     OnLoginStateChanged.Broadcast(LoginState, ErrorCode);
+    if (bReconnecting)
+    {
+        bReconnecting = false;
+        ScheduleReconnect();
+    }
+}
+
+FString UWMCYNBackendSubsystem::DescribeLoginFailure(const FString& ErrorCode)
+{
+    if (ErrorCode == TEXT("world_unavailable")) return TEXT("The WMCYN world is offline right now. Try again soon.");
+    if (ErrorCode == TEXT("incompatible_build")) return TEXT("Update WMCYN Online to enter. Check your Library.");
+    if (ErrorCode == TEXT("no_slot_available")) return TEXT("The world is full right now. Try again soon.");
+    if (ErrorCode == TEXT("backend_unreachable")) return TEXT("Can't reach WMCYN. Check your connection and try again.");
+    return FString::Printf(TEXT("Login failed: %s"), *ErrorCode);
+}
+
+void UWMCYNBackendSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, const ENetworkFailure::Type FailureType, const FString& ErrorString)
+{
+    UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN Backend: network failure %s"), ENetworkFailure::ToString(FailureType));
+    if (FailureType == ENetworkFailure::OutdatedClient || FailureType == ENetworkFailure::OutdatedServer ||
+        FailureType == ENetworkFailure::NetChecksumMismatch)
+    {
+        HandleConnectionLost(World, DescribeLoginFailure(TEXT("incompatible_build")), false);
+        return;
+    }
+    HandleConnectionLost(World, TEXT("Connection lost. Reconnecting..."), true);
+}
+
+void UWMCYNBackendSubsystem::HandleTravelFailure(UWorld* World, const ETravelFailure::Type FailureType, const FString& ErrorString)
+{
+    UE_LOG(LogWMCYNBackend, Warning, TEXT("WMCYN Backend: travel failure %s"), ETravelFailure::ToString(FailureType));
+    HandleConnectionLost(World, TEXT("Couldn't reach the world. Reconnecting..."), true);
+}
+
+void UWMCYNBackendSubsystem::HandleConnectionLost(UWorld* World, const FString& Notice, const bool bRetry)
+{
+    const UGameInstance* GameInstance = GetGameInstance();
+    if (VerifiedUserId.IsEmpty() || !GameInstance || (World && World->GetGameInstance() != GameInstance))
+    {
+        return;
+    }
+    // One drop often reports twice. The timer already running covers both.
+    if (bReconnecting || GameInstance->GetTimerManager().IsTimerActive(ReconnectTimer))
+    {
+        return;
+    }
+    ConnectionNotice = Notice;
+    if (bRetry)
+    {
+        ScheduleReconnect();
+    }
+}
+
+void UWMCYNBackendSubsystem::ScheduleReconnect()
+{
+    constexpr int32 MaxReconnectAttempts = 4;
+    if (++ReconnectAttempts > MaxReconnectAttempts)
+    {
+        ConnectionNotice = TEXT("Couldn't reconnect. Sign in to try again.");
+        ReconnectAttempts = 0;
+        return;
+    }
+    if (const UGameInstance* GameInstance = GetGameInstance())
+    {
+        GameInstance->GetTimerManager().SetTimer(
+            ReconnectTimer, this, &UWMCYNBackendSubsystem::Reconnect, 2.0f * ReconnectAttempts, false);
+    }
+}
+
+void UWMCYNBackendSubsystem::Reconnect()
+{
+    if (VerifiedUserId.IsEmpty())
+    {
+        ConnectionNotice.Reset();
+        return;
+    }
+    // The old ticket was single-use, so rejoining goes back through bootstrap for a fresh one.
+    bReconnecting = true;
+    RequestBootstrap();
+}
+
+void UWMCYNBackendSubsystem::NoteWorldEntered()
+{
+    ConnectionNotice.Reset();
+    ReconnectAttempts = 0;
 }
 
 FString UWMCYNBackendSubsystem::MakeUrl(const FString& Path) const

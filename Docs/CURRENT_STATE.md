@@ -9,6 +9,13 @@
   Twitch link has been resolved yet, and panels are untested in a headset. See
   `CRIB_DISPLAY_STREAM.md` and `SHARED_VIDEO_QUEST_GATE.md`.
 
+- Protocol 4 polish pass (2026-11-05), not yet live: removed the stabilizer tick that forced Walking and
+  cancelled gravity, stopped low-angled turns from crouching, made smooth turn a constant 90 degrees/s,
+  synced `Height Offset` to the server and remote clients, stopped server corrections after entry, and
+  smoothed remote bodies every frame. Walk speed is now 350 cm/s. Quest keyboard function keys no longer
+  type stray letters, a dropped client reconnects with a fresh ticket instead of sitting alone in the local
+  map, and Quest foveation is on. Mimic and AFCore assets were not edited. All 23 WMCYN tests pass.
+  Nothing here has been tested in a headset or with two clients yet.
 - Protocol 3 is live from `0e0a80e`: server switched and Quest build uploaded to ALPHA on
   2026-11-04, with headset and multi-user acceptance still pending. See
   `Release/MATCHED_PROTOCOL3_2026_11_04.md`. The repo stays public for now by founder choice, which

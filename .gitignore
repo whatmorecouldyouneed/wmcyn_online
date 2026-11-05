@@ -1,4 +1,4 @@
-﻿# Unreal build artifacts
+# Unreal build artifacts
 Binaries/
 Build/
 Builds/
@@ -52,3 +52,6 @@ Config/Android/AndroidEngine.ini
 
 # Fetched and checksummed by Tools/Video/Get-YtDlp.ps1
 /ThirdParty/yt-dlp/
+
+# Worker cooks hold face-derived assets.
+Content/WMCYN/Avatars/Users/

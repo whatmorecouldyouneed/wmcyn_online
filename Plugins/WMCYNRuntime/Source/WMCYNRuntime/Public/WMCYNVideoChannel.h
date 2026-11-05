@@ -22,6 +22,8 @@ namespace WMCYNVideoPolicy
     WMCYNRUNTIME_API double SeekSeconds(double Now, double Started, double Duration);
     /** Live streams report no usable duration, so they stay at their live edge. */
     WMCYNRUNTIME_API bool IsTimelineSeekable(double DurationSeconds);
+    /** Audio multiplier for a panel slider position from 0 to 1. */
+    WMCYNRUNTIME_API float VolumeGain(FName ChannelId, float SliderValue);
 
     // Written before opening a link, so a decoder crash can be recognised on the next launch.
     WMCYNRUNTIME_API void SetCrashMarker(FName ChannelId, const FString& Url);

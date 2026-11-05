@@ -143,7 +143,7 @@ void UWMCYNFirstSignalLoginAsyncAction::HandleLoginStateChanged(
 
     if (State == EWMCYNBackendLoginState::Failed)
     {
-        const FString FailureMessage = FString::Printf(TEXT("Login failed: %s"), *Message);
+        const FString FailureMessage = UWMCYNBackendSubsystem::DescribeLoginFailure(Message);
         SetLoginStatus(FailureMessage);
         OnFailed.Broadcast(FailureMessage);
         Finish();

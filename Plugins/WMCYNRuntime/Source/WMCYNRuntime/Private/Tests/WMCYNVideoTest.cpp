@@ -1,7 +1,14 @@
 #include "Misc/AutomationTest.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/AudioComponent.h"
+#include "Components/Slider.h"
+#include "Components/WidgetComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "MediaSoundComponent.h"
+#include "Misc/ConfigCacheIni.h"
 #include "WMCYNVideoChannel.h"
+#include "WMCYNVideoPanel.h"
 #include "WMCYNVideoResolver.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -102,6 +109,57 @@ bool FWMCYNVideoChannelTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Other users aren't blocked"), Living->Submit(TEXT("https://example.com/b.mp4"), false, TEXT("uid-2")).IsEmpty());
     TestTrue(TEXT("Reset accepted"), Living->Submit(FString(), true, TEXT("uid-3")).IsEmpty());
     TestEqual(TEXT("Reset returns to the default"), Living->GetEffectiveUrl(), Living->DefaultUrl);
+    GEngine->DestroyWorldContext(World);
+    World->DestroyWorld(false);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWMCYNVideoVolumeTest, "WMCYN.Video.Volume",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FWMCYNVideoVolumeTest::RunTest(const FString& Parameters)
+{
+    TestEqual(TEXT("Living room is five times its old level"), WMCYNVideoPolicy::VolumeGain(TEXT("LivingRoom"), 0.5f), 2.5f);
+    TestEqual(TEXT("Other screens keep their level"), WMCYNVideoPolicy::VolumeGain(TEXT("Stage"), 0.5f), 0.5f);
+    TestEqual(TEXT("Zero mutes"), WMCYNVideoPolicy::VolumeGain(TEXT("LivingRoom"), 0.0f), 0.0f);
+    TestEqual(TEXT("Slider range bounded"), WMCYNVideoPolicy::VolumeGain(TEXT("LivingRoom"), 2.0f), 5.0f);
+
+    UClass* PanelWidget = LoadClass<UUserWidget>(nullptr, TEXT("/Game/WMCYN/UI/WBP_WMCYN_VideoPanel.WBP_WMCYN_VideoPanel_C"));
+    if (!TestNotNull(TEXT("Panel widget loads"), PanelWidget)) return false;
+    const auto Init = UWorld::InitializationValues().AllowAudioPlayback(false).CreatePhysicsScene(false)
+        .RequiresHitProxies(false).CreateNavigation(false).CreateAISystem(false).ShouldSimulatePhysics(false);
+    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Init);
+    GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+
+    auto* Screen = World->SpawnActor<AActor>();
+    auto* Sound = NewObject<UMediaSoundComponent>(Screen);
+    Sound->bAutoActivate = false;
+    Sound->RegisterComponent();
+    auto* Channel = World->SpawnActor<AWMCYNVideoChannel>();
+    Channel->ChannelId = TEXT("LivingRoom");
+    Channel->SourceScreen = Screen;
+    auto* Panel = World->SpawnActor<AWMCYNVideoPanel>();
+    Panel->Channel = Channel;
+    auto* Host = NewObject<UWidgetComponent>(Panel);
+    Host->RegisterComponent();
+    Host->SetWidget(CreateWidget<UUserWidget>(World, PanelWidget));
+    Panel->Tick(0.0f);
+
+    FString SavedVolume;
+    const bool bHadSavedVolume = GConfig->GetString(TEXT("WMCYN.Video"), TEXT("LivingRoom_Volume"), SavedVolume, GGameUserSettingsIni);
+    auto* Slider = Cast<USlider>(Host->GetWidget()->GetWidgetFromName(TEXT("SLD_Volume")));
+    if (TestNotNull(TEXT("Panel has its slider"), Slider))
+    {
+        // This world never begins play, and actors drop dynamic delegates until it has.
+        World->InitializeActorsForPlay(FURL());
+        // The same broadcast a laser drag produces.
+        Slider->OnValueChanged.Broadcast(0.2f);
+        TestEqual(TEXT("Slider reaches the channel"), Channel->GetLocalVolume(), 0.2f);
+        TestEqual(TEXT("Slider reaches the audio"), Sound->GetAudioComponent()->VolumeMultiplier, 1.0f);
+        Slider->OnValueChanged.Broadcast(1.0f);
+        TestEqual(TEXT("Top of the slider is five times"), Sound->GetAudioComponent()->VolumeMultiplier, 5.0f);
+    }
+    if (bHadSavedVolume) GConfig->SetString(TEXT("WMCYN.Video"), TEXT("LivingRoom_Volume"), *SavedVolume, GGameUserSettingsIni);
+    else GConfig->RemoveKey(TEXT("WMCYN.Video"), TEXT("LivingRoom_Volume"), GGameUserSettingsIni);
     GEngine->DestroyWorldContext(World);
     World->DestroyWorld(false);
     return true;

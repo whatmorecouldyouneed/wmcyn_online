@@ -25,6 +25,7 @@ class UWidgetComponent;
 class FTextProperty;
 class FStrProperty;
 class UWMCYNRememberedSignInControls;
+class UWMCYNKeyboardInteractionComponent;
 
 UCLASS(ClassGroup = (WMCYN), meta = (BlueprintSpawnableComponent))
 class WMCYNRUNTIME_API UWMCYNFirstSignalPresenceComponent : public UActorComponent
@@ -39,6 +40,9 @@ public:
     void RequestVideoChannel(AWMCYNVideoChannel* Channel, const FString& Url, bool bReset);
     FString VideoResponse;
     USceneComponent* GetTrackedHand(bool bRightHand) const;
+    /** Turns the local player at a constant rate, however fast the headset is running. */
+    UFUNCTION(BlueprintCallable, Category = "WMCYN|Comfort")
+    void ApplySmoothTurn(float Stick);
     bool IsHandTracked(bool bRightHand) const;
     bool IsRuntimeMenuVisible() const { return bRuntimeMenuVisible; }
     bool CanUseWorldItems() const;
@@ -94,7 +98,8 @@ protected:
         FVector_NetQuantize10 InLeftHandLocation,
         FRotator InLeftHandRotation,
         FVector_NetQuantize10 InRightHandLocation,
-        FRotator InRightHandRotation);
+        FRotator InRightHandRotation,
+        float InHeightOffset);
 
     UFUNCTION(Server, Reliable)
     void ServerSubmitIdentity(const FString& Username, const FString& DisplayName);
@@ -148,6 +153,10 @@ private:
     AActor* ResolveLoginPanelActor();
     void ApplyLocalLoginGateLock();
     void ConfigureRemoteTracking();
+    void ConfigureMovement();
+    void TrustOwnerMovementAfter(float Seconds);
+    void ShowConnectionNotice(const FString& Notice);
+    void SmoothRemoteBody(float DeltaTime);
     void CaptureAndSendPose();
     void ApplyReplicatedPose(float DeltaTime);
     void ApplyIdentity(const FString& Username, const FString& DisplayName);
@@ -193,11 +202,9 @@ private:
     UPROPERTY(Replicated)
     FRotator ReplicatedRightHandRotation;
 
+    /** Mimic sizes the capsule from this, so every machine needs the owner's calibrated value. */
     UPROPERTY(Replicated)
-    FVector_NetQuantize10 ReplicatedMeshRelativeLocation;
-
-    UPROPERTY(Replicated)
-    FRotator ReplicatedMeshRelativeRotation;
+    float ReplicatedHeightOffset = 0.0f;
 
     UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     bool bHasReplicatedPose = false;
@@ -240,6 +247,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<USceneComponent> HeadAnchor;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USceneComponent> HeightOffsetComponent;
 
     UPROPERTY(Transient)
     TObjectPtr<USkeletalMeshComponent> BodyMesh;
@@ -323,6 +333,13 @@ private:
     TObjectPtr<UMaterialInstanceDynamic> PointerBeamMaterial;
 
     float NextPoseSendTime = 0.0f;
+    float TurnRamp = 0.0f;
+    double LastTurnTime = -1.0;
+    FString AttemptedRemoteAvatarKey;
+    FTimerHandle OwnerMovementTimer;
+    FVector RemoteBodyOffset = FVector::ZeroVector;
+    FVector LastRemoteRoot = FVector::ZeroVector;
+    bool bHasRemoteRoot = false;
     float NextNameplateRefreshTime = 0.0f;
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "WMCYN|Diagnostics", meta = (AllowPrivateAccess = "true"))
     bool bRemoteTrackingConfigured = false;

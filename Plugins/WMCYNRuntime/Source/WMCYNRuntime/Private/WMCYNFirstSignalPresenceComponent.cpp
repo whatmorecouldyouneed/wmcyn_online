@@ -1,4 +1,6 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
+#include "WMCYNComfort.h"
+#include "WMCYNKeyboardInteractionComponent.h"
 #include "WMCYNVideoChannel.h"
 
 #include "GroomAsset.h"
@@ -15,6 +17,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Components/TextBlock.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
@@ -199,6 +202,7 @@ void UWMCYNFirstSignalPresenceComponent::BeginPlay()
 
     OwnerCharacter = Cast<ACharacter>(GetOwner());
     CacheNativeComponents();
+    ConfigureMovement();
     ConfigureWidgetInteraction();
     ApplyLocalLoginGateLock();
     CreateNameplate();
@@ -207,6 +211,65 @@ void UWMCYNFirstSignalPresenceComponent::BeginPlay()
     {
         World->GetTimerManager().SetTimerForNextTick(this, &UWMCYNFirstSignalPresenceComponent::RegisterVoice);
     }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ConfigureMovement()
+{
+    UCharacterMovementComponent* Movement = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr;
+    if (!Movement)
+    {
+        return;
+    }
+    // Set before the Blueprint's BeginPlay, which reads this as Mimic's base speed.
+    Movement->MaxWalkSpeed = WMCYNComfort::MaxWalkCmPerSecond;
+    Movement->MaxAcceleration = WMCYNComfort::MoveAcceleration;
+    Movement->BrakingDecelerationWalking = WMCYNComfort::MoveAcceleration;
+}
+
+void UWMCYNFirstSignalPresenceComponent::TrustOwnerMovementAfter(const float Seconds)
+{
+    UCharacterMovementComponent* Movement = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr;
+    if (!Movement || !GetWorld())
+    {
+        return;
+    }
+    // Server moves such as spawning at a slot only reach the owner through corrections.
+    Movement->bIgnoreClientMovementErrorChecksAndCorrection = false;
+    Movement->bServerAcceptClientAuthoritativePosition = false;
+    GetWorld()->GetTimerManager().SetTimer(OwnerMovementTimer, [this]()
+    {
+        // In VR a correction moves the user's view without their head moving, and Mimic recentres
+        // the capsule under the head outside predicted moves. From here the owner's position is final.
+        if (UCharacterMovementComponent* Trusted = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr)
+        {
+            Trusted->bIgnoreClientMovementErrorChecksAndCorrection = true;
+            Trusted->bServerAcceptClientAuthoritativePosition = true;
+        }
+    }, Seconds, false);
+}
+
+void UWMCYNFirstSignalPresenceComponent::ApplySmoothTurn(const float Stick)
+{
+    AController* Controller = OwnerCharacter ? OwnerCharacter->GetController() : nullptr;
+    const UWorld* World = GetWorld();
+    if (!Controller || !World)
+    {
+        return;
+    }
+    if (APlayerController* PlayerController = Cast<APlayerController>(Controller); PlayerController && !PlayerController->IsLookInputIgnored())
+    {
+        // Enhanced Input keeps Mimic's parent turn binding alive, and it scales with frame rate.
+        // This silences its yaw call. Setting control rotation below is unaffected.
+        PlayerController->SetIgnoreLookInput(true);
+    }
+    const double Now = World->GetTimeSeconds();
+    const float DeltaSeconds = World->GetDeltaSeconds();
+    // A gap means the stick was released, so the next turn starts from the bottom of the ramp.
+    TurnRamp = Now - LastTurnTime > 2.0 * DeltaSeconds + 0.01 ? 0.0f : WMCYNComfort::NextTurnRamp(TurnRamp, DeltaSeconds);
+    LastTurnTime = Now;
+    FRotator Rotation = Controller->GetControlRotation();
+    Rotation.Yaw += WMCYNComfort::TurnDegrees(Stick, TurnRamp, DeltaSeconds);
+    Controller->SetControlRotation(Rotation);
 }
 
 void UWMCYNFirstSignalPresenceComponent::RequestVideoChannel(AWMCYNVideoChannel* Channel, const FString& Url, bool bReset)
@@ -266,11 +329,26 @@ void UWMCYNFirstSignalPresenceComponent::TryAutoEnterFromVerifiedLogin()
     const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     UWMCYNBackendSubsystem* Backend = GameInstance ?
         GameInstance->GetSubsystem<UWMCYNBackendSubsystem>() : nullptr;
+    if (Backend && !Backend->ConnectionNotice.IsEmpty() && GetWorld()->GetNetMode() != NM_Client)
+    {
+        // Still working through retries, or out of them. The notice has to stay readable either way.
+        bAutoEntryAttempted = false;
+        ShowConnectionNotice(Backend->ConnectionNotice);
+    }
     if (!Backend || Backend->LoginState != EWMCYNBackendLoginState::Ready ||
         Backend->VerifiedUserId.IsEmpty())
     {
         return;
     }
+    if (GetWorld()->GetNetMode() != NM_Client)
+    {
+        // A lost connection lands here in the local map. Closing the gate would leave the user
+        // alone in what looks like the live world, so it stays up while the backend reconnects.
+        bAutoEntryAttempted = false;
+        ShowConnectionNotice(Backend->ConnectionNotice);
+        return;
+    }
+    Backend->NoteWorldEntered();
 
     UE_LOG(LogWMCYNPresence, Display,
         TEXT("WMCYN Login: auto-entering with verified identity after world travel"));
@@ -281,6 +359,25 @@ void UWMCYNFirstSignalPresenceComponent::TryAutoEnterFromVerifiedLogin()
     if (AActor* EntryManager = ResolveLoginPanelActor())
     {
         EntryManager->Destroy();
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ShowConnectionNotice(const FString& Notice)
+{
+    AActor* Panel = Notice.IsEmpty() ? nullptr : ResolveLoginPanelActor();
+    if (!Panel)
+    {
+        return;
+    }
+    TArray<UWidgetComponent*> Hosts;
+    Panel->GetComponents(Hosts);
+    for (const UWidgetComponent* Host : Hosts)
+    {
+        const UUserWidget* Widget = Host ? Host->GetWidget() : nullptr;
+        if (UTextBlock* Status = Widget ? Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("TXT_Status"))) : nullptr)
+        {
+            Status->SetText(FText::FromString(Notice));
+        }
     }
 }
 
@@ -526,7 +623,7 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureWidgetInteraction()
             }
         }
 
-        KeyboardInputInteraction = NewObject<UWidgetInteractionComponent>(
+        KeyboardInputInteraction = NewObject<UWMCYNKeyboardInteractionComponent>(
             OwnerCharacter,
             TEXT("WMCYN_KeyboardInputInteraction"));
         if (KeyboardInputInteraction)
@@ -821,6 +918,8 @@ void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
         return;
     }
 
+    TrustOwnerMovementAfter(1.0f);
+
     if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
     {
         Movement->StopMovementImmediately();
@@ -903,9 +1002,16 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
         }
         ConfigureRemoteTracking();
         ApplyReplicatedPose(DeltaTime);
-        if (GetWorld()->GetNetMode() != NM_DedicatedServer &&
-            !ReplicatedAvatarCacheKey.IsEmpty() && ReplicatedAvatarCacheKey != AppliedAvatarCacheKey)
+        if (GetWorld()->GetNetMode() != NM_DedicatedServer)
         {
+            SmoothRemoteBody(DeltaTime);
+        }
+        // One attempt per key: a platform that didn't cook this avatar keeps its native body rather
+        // than retrying a blocking load on every frame.
+        if (GetWorld()->GetNetMode() != NM_DedicatedServer &&
+            !ReplicatedAvatarCacheKey.IsEmpty() && ReplicatedAvatarCacheKey != AttemptedRemoteAvatarKey)
+        {
+            AttemptedRemoteAvatarKey = ReplicatedAvatarCacheKey;
             ApplyAvatarPresentation(
                 ReplicatedAvatarSkeletalMeshPath,
                 ReplicatedAvatarHeadSkeletalMeshPath,
@@ -979,8 +1085,7 @@ void UWMCYNFirstSignalPresenceComponent::GetLifetimeReplicatedProps(TArray<FLife
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedLeftHandRotation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedRightHandLocation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedRightHandRotation, COND_SkipOwner);
-    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedMeshRelativeLocation, COND_SkipOwner);
-    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedMeshRelativeRotation, COND_SkipOwner);
+    DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedHeightOffset, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, bHasReplicatedPose, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedPoseSequence, COND_SkipOwner);
     DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ReplicatedAvatarSkeletalMeshPath);
@@ -1021,6 +1126,7 @@ void UWMCYNFirstSignalPresenceComponent::ServerSubmitIdentity_Implementation(
     const FString& Username,
     const FString& DisplayName)
 {
+    TrustOwnerMovementAfter(2.0f);
     ApplyIdentity(Username, DisplayName);
 }
 
@@ -1664,7 +1770,8 @@ void UWMCYNFirstSignalPresenceComponent::ServerUpdateTrackedPose_Implementation(
     const FVector_NetQuantize10 InLeftHandLocation,
     const FRotator InLeftHandRotation,
     const FVector_NetQuantize10 InRightHandLocation,
-    const FRotator InRightHandRotation)
+    const FRotator InRightHandRotation,
+    const float InHeightOffset)
 {
     ReplicatedHeadLocation = InHeadLocation;
     ReplicatedHeadRotation = InHeadRotation;
@@ -1672,6 +1779,7 @@ void UWMCYNFirstSignalPresenceComponent::ServerUpdateTrackedPose_Implementation(
     ReplicatedLeftHandRotation = InLeftHandRotation;
     ReplicatedRightHandLocation = InRightHandLocation;
     ReplicatedRightHandRotation = InRightHandRotation;
+    ReplicatedHeightOffset = InHeightOffset;
     bHasReplicatedPose = true;
     ++ReplicatedPoseSequence;
     ++ServerPoseUpdateCount;
@@ -1679,11 +1787,6 @@ void UWMCYNFirstSignalPresenceComponent::ServerUpdateTrackedPose_Implementation(
     if (ServerPoseUpdateCount == 1)
     {
         UE_LOG(LogWMCYNPresence, Display, TEXT("WMCYN Tracking: server received native head/hand pose for %s"), *GetNameSafe(GetOwner()));
-    }
-
-    if (OwnerCharacter)
-    {
-        OwnerCharacter->ForceNetUpdate();
     }
 }
 
@@ -1718,10 +1821,17 @@ void UWMCYNFirstSignalPresenceComponent::CacheNativeComponents()
     Owner->GetComponents(SceneComponents);
     for (USceneComponent* SceneComponent : SceneComponents)
     {
-        if (SceneComponent && SceneComponent->GetName().Contains(TEXT("Top of Head")))
+        if (!SceneComponent)
+        {
+            continue;
+        }
+        if (SceneComponent->GetName().Contains(TEXT("Top of Head")))
         {
             HeadAnchor = SceneComponent;
-            break;
+        }
+        else if (SceneComponent->GetName().Contains(TEXT("Height Offset")))
+        {
+            HeightOffsetComponent = SceneComponent;
         }
     }
 
@@ -1752,6 +1862,33 @@ void UWMCYNFirstSignalPresenceComponent::ConfigureRemoteTracking()
     }
 
     bRemoteTrackingConfigured = TrackedCamera && LeftController && RightController;
+    if (bRemoteTrackingConfigured && GetWorld()->GetNetMode() == NM_Client)
+    {
+        // Remote bodies draw every frame, and last, so hands and heads don't step at 30 Hz and
+        // SmoothRemoteBody runs after Mimic has placed the mesh.
+        SetComponentTickInterval(0.0f);
+        SetTickGroup(TG_PostUpdateWork);
+        if (UCharacterMovementComponent* Movement = OwnerCharacter ? OwnerCharacter->GetCharacterMovement() : nullptr)
+        {
+            // Mimic places the mesh itself each tick. Engine smoothing would write a mesh offset
+            // from a fixed capsule, which is what put remote feet under the floor.
+            Movement->NetworkSmoothingMode = ENetworkSmoothingMode::Disabled;
+        }
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::SmoothRemoteBody(const float DeltaTime)
+{
+    if (!BodyMesh || !OwnerCharacter)
+    {
+        return;
+    }
+    const FVector Root = OwnerCharacter->GetActorLocation();
+    RemoteBodyOffset = bHasRemoteRoot ? WMCYNComfort::NextRemoteOffset(RemoteBodyOffset, LastRemoteRoot, Root, DeltaTime) : FVector::ZeroVector;
+    LastRemoteRoot = Root;
+    bHasRemoteRoot = true;
+    // Mimic sets the mesh's absolute position every tick, so this offset never accumulates.
+    BodyMesh->AddWorldOffset(RemoteBodyOffset);
 }
 
 void UWMCYNFirstSignalPresenceComponent::CaptureAndSendPose()
@@ -1774,6 +1911,7 @@ void UWMCYNFirstSignalPresenceComponent::CaptureAndSendPose()
     const FRotator LeftRotation = LeftController->GetRelativeRotation();
     const FVector_NetQuantize10 RightLocation = RightController->GetRelativeLocation();
     const FRotator RightRotation = RightController->GetRelativeRotation();
+    const float HeightOffset = HeightOffsetComponent ? HeightOffsetComponent->GetRelativeLocation().Z : 0.0f;
 
     if (OwnerCharacter->HasAuthority())
     {
@@ -1783,18 +1921,13 @@ void UWMCYNFirstSignalPresenceComponent::CaptureAndSendPose()
         ReplicatedLeftHandRotation = LeftRotation;
         ReplicatedRightHandLocation = RightLocation;
         ReplicatedRightHandRotation = RightRotation;
-        if (BodyMesh)
-        {
-            ReplicatedMeshRelativeLocation = BodyMesh->GetRelativeLocation();
-            ReplicatedMeshRelativeRotation = BodyMesh->GetRelativeRotation();
-        }
+        ReplicatedHeightOffset = HeightOffset;
         bHasReplicatedPose = true;
         ++ReplicatedPoseSequence;
-        OwnerCharacter->ForceNetUpdate();
     }
     else
     {
-        ServerUpdateTrackedPose(HeadLocation, HeadRotation, LeftLocation, LeftRotation, RightLocation, RightRotation);
+        ServerUpdateTrackedPose(HeadLocation, HeadRotation, LeftLocation, LeftRotation, RightLocation, RightRotation, HeightOffset);
     }
 }
 
@@ -1833,11 +1966,11 @@ void UWMCYNFirstSignalPresenceComponent::ApplyReplicatedPose(const float DeltaTi
             InterpolateLocation(RightController->GetRelativeLocation(), ReplicatedRightHandLocation),
             InterpolateRotation(RightController->GetRelativeRotation(), ReplicatedRightHandRotation));
     }
-    if (BodyMesh)
+    if (HeightOffsetComponent)
     {
-        BodyMesh->SetRelativeLocationAndRotation(
-            InterpolateLocation(BodyMesh->GetRelativeLocation(), ReplicatedMeshRelativeLocation),
-            InterpolateRotation(BodyMesh->GetRelativeRotation(), ReplicatedMeshRelativeRotation));
+        FVector Location = HeightOffsetComponent->GetRelativeLocation();
+        Location.Z = bSnap ? ReplicatedHeightOffset : FMath::FInterpTo(Location.Z, ReplicatedHeightOffset, DeltaTime, 18.0f);
+        HeightOffsetComponent->SetRelativeLocation(Location);
     }
 
     ++RemotePoseApplyCount;

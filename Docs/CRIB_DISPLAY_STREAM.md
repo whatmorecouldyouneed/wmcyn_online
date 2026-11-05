@@ -19,7 +19,10 @@ everything below History is old. AFCore has no link input or replicated link:
   duplicated from the login panel to keep its keyboard functions. Controls are Designer-owned and
   bound by name in `AWMCYNVideoPanel`.
 - Submits go through `ServerSetVideoChannel`, with a 3-second cooldown per user across channels.
-- Volume is local, per channel, and saved. Quest decodes only the nearest playing channel in 15 m.
+- Volume is local, per channel, and saved. The living room runs at 5x the slider value and reaches
+  8.5 m, both set in `WMCYNVideoChannel.cpp` so the client still matches the live server map. The
+  placed sound fell silent at 3.3 m, short of its own panel at 3.65 m.
+- Quest decodes only the nearest playing channel in 15 m.
 - A link that crashes a client is skipped once on next launch. Submitting it again retries it.
 
 **Link policy limits:** direct http and https links are accepted, except local and private
