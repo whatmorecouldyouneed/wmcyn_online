@@ -9,9 +9,10 @@
   Twitch link has been resolved yet, and panels are untested in a headset. See
   `CRIB_DISPLAY_STREAM.md` and `SHARED_VIDEO_QUEST_GATE.md`.
 
-- Release hold: the tray and video work is on `feature/protocol3-tray-and-video`, not `main`. On
-  2026-11-04 the founder chose to push it while the repo stays public for now, which publishes the
-  tray art. Protocol 3 still needs a matched server cutover.
+- Protocol 3 is live from `0e0a80e`: server switched and Quest build uploaded to ALPHA on
+  2026-11-04, with headset and multi-user acceptance still pending. See
+  `Release/MATCHED_PROTOCOL3_2026_11_04.md`. The repo stays public for now by founder choice, which
+  publishes the tray art.
 
 - Shared video Quest-first gate started: isolated VideoProbe map/native diagnostic
   added; Win64 Editor build and Android ARM64 native compile/link pass. Packaged
@@ -19,8 +20,7 @@
   adopted. See `SHARED_VIDEO_QUEST_GATE.md`.
 
 - Tray session (Joint Roller port) in progress. Native code and content are in the working tree;
-  11/11 synthetic WMCYN tests pass. Local `ProtocolVersion` is now 3, so local builds cannot join the
-  live protocol 2 world until a matched release is approved. See `TRAY_SESSION.md`.
+  11/11 synthetic WMCYN tests pass. See `TRAY_SESSION.md`.
 
 - Stage follow-up: full 89-piece FBX visual assembly restored at a proportional
   5 m width; old slab retained as hidden simple support. Editor-rendered review

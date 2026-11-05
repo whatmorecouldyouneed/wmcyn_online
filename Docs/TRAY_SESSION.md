@@ -84,9 +84,8 @@ Meta's content and ad rules.
 
 ## Release
 
-`ProtocolVersion` is 3, so this build cannot join the live protocol 2 world. The backend compares
-a client's protocol with the running server's, so no backend deploy is needed. A matched
-Linux/PCVR/Quest release is required and has not been approved.
+Released on protocol 3 on 2026-11-04; see `Release/MATCHED_PROTOCOL3_2026_11_04.md`. The backend
+compares a client's protocol with the running server's, so no backend deploy was needed.
 
 The GitHub repo is public, so pushing these assets published them. The founder chose that on
 2026-11-04, for now. It's separate from a game release, which still needs the rights note above.
