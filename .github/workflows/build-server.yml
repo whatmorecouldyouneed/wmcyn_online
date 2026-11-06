@@ -46,6 +46,7 @@ jobs:
       - name: Build and cook Linux server
         shell: powershell
         run: |
+          & ./server-release/Tools/Bowling/Sync-PrivateAssets.ps1
           $env:LINUX_MULTIARCH_ROOT = [Environment]::GetEnvironmentVariable('LINUX_MULTIARCH_ROOT','Machine')
           & $env:UAT BuildCookRun -project="$env:PROJECT" -platform=Linux -server -serverconfig=Development -noclient `
             -build -cook -stage -pak -archive -archivedirectory="$env:ARCHIVE" -unattended -noP4 -utf8output `

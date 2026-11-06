@@ -25,6 +25,14 @@ protected:
     virtual void NativeDestruct() override;
 
 private:
+    UFUNCTION() void CheckMobileAvatar();
+    UFUNCTION() void ToggleHeadsetFPS();
+    UFUNCTION() void DeleteMobileAvatar();
+    void RunAvatarAction(bool bDelete);
+    UPROPERTY(Transient) TObjectPtr<UTextBlock> AvatarFeedback;
+    FString ConfirmDeleteAccount;
+    double ConfirmDeleteUntil = 0;
+    bool bAvatarActionPending = false;
     UFUNCTION() void HandleCameraShotSaveClicked();
     UFUNCTION() void HandleCameraShotSelectClicked();
     UPROPERTY(meta=(BindWidgetOptional)) TObjectPtr<UComboBoxString> CameraShotSelector;

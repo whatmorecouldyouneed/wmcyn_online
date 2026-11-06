@@ -1,5 +1,4 @@
 #include "WMCYNBackendSubsystem.h"
-#include "WMCYNAccountAvatarCatalog.h"
 
 #include "Dom/JsonObject.h"
 #include "WMCYNJsonHelpers.h"
@@ -615,7 +614,7 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
     Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *IdToken));
     Request->OnProcessRequestComplete().BindWeakLambda(
         this,
-        [Completion, Platform, RequestedUid = VerifiedUserId](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
+        [Completion, Platform](FHttpRequestPtr, FHttpResponsePtr Response, bool bSucceeded)
         {
             FWMCYNAvatarManifest Manifest;
             if (!bSucceeded || !Response.IsValid())
@@ -665,10 +664,6 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
                 Completion->ExecuteIfBound(false, Manifest, TEXT("precooked_delivery_required"));
                 return;
             }
-            if (Manifest.bIsDefaultAvatar && WMCYNAccountAvatarCatalog::Resolve(RequestedUid, Platform, Manifest))
-            {
-                UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AVATAR stage=account_catalog result=selected authority=verified_login"));
-            }
             UE_LOG(LogWMCYNBackend, Display, TEXT("WMCYN_AVATAR stage=manifest_http result=success platform=%s source=%s"),
                 *Platform, Manifest.bIsDefaultAvatar ? TEXT("default") : TEXT("published"));
             Completion->ExecuteIfBound(true, Manifest, FString());
@@ -678,6 +673,34 @@ void UWMCYNBackendSubsystem::RequestAvatarManifest(FWMCYNAvatarManifestCallback&
     {
         Completion->ExecuteIfBound(false, EmptyManifest, TEXT("request_start_failed"));
     }
+}
+
+void UWMCYNBackendSubsystem::ManageAccountAvatar(bool bDelete, TFunction<void(FString)> Done)
+{
+    if (LoginState != EWMCYNBackendLoginState::Ready || IdToken.IsEmpty())
+    {
+        Done(TEXT("Sign in first."));
+        return;
+    }
+    auto Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(MakeUrl(bDelete ? TEXT("/v1/avatar") : TEXT("/v1/avatar/manifest?platform=ios")));
+    Request->SetVerb(bDelete ? TEXT("DELETE") : TEXT("GET"));
+    Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + IdToken);
+    Request->SetTimeout(25);
+    Request->OnProcessRequestComplete().BindWeakLambda(this,
+        [this, Account = VerifiedUserId, bDelete, Done](FHttpRequestPtr, FHttpResponsePtr Response, bool bOK)
+        {
+            if (Account != VerifiedUserId) { Done(TEXT("Account changed.")); return; }
+            const int32 Code = Response.IsValid() ? Response->GetResponseCode() : 0;
+            TSharedPtr<FJsonObject> Json;
+            bool Value = false;
+            if (!bOK || Code < 200 || Code >= 300 || !ParseJsonObject(Response->GetContentAsString(), Json) ||
+                !Json->TryGetBoolField(bDelete ? TEXT("ok") : TEXT("isDefaultAvatar"), Value))
+                Done(Code == 401 || Code == 403 ? TEXT("Sign out and sign in again, then retry.") : TEXT("Request failed. Check again."));
+            else if (bDelete) Done(Value ? TEXT("Avatar deleted. Rejoin to use the default.") : TEXT("Deletion not confirmed."));
+            else Done(Value ? TEXT("No published mobile avatar.") : TEXT("Published mobile avatar found."));
+        });
+    if (!Request->ProcessRequest()) Done(TEXT("Request could not start."));
 }
 
 void UWMCYNBackendSubsystem::SetBackendBaseUrl(const FString& InBaseUrl)

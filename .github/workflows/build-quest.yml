@@ -87,6 +87,7 @@ jobs:
       - name: Build and cook Quest APK
         shell: powershell
         run: |
+          & "$env:PROJECT_DIR/Tools/Bowling/Sync-PrivateAssets.ps1"
           foreach ($v in 'ANDROID_HOME','JAVA_HOME','NDKROOT','NDK_ROOT') {
             [Environment]::SetEnvironmentVariable($v, [Environment]::GetEnvironmentVariable($v,'User'), 'Process')
           }

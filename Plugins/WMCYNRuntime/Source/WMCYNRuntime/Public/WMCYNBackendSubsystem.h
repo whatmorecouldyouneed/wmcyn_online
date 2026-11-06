@@ -106,6 +106,7 @@ public:
     bool TravelToFirstSignalWorld();
 
     void RequestAvatarManifest(FWMCYNAvatarManifestCallback&& Callback);
+    void ManageAccountAvatar(bool bDelete, TFunction<void(FString)> Done);
 
     UFUNCTION(BlueprintCallable, Category = "WMCYN|Backend")
     void SetBackendBaseUrl(const FString& InBaseUrl);

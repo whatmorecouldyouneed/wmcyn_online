@@ -14,6 +14,8 @@
 #include "Net/UnrealNetwork.h"
 #include "UObject/UnrealType.h"
 #include "WMCYNVideoResolver.h"
+#include "WMCYNVideoPanel.h"
+#include "Engine/StaticMeshActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNVideo, Log, All);
 
@@ -252,7 +254,15 @@ bool AWMCYNVideoChannel::SetupAdapter()
         for (UStaticMeshComponent* Mirror : Mirrors)
         {
             const int32 Slot = Mirror->GetMaterialIndex(MirrorSlot);
-            if (Slot != INDEX_NONE) Mirror->SetMaterial(Slot, Material);
+            if (Slot == INDEX_NONE || !Mirror->GetStaticMesh()) continue;
+            Mirror->SetMaterial(Slot, Material);
+            // The two Aleph booths are instances of the same mesh, not independent players.
+            for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
+            {
+                auto* Other = It->GetStaticMeshComponent();
+                if (Other && Other->GetStaticMesh() == Mirror->GetStaticMesh())
+                    Other->SetMaterial(Slot, Material);
+            }
         }
     }
     TInlineComponentArray<UMediaSoundComponent*> Sounds(SourceScreen);
@@ -278,6 +288,7 @@ bool AWMCYNVideoChannel::ShouldDecode() const
 {
 #if PLATFORM_ANDROID
     // Quest decodes only the nearest playing channel in range, so rooms never stack decoders.
+    if (GetEffectiveUrl().IsEmpty()) return false;
     const APlayerCameraManager* Camera = UGameplayStatics::GetPlayerCameraManager(this, 0);
     if (!Camera) return false;
     const FVector View = Camera->GetCameraLocation();
@@ -286,7 +297,10 @@ bool AWMCYNVideoChannel::ShouldDecode() const
     for (TActorIterator<AWMCYNVideoChannel> It(GetWorld()); It; ++It)
     {
         if (It->GetEffectiveUrl().IsEmpty() || !It->SourceScreen) continue;
-        const double Distance = FVector::DistSquared(View, It->SourceScreen->GetActorLocation());
+        double Distance = FVector::DistSquared(View, It->SourceScreen->GetActorLocation());
+        for (TActorIterator<AWMCYNVideoPanel> Panel(GetWorld()); Panel; ++Panel)
+            if (Panel->Channel == *It && Panel->ActorHasTag(TEXT("DJLaptop")))
+                Distance = FMath::Min(Distance, FVector::DistSquared(View, Panel->GetActorLocation()));
         if (Distance < Best)
         {
             Best = Distance;

@@ -11,6 +11,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
 #include "WMCYNVideoChannel.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 AWMCYNVideoPanel::AWMCYNVideoPanel()
 {
@@ -21,11 +23,13 @@ AWMCYNVideoPanel::AWMCYNVideoPanel()
 
 bool AWMCYNVideoPanel::BindWidget()
 {
+    if (!IsValid(Channel)) return false;
     if (Widget) return true;
     TInlineComponentArray<UWidgetComponent*> Hosts(this);
-    for (const UWidgetComponent* Host : Hosts)
+    UWidgetComponent* Form = nullptr;
+    for (UWidgetComponent* Host : Hosts)
     {
-        if (Host->GetWidget()) Widget = Host->GetWidget();
+        if (Host->GetWidget()) { Widget = Host->GetWidget(); Form = Host; break; }
     }
     if (!Widget || !Channel) return false;
     if (auto* Button = Cast<UButton>(Widget->GetWidgetFromName(TEXT("BTN_Submit"))))
@@ -49,7 +53,36 @@ bool AWMCYNVideoPanel::BindWidget()
 #endif
     }
     if (auto* Label = Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("TXT_Title")))) Label->SetText(Title);
+    if (ActorHasTag(TEXT("DJLaptop"))) InstallLaptopToggle(Form);
     return true;
+}
+
+void AWMCYNVideoPanel::InstallLaptopToggle(UWidgetComponent* Form)
+{
+    // The existing form covers the top 82% only while editing. The strip below it
+    // stays interactive without blocking the booth's video material or its UVs.
+    auto* Strip = NewObject<UWidgetComponent>(this);
+    AddInstanceComponent(Strip);
+    Strip->SetupAttachment(GetRootComponent());
+    Strip->SetRelativeScale3D(Form->GetRelativeScale3D());
+    Strip->SetRelativeLocation(FVector(.1, 0, -530 * Form->GetRelativeScale3D().Z));
+    Strip->SetDrawSize(FVector2D(1400,160));
+    Strip->SetCollisionProfileName(Form->GetCollisionProfileName());
+    Strip->SetCollisionResponseToChannels(Form->GetCollisionResponseToChannels());
+    Strip->RegisterComponent();
+    Strip->SetSlateWidget(SNew(SButton)
+        .HAlign(HAlign_Center).VAlign(VAlign_Center)
+        .OnClicked_Lambda([Form]()
+        {
+            const bool Open = !Form->IsVisible();
+            Form->SetVisibility(Open);
+            Form->SetCollisionEnabled(Open ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+            return FReply::Handled();
+        })
+        [SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold",64))
+            .Text_Lambda([Form](){ return FText::FromString(Form->IsVisible() ? TEXT("Back to video") : TEXT("Edit video link")); })]);
+    Form->SetVisibility(false);
+    Form->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AWMCYNVideoPanel::Tick(const float DeltaSeconds)

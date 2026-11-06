@@ -2,6 +2,8 @@
 #include "WMCYNHighEffectComponent.h"
 
 #include "Components/Button.h"
+#include "Components/VerticalBox.h"
+#include "Components/ScrollBox.h"
 #include "Components/Slider.h"
 #include "Components/Widget.h"
 #include "Kismet/GameplayStatics.h"
@@ -13,6 +15,9 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/TextBlock.h"
+#include "Components/TextRenderComponent.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/Pawn.h"
 #include "WMCYNFirstSignalPresenceComponent.h"
 #include "WMCYNLocalVoiceTalker.h"
 #include "GameFramework/PlayerState.h"
@@ -82,6 +87,34 @@ namespace
 void UWMCYNFirstSignalSettingsWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+    ConfirmDeleteAccount.Reset();
+    if (!AvatarFeedback && SignOutButton)
+    {
+        UPanelWidget* ParentPanel = SignOutButton->GetParent();
+        while (ParentPanel && !ParentPanel->IsA<UVerticalBox>() && !ParentPanel->IsA<UScrollBox>())
+            ParentPanel = ParentPanel->GetParent();
+        if (ParentPanel)
+        {
+            auto AddAction = [&](const TCHAR* Caption)
+            {
+                auto* Button = WidgetTree->ConstructWidget<UButton>();
+                auto* Label = WidgetTree->ConstructWidget<UTextBlock>();
+                Label->SetText(FText::FromString(Caption));
+                Button->SetContent(Label);
+                ParentPanel->AddChild(Button);
+                return Button;
+            };
+            AddAction(TEXT("Check mobile upload"))->OnClicked.AddDynamic(this, &ThisClass::CheckMobileAvatar);
+            AddAction(TEXT("Delete avatar and reset"))->OnClicked.AddDynamic(this, &ThisClass::DeleteMobileAvatar);
+            AvatarFeedback = WidgetTree->ConstructWidget<UTextBlock>();
+            AvatarFeedback->SetAutoWrapText(true);
+            ParentPanel->AddChild(AvatarFeedback);
+            auto* DebugHeading = WidgetTree->ConstructWidget<UTextBlock>();
+            DebugHeading->SetText(FText::FromString(TEXT("Debugging")));
+            ParentPanel->AddChild(DebugHeading);
+            AddAction(TEXT("Toggle headset FPS"))->OnClicked.AddDynamic(this, &ThisClass::ToggleHeadsetFPS);
+        }
+    }
 
     if (RespawnButton)
     {
@@ -121,6 +154,46 @@ void UWMCYNFirstSignalSettingsWidget::NativeConstruct()
     GetWorld()->GetTimerManager().SetTimer(ToolsTimer, this, &ThisClass::RefreshTools, 1.0f, true);
     if (SignOutButton)
         SignOutButton->OnClicked.AddUniqueDynamic(this, &UWMCYNFirstSignalSettingsWidget::HandleSignOutClicked);
+}
+
+void UWMCYNFirstSignalSettingsWidget::ToggleHeadsetFPS()
+{
+    APawn* Pawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    if (!Pawn || !Pawn->IsLocallyControlled()) return;
+    for (auto* Existing : TInlineComponentArray<UTextRenderComponent*>(Pawn))
+        if (Existing->ComponentHasTag(TEXT("WMCYNLocalFPS")))
+        {
+            Pawn->GetWorldTimerManager().ClearAllTimersForObject(Existing);
+            Existing->DestroyComponent();
+            return;
+        }
+    auto* Camera = Pawn->FindComponentByClass<UCameraComponent>();
+    if (!Camera) return;
+    auto* Text = NewObject<UTextRenderComponent>(Pawn);
+    Text->ComponentTags.Add(TEXT("WMCYNLocalFPS"));
+    Text->SetupAttachment(Camera);
+    Text->SetRelativeLocationAndRotation(FVector(100,-24,-14), FRotator(0,180,0));
+    Text->SetWorldSize(2.4f);
+    Text->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Text->SetCastShadow(false);
+    Text->SetOnlyOwnerSee(true);
+    Text->SetHiddenInSceneCapture(true);
+    Text->SetText(FText::FromString(TEXT("FPS ...")));
+    Text->RegisterComponent();
+    FTimerHandle Sample;
+    Pawn->GetWorldTimerManager().SetTimer(Sample, FTimerDelegate::CreateWeakLambda(Text,
+        [Text, Start = FPlatformTime::Seconds(), Frame = uint64(GFrameCounter)]() mutable
+        {
+            const double Now = FPlatformTime::Seconds();
+            const uint64 Current = GFrameCounter;
+            if (Now > Start && Current > Frame)
+            {
+                const double Ms = (Now - Start) * 1000.0 / (Current - Frame);
+                Text->SetText(FText::FromString(FString::Printf(TEXT("%.0f FPS  %.1f ms"),1000.0 / Ms, Ms)));
+            }
+            Start = Now;
+            Frame = Current;
+        }), 0.5f, true);
 }
 
 void UWMCYNFirstSignalSettingsWidget::NativeDestruct()
@@ -254,6 +327,32 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraShotSelectClicked()
     RefreshTools();
 }
 
+void UWMCYNFirstSignalSettingsWidget::CheckMobileAvatar() { RunAvatarAction(false); }
+void UWMCYNFirstSignalSettingsWidget::DeleteMobileAvatar() { RunAvatarAction(true); }
+
+void UWMCYNFirstSignalSettingsWidget::RunAvatarAction(bool bDelete)
+{
+    auto* Backend = GetGameInstance()->GetSubsystem<UWMCYNBackendSubsystem>();
+    if (!Backend || !AvatarFeedback || bAvatarActionPending) return;
+    if (bDelete && !Backend->VerifiedUserId.IsEmpty() &&
+        (ConfirmDeleteAccount != Backend->VerifiedUserId || FPlatformTime::Seconds() > ConfirmDeleteUntil))
+    {
+        ConfirmDeleteAccount = Backend->VerifiedUserId;
+        ConfirmDeleteUntil = FPlatformTime::Seconds() + 10;
+        AvatarFeedback->SetText(FText::FromString(TEXT("Permanently delete your scans and avatar on all devices? Press Delete again within 10 seconds.")));
+        return;
+    }
+    ConfirmDeleteAccount.Reset();
+    bAvatarActionPending = true;
+    AvatarFeedback->SetText(FText::FromString(bDelete ? TEXT("Deleting...") : TEXT("Checking...")));
+    Backend->ManageAccountAvatar(bDelete, [Weak = TWeakObjectPtr<ThisClass>(this)](FString Message)
+    {
+        if (!Weak.IsValid()) return;
+        Weak->bAvatarActionPending = false;
+        if (Weak->AvatarFeedback) Weak->AvatarFeedback->SetText(FText::FromString(Message));
+    });
+}
+
 void UWMCYNFirstSignalSettingsWidget::HandleHighEffectClicked()
 {
     UWMCYNHighEffectComponent::SetEnabledByUser(!UWMCYNHighEffectComponent::IsEnabledByUser());
@@ -264,7 +363,9 @@ void UWMCYNFirstSignalSettingsWidget::HandleCameraOutputClicked()
 {
     if (auto* Tool = ResolveCameraTool())
     {
-        const bool bSuccess = Tool->SetSpectatorOutput(!Tool->IsSpectatorOutputEnabled());
+        const bool bSuccess = (Tool->IsCameraEnabled() || Tool->SetCameraEnabled(true)) &&
+            Tool->SetSpectatorOutput(!Tool->IsSpectatorOutputEnabled());
+        RefreshTools();
         if (CameraStatus) CameraStatus->SetText(FText::FromString(!bSuccess ? TEXT("Output unavailable: enable camera and PCVR") :
             Tool->IsSpectatorOutputEnabled() ? TEXT("Desktop camera feed active; OBS independent") : TEXT("Desktop headset feed restored")));
     }
@@ -330,7 +431,18 @@ void UWMCYNFirstSignalSettingsWidget::RefreshTools()
     }
     if (CameraResetButton) CameraResetButton->SetVisibility(CameraVisibility);
 #if PLATFORM_WINDOWS
-    if (CameraOutputButton) CameraOutputButton->SetVisibility(CameraVisibility);
+    if (CameraOutputButton)
+    {
+        CameraOutputButton->SetVisibility(ESlateVisibility::Visible);
+        UTextBlock* Label = Cast<UTextBlock>(CameraOutputButton->GetContent());
+        if (!Label)
+        {
+            Label = WidgetTree->ConstructWidget<UTextBlock>();
+            CameraOutputButton->SetContent(Label);
+        }
+        Label->SetText(FText::FromString(CameraTool && CameraTool->IsSpectatorOutputEnabled()
+            ? TEXT("Streamer Cam: On") : TEXT("Streamer Cam: Off")));
+    }
 #endif
     if (CameraPreview)
     {

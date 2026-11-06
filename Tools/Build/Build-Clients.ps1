@@ -13,6 +13,7 @@ if (-not $env:GITHUB_WORKSPACE -or -not $root.StartsWith([IO.Path]::GetFullPath(
 }
 if ($PublishRequested -and $Target -eq 'PCVR') { throw 'ALPHA publication requires Quest.' }
 $project = Join-Path $root 'wmcyn_online.uproject'
+& "$root/Tools/Bowling/Sync-PrivateAssets.ps1"
 $uat = 'C:/Program Files/Epic Games/UE_5.8/Engine/Build/BatchFiles/RunUAT.bat'
 if (-not (Test-Path $uat)) { throw 'Matching Launcher UE 5.8 is missing.' }
 $sha = (& git -C $root rev-parse HEAD).Trim()

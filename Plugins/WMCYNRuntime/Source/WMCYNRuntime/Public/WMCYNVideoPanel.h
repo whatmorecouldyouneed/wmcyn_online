@@ -21,6 +21,7 @@ public:
     UPROPERTY(EditAnywhere, Category="WMCYN|Video") FText Title;
 private:
     bool BindWidget();
+    void InstallLaptopToggle(UWidgetComponent* Host);
     void Refresh();
     void Send(const FString& Url, bool bReset);
     UFUNCTION() void HandleSubmit();

@@ -1,5 +1,4 @@
 #include "WMCYNWorldRuntimeSubsystem.h"
-#include "WMCYNAccountAvatarCatalog.h"
 #include "WMCYNIdentityPolicy.h"
 
 #include "Dom/JsonObject.h"
@@ -470,12 +469,6 @@ void UWMCYNWorldRuntimeSubsystem::RequestAccountAvatar(
             {
                 Completion->ExecuteIfBound(false, Manifest, TEXT("manifest_contract_invalid"));
                 return;
-            }
-            if (Manifest.bIsDefaultAvatar &&
-                WMCYNAccountAvatarCatalog::Resolve(RequestedUser, RequestedPlatform, Manifest))
-            {
-                UE_LOG(LogWMCYNWorldRuntime, Display,
-                    TEXT("WMCYN_AVATAR stage=account_catalog result=selected authority=verified_ticket"));
             }
             UE_LOG(LogWMCYNWorldRuntime, Display,
                 TEXT("WMCYN_AVATAR stage=server_manifest result=success source=%s"),

@@ -55,3 +55,8 @@ Config/Android/AndroidEngine.ini
 
 # Worker cooks hold face-derived assets.
 Content/WMCYN/Avatars/Users/
+
+# Locally imported purchased bowling content; distribute cooked builds only.
+/Content/WMCYN/BowlingPrivate/
+/Content/Fab/Generic_Smartphone_-_Game_Ready_PBR_Asset_for_Unreal_Engine_5/
+/Content/Fab/Hanging_Monitor/
