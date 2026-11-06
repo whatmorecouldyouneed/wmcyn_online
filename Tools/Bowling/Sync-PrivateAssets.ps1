@@ -1,7 +1,7 @@
 param([switch]$Seed)
 $ErrorActionPreference = 'Stop'
 $content = Join-Path $PSScriptRoot '../../Content/WMCYN/BowlingPrivate'
-$cache = Join-Path $env:LOCALAPPDATA 'WMCYN/PrivateBowling'
+$cache = Join-Path $env:ProgramData 'WMCYN/PrivateCookAssets'
 foreach ($manifest in @('assets.sha256','fab.sha256')) {
 if ($manifest -eq 'fab.sha256') { $content = Join-Path $PSScriptRoot '../../Content' }
 foreach ($line in Get-Content (Join-Path $PSScriptRoot $manifest)) {
