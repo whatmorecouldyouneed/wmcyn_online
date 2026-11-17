@@ -2,6 +2,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Images/SImage.h"
@@ -12,11 +13,17 @@ AWMCYNInterviewCamera::AWMCYNInterviewCamera()
     bReplicates = false;
     SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("CameraRoot")));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> Shell(TEXT("/Game/Fab/Generic_Smartphone_-_Game_Ready_PBR_Asset_for_Unreal_Engine_5/M_GenericPhone_Body"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> Trim(TEXT("/Game/Fab/Generic_Smartphone_-_Game_Ready_PBR_Asset_for_Unreal_Engine_5/M_GenericPhone_CameraHousing"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> Glass(TEXT("/Game/Fab/Generic_Smartphone_-_Game_Ready_PBR_Asset_for_Unreal_Engine_5/M_GenericPhone_Lens"));
     auto AddBodyPart = [this](const TCHAR* Name, FVector Position, FVector Size)
     {
         auto* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
         Part->SetupAttachment(RootComponent);
         Part->SetStaticMesh(Cube.Object);
+        UMaterialInterface* Material = Part->GetFName() == TEXT("LensGlass") ? Glass.Object :
+            (Part->GetFName() == TEXT("Body") || Part->GetFName() == TEXT("RightGrip") ? Shell.Object : Trim.Object);
+        if (Material) Part->SetMaterial(0, Material);
         Part->SetRelativeLocation(Position);
         Part->SetRelativeScale3D(Size / 100.0);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -61,15 +68,6 @@ AWMCYNInterviewCamera::AWMCYNInterviewCamera()
 
 void AWMCYNInterviewCamera::SetPreview(UTextureRenderTarget2D* Texture)
 {
-    TInlineComponentArray<UStaticMeshComponent*> Parts(this);
-    for (UStaticMeshComponent* Part : Parts)
-    {
-        const FLinearColor Color = Part->GetFName() == TEXT("LensGlass") ? FLinearColor(.025,.16,.2) :
-            Part->GetFName() == TEXT("Shutter") ? FLinearColor(.68,.055,.03) :
-            Part->GetFName() == TEXT("TopPlate") ? FLinearColor(.22,.24,.25) :
-            Part->GetFName() == TEXT("FocusRing") ? FLinearColor(.09,.10,.11) : FLinearColor(.032,.035,.04);
-        Part->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(Color.R,Color.G,Color.B));
-    }
     PreviewBrush.SetResourceObject(Texture);
     PreviewBrush.ImageSize = FVector2D(640,360);
     Display->SetSlateWidget(SNew(SImage).Image(&PreviewBrush).Visibility(EVisibility::HitTestInvisible));

@@ -21,8 +21,8 @@
 DEFINE_LOG_CATEGORY_STATIC(LogWMCYNCamera, Log, All);
 
 static TAutoConsoleVariable<int32> CVarCameraCaptureHeight(
-    TEXT("wmcyn.Camera.CaptureHeight"), 360,
-    TEXT("Local interview capture height: 360, 720 or 1080. Invalid values use 360. Measure GPU cost before recording."));
+    TEXT("wmcyn.Camera.CaptureHeight"), 0,
+    TEXT("0 = automatic (360 preview, 1080 streamer). Override with 360, 720 or 1080."));
 
 UWMCYNCameraToolComponent::UWMCYNCameraToolComponent()
 {
@@ -89,7 +89,8 @@ void UWMCYNCameraToolComponent::UpdateCaptureResolution()
 {
     if (!Target) return;
     const int32 Requested = CVarCameraCaptureHeight.GetValueOnGameThread();
-    const int32 Height = Requested == 720 || Requested == 1080 ? Requested : 360;
+    const int32 Height = Requested == 360 || Requested == 720 || Requested == 1080
+        ? Requested : (bSpectatorOutput ? 1080 : 360);
     const int32 Width = Height * 16 / 9;
     if (Target->SizeX == Width && Target->SizeY == Height) return;
     // Resize the same resource so the menu, prop and spectator keep one feed.
@@ -271,6 +272,7 @@ bool UWMCYNCameraToolComponent::SetSpectatorOutput(bool bEnabled)
         PreviousSpectatorTexture = nullptr;
     }
     bSpectatorOutput = bEnabled;
+    UpdateCaptureResolution();
     return true;
 #else
     return false;
