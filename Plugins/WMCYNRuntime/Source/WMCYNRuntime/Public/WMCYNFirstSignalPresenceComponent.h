@@ -6,6 +6,7 @@
 #include "WMCYNFirstSignalPresenceComponent.generated.h"
 
 class ACharacter;
+class AWMCYNSeat;
 class AWMCYNVideoChannel;
 class AWMCYNJointItem;
 class AWMCYNSessionItem;
@@ -52,6 +53,13 @@ public:
     void RequestItemContact(AWMCYNJointItem* Joint, AWMCYNSessionItem* Other);
     UWMCYNFirstSignalPresenceComponent();
 private:
+    UPROPERTY(Replicated) TObjectPtr<AWMCYNSeat> ActiveSeat;
+    TWeakObjectPtr<AWMCYNSeat> PromptSeat;
+    bool bSeatLabelWasStand = false;
+    bool bSeatTriggerDown = true;
+    double NextSeatScan = 0;
+    void UpdateSeatInput();
+    UFUNCTION(Server, Reliable) void ServerUseSeat(AWMCYNSeat* Seat, bool bStand);
     UPROPERTY(Replicated)
     bool bVerifiedRecordingCapability = false;
 public:

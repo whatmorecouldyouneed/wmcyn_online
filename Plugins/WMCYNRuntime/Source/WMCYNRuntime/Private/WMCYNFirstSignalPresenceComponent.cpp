@@ -1,4 +1,6 @@
 #include "WMCYNFirstSignalPresenceComponent.h"
+#include "WMCYNSeat.h"
+#include "EngineUtils.h"
 #include "WMCYNComfort.h"
 #include "WMCYNKeyboardInteractionComponent.h"
 #include "WMCYNVideoChannel.h"
@@ -250,6 +252,7 @@ void UWMCYNFirstSignalPresenceComponent::TrustOwnerMovementAfter(const float Sec
 
 void UWMCYNFirstSignalPresenceComponent::ApplySmoothTurn(const float Stick)
 {
+    if (ActiveSeat) return;
     AController* Controller = OwnerCharacter ? OwnerCharacter->GetController() : nullptr;
     const UWorld* World = GetWorld();
     if (!Controller || !World)
@@ -918,6 +921,8 @@ void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
         return;
     }
 
+    if (ActiveSeat) { ActiveSeat->Release(OwnerCharacter); ActiveSeat = nullptr; }
+
     TrustOwnerMovementAfter(1.0f);
 
     if (UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement())
@@ -938,6 +943,8 @@ void UWMCYNFirstSignalPresenceComponent::RespawnToPresenceSlot()
 
 void UWMCYNFirstSignalPresenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (ActiveSeat && GetOwner()->HasAuthority()) ActiveSeat->Release(OwnerCharacter);
+    if (PromptSeat.IsValid()) PromptSeat->ShowPrompt(false,false);
     RestoreAvatarSourceTickPolicy();
     if (RuntimeMenuInputComponent.IsValid() && RuntimeMenuInputBindingHandle != INDEX_NONE)
     {
@@ -992,6 +999,7 @@ void UWMCYNFirstSignalPresenceComponent::TickComponent(
         RequestAvatarManifestIfNeeded();
         UpdateWidgetInteractionPresentation();
         UpdateRuntimeMenuInput();
+        UpdateSeatInput();
         CaptureAndSendPose();
     }
     else
@@ -1078,6 +1086,7 @@ void UWMCYNFirstSignalPresenceComponent::GetLifetimeReplicatedProps(TArray<FLife
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, bVerifiedRecordingCapability, COND_OwnerOnly);
+    DOREPLIFETIME(UWMCYNFirstSignalPresenceComponent, ActiveSeat);
 
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedHeadLocation, COND_SkipOwner);
     DOREPLIFETIME_CONDITION(UWMCYNFirstSignalPresenceComponent, ReplicatedHeadRotation, COND_SkipOwner);
@@ -2624,4 +2633,53 @@ bool UWMCYNFirstSignalPresenceComponent::LooksLikeUuid(const FString& Value) con
         ++HexCount;
     }
     return HexCount == 32;
+}
+void UWMCYNFirstSignalPresenceComponent::UpdateSeatInput()
+{
+    auto* PC = Cast<APlayerController>(OwnerCharacter->GetController());
+    if (!PC) return;
+    const bool Held = PC->IsInputKeyDown(FKey(TEXT("OculusTouch_Right_Trigger_Click"))) ||
+        PC->GetInputAnalogKeyState(FKey(TEXT("OculusTouch_Right_Trigger_Axis"))) > 0.5f;
+    const bool Edge = Held && !bSeatTriggerDown;
+    bSeatTriggerDown = Held;
+    auto* Items = OwnerCharacter->FindComponentByClass<UWMCYNItemInteractionComponent>();
+    auto* Pointer = GetPreferredWidgetInteraction();
+    const bool Eligible = bLoginGateCompleted && !bRuntimeMenuVisible &&
+        !(Items && Items->GetHeldItem(true)) && !(Pointer && Pointer->IsOverInteractableWidget());
+    const double Now = GetWorld()->GetTimeSeconds();
+    if (!Eligible || Edge || Now >= NextSeatScan)
+    {
+        AWMCYNSeat* Candidate = Eligible ? ActiveSeat.Get() : nullptr;
+        if (Eligible && !Candidate)
+        {
+            double Best = FMath::Square(135.);
+            for (TActorIterator<AWMCYNSeat> It(GetWorld()); It; ++It)
+            {
+                const double D = FVector::DistSquared(It->GetActorLocation(),OwnerCharacter->GetActorLocation());
+                if (!It->GetOccupant() && D < Best) { Best = D; Candidate = *It; }
+            }
+        }
+        if (PromptSeat.Get() != Candidate || bSeatLabelWasStand != (ActiveSeat != nullptr))
+        {
+            if (PromptSeat.IsValid()) PromptSeat->ShowPrompt(false,false);
+            PromptSeat = Candidate;
+            bSeatLabelWasStand = ActiveSeat != nullptr;
+            if (Candidate) Candidate->ShowPrompt(true,bSeatLabelWasStand);
+        }
+        NextSeatScan = Now + 0.2;
+        if (Edge && Candidate) ServerUseSeat(Candidate,ActiveSeat != nullptr);
+    }
+}
+
+void UWMCYNFirstSignalPresenceComponent::ServerUseSeat_Implementation(AWMCYNSeat* Seat, bool bStand)
+{
+    if (!OwnerCharacter || !IsValid(Seat) || Seat->GetWorld()!=GetWorld()) return;
+    auto* Runtime = GetWorld()->GetGameInstance()->GetSubsystem<UWMCYNWorldRuntimeSubsystem>();
+    if (GetNetMode()!=NM_Standalone && (!Runtime || !Runtime->GetVerifiedIdentity(OwnerCharacter->GetController()))) return;
+    if (bStand)
+    {
+        if (ActiveSeat == Seat && Seat->TryStand(OwnerCharacter)) ActiveSeat = nullptr;
+    }
+    else if (!ActiveSeat && Seat->TrySit(OwnerCharacter)) ActiveSeat = Seat;
+    OwnerCharacter->ForceNetUpdate();
 }
